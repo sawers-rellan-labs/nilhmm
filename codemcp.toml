@@ -1,0 +1,60 @@
+[project]
+name = "nilhmm"
+description = "NIL HMM project for maize genetics analysis"
+
+[commands]
+# Python formatting and linting
+format = "black ."
+lint = "flake8 --max-line-length=88 --extend-ignore=E203,W503 ."
+type-check = "mypy --ignore-missing-imports ."
+
+# Testing
+test = "python -m pytest -v"
+test-coverage = "python -m pytest --cov=. --cov-report=html"
+
+# Git operations
+status = "git status"
+diff = "git diff"
+log = "git log --oneline -10"
+branch = "git branch -a"
+
+# Python environment
+install = "pip install -r requirements.txt"
+install-dev = "pip install -r requirements-dev.txt"
+freeze = "pip freeze > requirements.txt"
+
+# Documentation
+docs = "python -m pydoc -b"
+
+[git]
+auto_commit = true
+commit_message_template = "feat: {summary}"
+branch_protection = ["main", "master"]
+
+[python]
+version = ">=3.8"
+formatter = "black"
+linter = "flake8"
+line_length = 88
+
+[ignore]
+patterns = [
+    "*.pyc",
+    "__pycache__/",
+    "*.pyo",
+    "*.pyd",
+    ".Python",
+    "env/",
+    "venv/",
+    ".venv/",
+    ".env",
+    "dist/",
+    "build/",
+    "*.egg-info/",
+    ".pytest_cache/",
+    ".coverage",
+    "htmlcov/",
+    ".mypy_cache/",
+    ".DS_Store",
+    "*.log"
+]

@@ -1,0 +1,251 @@
+---
+title: "Python HMM for NIL Introgression Calling"
+author: "Maize Genetics Lab"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: flatly
+    highlight: tango
+    code_folding: show
+header-includes: 
+ - \usepackage{tikz}
+ - \usepackage{pgfplots}
+ - \usepackage{tikz}
+ - \usetikzlibrary{arrows}
+ - \usetikzlibrary{arrows.meta}
+ - \usetikzlibrary{positioning}
+ - \usetikzlibrary{calc}
+ - \usetikzlibrary{shapes}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 12, 
+  fig.height = 10.5,  # 150% of original 7 height
+  dpi = 300
+)
+```
+
+## Overview
+
+This document presents the Hidden Markov Model architecture used in the Python implementation for calling introgressions in Near Isogenic Lines (NILs). The model operates on individual SNP positions and incorporates sophisticated genotyping error modeling.
+
+## HMM Architecture Diagram
+
+```{tikz python-hmm-diagram, fig.ext = 'png', echo = FALSE, fig.height=10.5}
+\begin{tikzpicture}[
+   % Define styles
+   hidden/.style={circle, draw=blue!70, fill=blue!20, minimum size=1.6cm, font=\large},
+   obs/.style={rectangle, draw=orange!70, fill=orange!20, minimum size=1.0cm, font=\small},
+   transition/.style={->, >=stealth, thick, blue!70},
+   emission/.style={->, >=stealth, thick, orange!70},
+   self/.style={->, >=stealth, thick, blue!70, loop above, looseness=4},
+   prob/.style={font=\scriptsize, black},
+   label/.style={font=\small\bfseries},
+   param/.style={font=\tiny, blue!60}
+]
+
+% Time labels
+\node[label] at (0, 5.5) {Marker $t-1$};
+\node[label] at (5, 5.5) {Marker $t$};
+\node[label] at (10, 5.5) {Marker $t+1$};
+
+% Hidden states
+\node[hidden] (s1) at (0, 3.5) {$S_{t-1}$};
+\node[hidden] (s2) at (5, 3.5) {$S_t$};
+\node[hidden] (s3) at (10, 3.5) {$S_{t+1}$};
+
+% State labels
+\node[param] at (0, 2.8) {0: B73};
+\node[param] at (0, 2.6) {1: Het};
+\node[param] at (0, 2.4) {2: Donor};
+
+% Observations
+\node[obs] (o1_0) at (-1, 0.8) {0};
+\node[obs] (o1_1) at (-0.3, 0.8) {1};
+\node[obs] (o1_2) at (0.3, 0.8) {2};
+\node[obs] (o1_3) at (1, 0.8) {3};
+
+\node[obs] (o2_0) at (4, 0.8) {0};
+\node[obs] (o2_1) at (4.7, 0.8) {1};
+\node[obs] (o2_2) at (5.3, 0.8) {2};
+\node[obs] (o2_3) at (6, 0.8) {3};
+
+\node[obs] (o3_0) at (9, 0.8) {0};
+\node[obs] (o3_1) at (9.7, 0.8) {1};
+\node[obs] (o3_2) at (10.3, 0.8) {2};
+\node[obs] (o3_3) at (11, 0.8) {3};
+
+% Observation labels
+\node[param] at (0, 0.2) {0: Maj/Maj, 1: Maj/Min};
+\node[param] at (0, 0.0) {2: Min/Min, 3: Missing};
+
+% Transitions between hidden states
+\draw[transition] (s1) -- node[prob, above] {$P(S_t|S_{t-1})$} (s2);
+\draw[transition] (s2) -- node[prob, above] {$P(S_{t+1}|S_t)$} (s3);
+
+% Self-transitions with recombination-based probabilities
+\draw[self] (s1) to node[prob, above=0.3cm] {$1-r$} (s1);
+\draw[self] (s2) to node[prob, above=0.3cm] {$1-r$} (s2);
+\draw[self] (s3) to node[prob, above=0.3cm] {$1-r$} (s3);
+
+% Cross-transitions (simplified representation)
+\draw[transition, bend left=30] (s1) to node[prob, above left] {$r \cdot p_{01}$} (s2);
+\draw[transition, bend right=30] (s1) to node[prob, below left] {$r \cdot p_{02}$} (s2);
+
+% Emissions (showing complexity with multiple observation types)
+\draw[emission] (s1) -- (o1_0);
+\draw[emission] (s1) -- (o1_1);
+\draw[emission] (s1) -- (o1_2);
+\draw[emission] (s1) -- (o1_3);
+
+\draw[emission] (s2) -- (o2_0);
+\draw[emission] (s2) -- (o2_1);
+\draw[emission] (s2) -- (o2_2);
+\draw[emission] (s2) -- (o2_3);
+
+\draw[emission] (s3) -- (o3_0);
+\draw[emission] (s3) -- (o3_1);
+\draw[emission] (s3) -- (o3_2);
+\draw[emission] (s3) -- (o3_3);
+
+% Initial state probabilities
+\node[param] at (-2.5, 3.5) {\textbf{Initial:}};
+\draw[transition] (-2, 3.5) -- node[prob, above] {$\pi_i$} (s1);
+
+% Parameter definitions box (50% reduced interline spacing)
+\node[draw, rectangle, align=left, font=\tiny, minimum height=5.5cm] at (13.5, 6.5) {
+   \textbf{Hidden States:} \\[0.15cm]
+   0: B73 homozygote ($f_0 = 1-f_1-f_2$) \\[0.1cm]
+   1: Heterozygote ($f_1$) \\[0.1cm]
+   2: Donor homozygote ($f_2$) \\[0.25cm]
+   \textbf{Observations:} \\[0.15cm]
+   0: Minor allele count = 0 \\[0.1cm]
+   1: Minor allele count = 1 \\[0.1cm]
+   2: Minor allele count = 2 \\[0.1cm]
+   3: Missing data \\[0.25cm]
+   \textbf{Key Parameters:} \\[0.15cm]
+   $r$: recombination rate \\[0.075cm]
+   $nir$: non-informative rate \\[0.075cm]
+   $germ$: error rate (homozygotes) \\[0.075cm]
+   $gert$: error rate (heterozygotes) \\[0.075cm]
+   $p$: proportion of errors $\rightarrow$ het \\[0.075cm]
+   $mr$: missing rate
+};
+
+% Transition probability details (50% reduced interline spacing)
+\node[draw, rectangle, align=left, font=\tiny, minimum height=3.8cm] at (13.5, 1.2) {
+   \textbf{Transition Probabilities:} \\[0.15cm]
+   $p_{00} = 1-r$ \\[0.075cm]
+   $p_{01} = r \cdot \frac{f_1}{f_1+f_2}$ \\[0.075cm]
+   $p_{02} = r \cdot \frac{f_2}{f_1+f_2}$ \\[0.075cm]
+   $p_{10} = r \cdot \frac{f_0}{f_0+f_2}$ \\[0.075cm]
+   $p_{11} = 1-r$ \\[0.075cm]
+   $p_{12} = r \cdot \frac{f_2}{f_0+f_2}$ \\[0.075cm]
+   $p_{20} = r \cdot \frac{f_0}{f_0+f_1}$ \\[0.075cm]
+   $p_{21} = r \cdot \frac{f_1}{f_0+f_1}$ \\[0.075cm]
+   $p_{22} = 1-r$
+};
+
+% Title
+\node[label] at (5, 8.5) {\Large Python HMM for NIL Introgression Calling};
+\node[param] at (5, 8.0) {(Individual SNP positions with genotyping error modeling)};
+\end{tikzpicture}
+```
+
+## Key Differences from R Implementation
+
+### 1. **Granularity**
+- **Python**: Works on individual SNP positions
+- **R**: Works on binned genotype data (1Mb bins)
+
+### 2. **Error Modeling** 
+- **Python**: Explicit modeling of genotyping errors with multiple parameters
+- **R**: Simplified emission probabilities for clustered data
+
+### 3. **Transition Complexity**
+- **Python**: Recombination-based transitions weighted by state frequencies
+- **R**: Simple high/low probability transitions for genomic continuity
+
+### 4. **Missing Data**
+- **Python**: Explicit missing data state (observation 3)
+- **R**: Missing values handled during preprocessing
+
+### 5. **Emission Matrix Structure**
+
+**Python (3×4 matrix):**
+```
+State 0 (B73):    [(1-germ)(1-mr), p*germ*(1-mr), (1-p)*germ*(1-mr), mr]
+State 1 (Het):    [complex formula involving nir, gert, germ]  
+State 2 (Donor):  [complex formula involving nir, germ]
+```
+
+**R (3×3 matrix):**
+```
+REF state:  [0.9, 0.08, 0.02]
+HET state:  [0.1, 0.8,  0.1 ]  
+ALT state:  [0.02, 0.08, 0.9]
+```
+
+### 6. **Biological Assumptions**
+- **Python**: Minor alleles assumed to be donor-derived
+- **R**: Uses breeding scheme expectations (BC2S3) for priors
+
+## Mathematical Formulation
+
+### Transition Probabilities
+The Python implementation uses genetics-based transition probabilities:
+
+- **No recombination**: $P(S_t = i | S_{t-1} = i) = 1-r$
+- **Recombination to heterozygote**: $P(S_t = 1 | S_{t-1} = 0) = r \cdot \frac{f_1}{f_1+f_2}$
+- **Recombination to donor**: $P(S_t = 2 | S_{t-1} = 0) = r \cdot \frac{f_2}{f_1+f_2}$
+
+### Emission Probabilities
+Complex formulas incorporating:
+- Genotyping error rates (`germ`, `gert`)
+- Non-informative marker rate (`nir`) 
+- Missing data rate (`mr`)
+- Error type proportions (`p`)
+
+This creates a more sophisticated error model compared to the R implementation's empirical emission probabilities.
+
+### Key Model Parameters
+
+```{r parameter-table, echo=FALSE}
+library(knitr)
+
+params <- data.frame(
+  Parameter = c("r", "nir", "germ", "gert", "p", "mr", "f_0", "f_1", "f_2"),
+  Description = c(
+    "Recombination rate between adjacent markers",
+    "Non-informative marker rate", 
+    "SNP calling error rate on true homozygotes",
+    "SNP calling error rate on true heterozygotes",
+    "Proportion of homozygous errors resulting in heterozygous calls",
+    "Missing genotype call rate",
+    "Expected frequency of recurrent parent homozygotes",
+    "Expected frequency of heterozygotes", 
+    "Expected frequency of donor homozygotes"
+  ),
+  Type = c("Genetic", "Technical", "Technical", "Technical", "Technical", "Technical", 
+           "Population", "Population", "Population")
+)
+
+kable(params, caption = "HMM Parameters and Their Biological Interpretation")
+```
+
+## Implementation Comparison
+
+The Python HMM represents a more sophisticated approach to introgression calling compared to the R binned method:
+
+1. **Higher Resolution**: Individual SNPs vs 1Mb bins
+2. **Explicit Error Modeling**: Detailed genotyping error parameters
+3. **Missing Data Handling**: Dedicated missing state in emission matrix
+4. **Genetics-Based Transitions**: Recombination probabilities weighted by state frequencies
+
+However, both approaches successfully leverage Hidden Markov Models to enforce biological constraints and reduce noise in ancestry inference for maize introgression lines.
