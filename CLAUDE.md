@@ -35,9 +35,28 @@ Main command-line interface that:
 - Calls `call_intros()` function with user-specified parameters
 - Outputs multiple file formats for downstream analysis
 
-### Parameter Optimization (`File_S14.Step_2_nNIL_introgression_calls_from_chip_data.py`)
+### Python Package Structure
 
-Grid search implementation for parameter tuning using high-quality chip data as ground truth. Demonstrates the full parameter optimization workflow.
+The main implementation is organized as a Python package in `nilhmm/`:
+- `nilhmm/core.py`: Core HMM algorithms and state inference
+- `nilhmm/io.py`: VCF file parsing and data input/output utilities
+- `nilhmm/utils.py`: Helper functions and data validation
+- `nilhmm/grid_search.py`: Parameter optimization routines
+
+Additional scripts in `scripts/`:
+- `scripts/call_bzea_introgressions.py`: Command-line interface for introgression calling
+- `scripts/parameter_tuning.py`: Grid search parameter optimization
+- `scripts/preprocess_vcf.py`: VCF preprocessing utilities
+
+### Documentation
+
+Comprehensive documentation is available in `docs/`:
+- `docs/README.md`: Detailed project documentation
+- `docs/jim_hmm_diagram.Rmd`: R Markdown file for HMM architecture diagrams
+- `docs/package_structure.md`: Package organization and design decisions
+
+Additional documentation includes:
+- `python_hmm_diagram.Rmd`: Python HMM implementation details and comparison with R version
 
 ## Key Parameters
 
@@ -64,21 +83,34 @@ The HMM uses 8 critical parameters that must be carefully tuned:
 
 ### Running the Main Pipeline
 ```bash
-# Basic usage
+# Basic usage (using package script)
+python scripts/call_bzea_introgressions.py input_data.vcf
+
+# Or using standalone script
 python bzea_vcf_introgression_caller.py input_data.vcf
 
 # With custom parameters
-python bzea_vcf_introgression_caller.py input_data.vcf \
+python scripts/call_bzea_introgressions.py input_data.vcf \
     --nir 0.01 --germ 0.05 --gert 0.10 --p 0.5 --mr 0.15 --r 0.01
 
 # With custom output prefix
-python bzea_vcf_introgression_caller.py input_data.vcf -o custom_results
+python scripts/call_bzea_introgressions.py input_data.vcf -o custom_results
 ```
 
-### Dependencies
-Install required packages:
+### Environment Setup
 ```bash
-pip install numpy pandas hmmlearn argparse pathlib
+# Create conda environment
+conda env create -f envs/nilhmm.yml
+conda activate nilhmm
+
+# Or install via pip
+pip install -r requirements.txt
+```
+
+### Package Installation
+```bash
+# Install in development mode
+pip install -e .
 ```
 
 ### Testing Data Format
@@ -123,3 +155,24 @@ When extending this codebase:
 - Parameter values significantly impact results - use grid search for optimization
 - All genotype matrices use samples as rows, markers as columns
 - The `marker_dict` maps chromosome numbers to column indices in the genotype matrix
+
+## Project Configuration
+
+The project uses `codemcp.toml` for configuration management, which defines:
+- Code formatting and linting standards (black, flake8, mypy)
+- Testing commands (pytest with coverage)
+- Git automation settings
+- Python version requirements
+- File ignore patterns
+
+Run common commands via codemcp:
+```bash
+# Format code
+codemcp format
+
+# Run tests with coverage
+codemcp test-coverage
+
+# Lint code
+codemcp lint
+```
