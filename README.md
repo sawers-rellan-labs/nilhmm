@@ -9,6 +9,12 @@ This repository implements a sophisticated Hidden Markov Model (HMM) approach fo
 
 The HMM operates at individual SNP resolution and incorporates detailed genotyping error modeling, making it well-suited for low-coverage sequencing data (0.8× coverage) where genotype calling uncertainty is significant.
 
+Based upon original  Jim Holland's code:
+
+repo: https://github.com/ncsumaize/nNIL
+
+preprint: https://www.biorxiv.org/content/10.1101/2025.01.29.635337v1
+
 ## Key Features
 
 - **High-resolution analysis**: Works on individual SNP positions rather than binned data
