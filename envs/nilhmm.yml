@@ -1,0 +1,54 @@
+name: nilhmm
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  # Core Python environment
+  - conda-forge::python=3.11.12
+
+  # Core scientific computing
+  - conda-forge::numpy=1.24.0
+  - conda-forge::pandas=2.0.0
+  - conda-forge::scipy=1.10.0
+
+  # Machine learning and HMM
+  - conda-forge::scikit-learn=1.3.0
+  - conda-forge::hmmlearn=0.3.0
+
+  # Genomics file handling
+  - bioconda::pysam=0.21.0
+  - bioconda::cyvcf2=0.30.0
+  - bioconda::bcftools=1.18
+  - bioconda::tabix=1.11
+
+  # Data visualization
+  - conda-forge::matplotlib=3.7.0
+  - conda-forge::seaborn=0.12.0
+
+  # Development and testing
+  - conda-forge::pytest=7.4.0
+  - conda-forge::pytest-cov=4.1.0
+  - conda-forge::black=23.0.0
+  - conda-forge::flake8=6.0.0
+  - conda-forge::mypy=1.5.0
+
+  # Documentation
+  - conda-forge::sphinx=7.1.0
+  - conda-forge::sphinx_rtd_theme=1.3.0
+
+  # Parallel processing for LSF clusters
+  - conda-forge::joblib=1.3.0
+  - conda-forge::dask=2023.8.0
+
+  # File manipulation and compression
+  - conda-forge::pigz=2.8
+
+  # Optional: R integration (if you want to compare with R HMM results)
+  - conda-forge::r-base=4.3.0
+  - conda-forge::r-hmm=1.0
+  - conda-forge::rpy2=3.5.0
+
+  # Pip dependencies not available in conda
+  - pip
+  - pip:
+    - types-setuptools  # For mypy type checking
