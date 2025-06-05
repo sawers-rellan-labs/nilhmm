@@ -1,4 +1,4 @@
-# NILHMM Documentation
+# `nilhmm` Documentation
 
 ## Mathematical Framework
 
