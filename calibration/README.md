@@ -16,7 +16,9 @@ installable package.
 | `ks_sweep_nilhmm_zh.py` | r sweep on Zh, KS vs BC2S2 sim donor-block sizes; B73 guard |
 | `err_sweep_zh.py` | emission `err` sweep at the best r (segment-size vs HET:ALT tradeoff) |
 | `ks_sweep_nilhmm_taxa.py` | per-taxon r sweeps (Zx/Zv/Zd/Zl); writes per-taxon CSVs + summary |
+| `stage_nilhmm_calls.py` | Phase 3: run each taxon at its calibrated r, RLE → common segment schema |
 | `Zh_calibrated_params.csv` | calibrated Zh parameters (r=3e-5, err=0.01, conc=20, BC2S2 freqs; KS D=0.043) |
+| `calibrated_params_all_taxa.csv` | per-taxon calibrated parameters (all 5 taxa) |
 
 Run (from the zealtiger project root, in the `nilhmm` conda env):
 
