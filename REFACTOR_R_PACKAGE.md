@@ -166,17 +166,27 @@ answers the science now (independent of the refactor); produces a BRB regression
    tie-breaking differ across languages; same bar as the counts-optimization element-wise check
    in `Implementation.md`).
 
-## 10. Open items the BRB run should settle (feed into the engine API)
+## 10. Open items — BRB run settled some of these (2026-06-26, see `BRB_run_findings.md`)
 
-- **`conc` as a fit parameter** — a near-no-op on skim (depth 1) but real at depth >1; the BRB
-  calibration will show whether the engine needs `conc` fit per group or fixed.
-- **BC2S3 design-preset values** — confirm `g, f_1, f_2`, and the fitted BC2S3 Gamma for
-  `breeding_designs`.
-- **Map-aware (position-dependent) transitions** — whether to add to the duration layer. The real
-  gain is map-awareness (cM→Mb / LogNormal), not the small cM-Gamma shape (`k≈1.15`); decide
-  during BRB whether per-marker `c_m` in the transition is worth it.
-- **GT path resurrection** — MolBreeding (saturated) is the dataset that exercises the `gt`
-  emission skim couldn't; plan a consistency check (gt vs count on MolBreeding's real depths).
+- **Emission means must be FITTABLE, not fixed** — **(SETTLED by BRB; new requirement).** The BRB
+  run showed nilHMM collapses ALT→HET (ALT mean 0.0003) because BRB donor signal reads at
+  alt-fraction ~0.5 (median 0.500 among alt-bearing markers — reference-mapping bias and/or het),
+  which the fixed `θ_ALT = 1−err = 0.99` cannot represent. RTIGER recovers ALT (0.081) via EM-fit
+  emissions. → the engine needs **EM-fit or reference-bias-corrected emission means**, not the
+  fixed `[err, 0.5, 1−err]`, for RNA / ref-biased data.
+- **`conc` is a near-no-op — (SETTLED, was the wrong suspect).** Probed `conc ∈ {3,8,20,50}` on BRB:
+  ALT stays ≈0, donor_frac ~0.05 throughout. Overdispersion is not the knob; the emission *mean*
+  mismatch dominates. The earlier "calibrate conc at depth>1" guess is superseded.
+- **Per-platform calibration objective** — **(SETTLED: KS-on-block-size is insufficient for BRB).**
+  The `r` sweep rails to the rigid grid edge because donor *rate* is r-invariant (set by
+  prior+emission); KS-on-donor-block-size assumes the caller detects the sim footprint, which
+  nilHMM doesn't on BRB. Need a rate/footprint-aware objective, or fix the emission first.
+- **BC2S3 design-preset values** — confirm `g, f_1, f_2` (used: 0.0312/0.1094), and the fitted
+  BC2S3 Gamma for `breeding_designs`.
+- **Map-aware (position-dependent) transitions** — still open. The real gain is map-awareness
+  (cM→Mb / LogNormal), not the small cM-Gamma shape (`k≈1.15`).
+- **GT path resurrection** — MolBreeding (saturated) is the dataset that exercises the `gt` emission
+  skim couldn't; plan a consistency check (gt vs count on MolBreeding's real depths).
 
 ## 11. References
 
