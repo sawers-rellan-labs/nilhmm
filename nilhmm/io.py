@@ -139,6 +139,106 @@ def read_vcf(
     return geno_matrix, marker_dict, sample_names, marker_df
 
 
+def read_vcf_counts(
+    vcf_file: str,
+    chromosomes: Optional[List[int]] = None
+) -> Tuple[np.ndarray, np.ndarray, Dict[int, List[int]], List[str], pd.DataFrame]:
+    """
+    Read allelic depths (FORMAT/AD) from a VCF into ref/alt count matrices.
+
+    This is the count-based counterpart to ``read_vcf`` for low-coverage data
+    (e.g. ~0.4x skim) where the per-site GT is mostly missing / het-invisible,
+    but the HMM can still pool single-read AD observations across a segment.
+
+    Only biallelic records are used (AD = "ref,alt"); multiallelic/non-AD or
+    missing fields contribute zero depth (uninformative). The marker layout
+    (marker_dict / marker_info / sample order) matches ``read_vcf``.
+
+    Returns:
+    --------
+    Tuple of:
+        - ref_counts : np.ndarray (samples x markers), int
+        - alt_counts : np.ndarray (samples x markers), int
+        - marker_dict : Dict[int, List[int]]  (chrom -> global marker indices)
+        - sample_names : List[str]
+        - marker_info : pd.DataFrame
+    """
+    if chromosomes is None:
+        chromosomes = list(range(1, 11))
+
+    sample_names = parse_vcf_header(vcf_file)
+    ref_rows: List[List[int]] = []
+    alt_rows: List[List[int]] = []
+    marker_info = []
+
+    opener = gzip.open if vcf_file.endswith('.gz') else open
+    mode = 'rt' if vcf_file.endswith('.gz') else 'r'
+
+    logging.info(f"Reading VCF (AD counts): {vcf_file}")
+    logging.info(f"Found {len(sample_names)} samples")
+
+    with opener(vcf_file, mode) as f:
+        for line_num, line in enumerate(f, 1):
+            if line.startswith('#'):
+                continue
+
+            fields = line.rstrip('\n').split('\t')
+            chrom, pos, marker_id, ref, alt = fields[0], int(fields[1]), fields[2], fields[3], fields[4]
+
+            # biallelic only (AD parsing assumes a single ALT)
+            if ',' in alt:
+                continue
+            try:
+                chrom_num = int(chrom.replace('chr', ''))
+                if chrom_num not in chromosomes:
+                    continue
+            except ValueError:
+                continue
+
+            format_field = fields[8].split(':')
+            try:
+                ad_index = format_field.index('AD')
+            except ValueError:
+                continue  # no AD at this site
+
+            marker_info.append({'CHROM': chrom_num, 'POS': pos, 'ID': marker_id,
+                                'REF': ref, 'ALT': alt})
+
+            ref_row, alt_row = [], []
+            for sample_field in fields[9:]:
+                parts = sample_field.split(':')
+                rc = ac = 0
+                if ad_index < len(parts):
+                    ad = parts[ad_index]
+                    if ad not in ('.', './.', ''):
+                        toks = ad.split(',')
+                        try:
+                            rc = int(toks[0]); ac = int(toks[1])
+                        except (ValueError, IndexError):
+                            rc = ac = 0
+                ref_row.append(rc)
+                alt_row.append(ac)
+            ref_rows.append(ref_row)
+            alt_rows.append(alt_row)
+
+            if line_num % 10000 == 0:
+                logging.info(f"Processed {line_num} variants...")
+
+    ref_counts = np.array(ref_rows, dtype=int).T
+    alt_counts = np.array(alt_rows, dtype=int).T
+    marker_df = pd.DataFrame(marker_info)
+
+    logging.info(f"Count matrices shape: {ref_counts.shape} (samples x markers)")
+
+    marker_dict = {}
+    for chrom in chromosomes:
+        chrom_indices = marker_df.index[marker_df['CHROM'] == chrom].tolist()
+        marker_dict[chrom] = chrom_indices
+        logging.info(f"Chromosome {chrom}: {len(chrom_indices)} markers")
+
+    return ref_counts, alt_counts, marker_dict, sample_names, marker_df
+
+
 def write_results(results: Dict, output_prefix: str) -> None:
     """
     Write introgression calling results to files.

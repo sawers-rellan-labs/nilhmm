@@ -99,9 +99,12 @@ def introgression_hmm(
     model.transmat_ = tmat
     model.emissionprob_ = emimat
 
-    # Process each chromosome
+    # Process each chromosome present in the marker map (sorted for stable
+    # ordering). Avoids assuming all 10 maize chromosomes are present, e.g.
+    # for subset/filtered VCFs or test fixtures.
+    chroms = sorted(marker_dict.keys())
     results = {}
-    for chrom in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
+    for chrom in chroms:
         results[chrom] = []
         geno_current_chr = geno[:, marker_dict[chrom]]
 
@@ -114,7 +117,7 @@ def introgression_hmm(
 
     # Pack results back into single array
     results_by_chrom = {}
-    for chrom in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
+    for chrom in chroms:
         results_by_chrom[chrom] = np.concatenate(results[chrom], axis=0)
 
     # Merge chromosomes into one array
@@ -124,6 +127,146 @@ def introgression_hmm(
         return nil_calls
 
     return None
+
+
+def _build_transition(r: float, f_1: float, f_2: float) -> Tuple[np.ndarray, np.ndarray]:
+    """Build (startprob, transmat) from recombination r and state freqs.
+
+    Identical parameterization to ``introgression_hmm`` so the count-based and
+    GT-based callers share the same transition/init structure.
+    """
+    f_0 = 1 - f_1 - f_2
+    p01 = r * (f_1 / (f_1 + f_2)); p02 = r * (f_2 / (f_1 + f_2))
+    p10 = r * f_0 / (f_0 + f_2);   p12 = r * f_2 / (f_0 + f_2)
+    p20 = r * f_0 / (f_0 + f_1);   p21 = r * f_1 / (f_0 + f_1)
+    tmat = np.array([
+        [1 - r, p01,   p02],
+        [p10,   1 - r, p12],
+        [p20,   p21,   1 - r],
+    ])
+    startprob = np.array([f_0, f_1, f_2])
+    return startprob, tmat
+
+
+def _log_viterbi(log_startprob: np.ndarray, log_transmat: np.ndarray,
+                 log_emission: np.ndarray) -> np.ndarray:
+    """Standard log-space Viterbi. log_emission: (T, K). Returns path (T,)."""
+    T, K = log_emission.shape
+    delta = np.empty((T, K))
+    psi = np.empty((T, K), dtype=int)
+    delta[0] = log_startprob + log_emission[0]
+    for t in range(1, T):
+        scores = delta[t - 1][:, None] + log_transmat   # (i -> j)
+        psi[t] = np.argmax(scores, axis=0)
+        delta[t] = scores[psi[t], np.arange(K)] + log_emission[t]
+    path = np.empty(T, dtype=int)
+    path[-1] = int(np.argmax(delta[-1]))
+    for t in range(T - 2, -1, -1):
+        path[t] = psi[t + 1, path[t + 1]]
+    return path
+
+
+def introgression_hmm_counts(
+    ref: np.ndarray,
+    alt: np.ndarray,
+    marker_dict: Dict[int, List[int]],
+    err: float = 0.01,
+    conc: float = 20.0,
+    r: float = 0.01,
+    f_1: float = 0.0625,
+    f_2: float = 0.0938,
+    return_calls: bool = True,
+) -> Optional[np.ndarray]:
+    """
+    Call introgressions from allelic depth (ref/alt) counts via a beta-binomial
+    emission HMM. Designed for low-coverage data where per-site GT is
+    uninformative but the HMM pools single-read observations along a segment.
+
+    States 0/1/2 = B73-hom / het / donor-hom, with expected alt fractions
+    theta = [err, 0.5, 1-err]. Emission for marker i, state s is
+    BetaBinomial(alt_i | n_i, theta_s*conc, (1-theta_s)*conc); markers with zero
+    depth contribute a flat (uninformative) emission. ``conc`` controls
+    overdispersion (conc -> inf approaches a Binomial). Transition/init reuse the
+    same r / f_1 / f_2 parameterization as the GT caller.
+    """
+    Implementation note: emissions are precomputed into a (n, a) lookup table and
+    the Viterbi is batched across all samples of a chromosome (vectorized over the
+    sample axis), so cost scales with markers, not samples x markers — needed for
+    the larger taxa (Zx ~580). Equivalent to the per-sample formulation; the depth-0
+    site maps to BetaBinomial(0|0,.)=1 (log 0), i.e. a flat/uninformative emission.
+    """
+    from scipy.stats import betabinom
+
+    startprob, tmat = _build_transition(r, f_1, f_2)
+    log_start = np.log(startprob)
+    log_trans = np.log(tmat)
+
+    theta = np.array([err, 0.5, 1.0 - err])
+    a_s = theta * conc
+    b_s = (1.0 - theta) * conc
+
+    n_samples, n_markers = ref.shape
+    total = ref + alt
+
+    # log-emission lookup table[n, a, state]; depth ~1 means very few distinct (n,a)
+    nmax = int(total.max()) if total.size else 0
+    table = np.zeros((nmax + 1, nmax + 1, 3))
+    for nn in range(nmax + 1):
+        aa = np.arange(nn + 1)
+        for s in range(3):
+            table[nn, aa, s] = betabinom.logpmf(aa, nn, a_s[s], b_s[s])
+
+    calls = np.zeros((n_samples, n_markers), dtype=np.int8)
+    chroms = sorted(marker_dict.keys())
+    for chrom in chroms:
+        idx = np.asarray(marker_dict[chrom])
+        if idx.size == 0:
+            continue
+        logging.info(f"Processing chromosome {chrom} ({idx.size} markers)")
+        E = table[total[:, idx], alt[:, idx]]      # (S, T, 3)
+        S, T = E.shape[0], E.shape[1]
+
+        delta = log_start[None, :] + E[:, 0, :]    # (S, 3)
+        psi = np.empty((T, S, 3), dtype=np.int8)
+        for t in range(1, T):
+            scores = delta[:, :, None] + log_trans[None, :, :]   # (S, prev, cur)
+            best = np.argmax(scores, axis=1)                     # (S, cur)
+            psi[t] = best
+            delta = np.take_along_axis(scores, best[:, None, :], axis=1)[:, 0, :] + E[:, t, :]
+
+        path = np.empty((T, S), dtype=np.int8)
+        path[T - 1] = np.argmax(delta, axis=1)
+        for t in range(T - 2, -1, -1):
+            path[t] = np.take_along_axis(psi[t + 1], path[t + 1][:, None], axis=1)[:, 0]
+        calls[:, idx] = path.T
+
+    if return_calls:
+        return calls.astype(int)
+    return None
+
+
+def call_introgressions_counts(
+    vcf_file: str,
+    output_prefix: str = "introgressions",
+    **hmm_params,
+) -> Dict:
+    """Call introgressions from VCF FORMAT/AD counts and write standard outputs."""
+    from .io import read_vcf_counts, write_results
+
+    logging.info(f"Reading VCF (AD counts): {vcf_file}")
+    ref, alt, marker_dict, sample_names, marker_info = read_vcf_counts(vcf_file)
+
+    defaults = {"err": 0.01, "conc": 20.0, "r": 0.01, "f_1": 0.0625, "f_2": 0.0938}
+    params = {**defaults, **hmm_params}
+    logging.info(f"Using count-HMM parameters: {params}")
+
+    calls = introgression_hmm_counts(ref=ref, alt=alt, marker_dict=marker_dict, **params)
+
+    results = {"calls": calls, "sample_names": sample_names,
+               "marker_info": marker_info, "parameters": params}
+    write_results(results, output_prefix)
+    logging.info(f"Analysis complete. Results saved with prefix: {output_prefix}")
+    return results
 
 
 def call_introgressions(
