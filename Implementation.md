@@ -250,6 +250,40 @@ rows) and index back via the inverse map. That keeps the dedup speedup, drops th
 memory, and degrades gracefully at any depth. And **verify it reproduces D=0.043 + passes pytest
 before committing.**
 
+### 7.1 Relation to RTIGER's `getlogpsi` (same computation, opposite coverage regime)
+
+This is **not a new idea** — it is exactly the structure RTIGER already uses. RTIGER fits a
+BetaBinomial-HMM whose cost scales with the **number of distinct `(n, k)` = (total depth,
+alt count) pairs, not the marker count**, and it memoizes the BetaBinomial over those distinct
+pairs:
+
+- **`getlogpsi`** (E-step) — memoized BetaBinomial log-pdf over the distinct `(n, k)` pairs.
+  This is the direct analog of our emission lookup table.
+- **`emissionUpdateState`** (M-step) — re-optimizes the dispersion τ by summing over the distinct
+  pairs, **per state, every EM iteration**.
+
+The difference is which end of the same `cost ∝ distinct pairs ∝ coverage` curve each sits on:
+
+| | RTIGER runs (seqcapture/GBTS) | nilHMM-counts (skim) |
+|---|---|---|
+| coverage | ~110× | ~1× (mean 1.25) |
+| distinct `(n,k)` pairs | 7,555 @110× → 817 @30× → 66 @3× | **77** (Zh) |
+| fit time | 240 s @110×, 18 s @30× | ~15 s (one Viterbi pass) |
+| problem | too **many** pairs | none — already minimal |
+| fix | **downsample / cap to ~20–30×** | nothing needed (already ≪ 20×) |
+
+So the lab's RTIGER **20× cap** and this document's **lookup table** are two responses to the
+*same* fact. RTIGER had too much coverage and capped it down to bound the pair count; skim is
+~1×, so the pair count is tiny and the memoization is essentially free.
+
+**One structural difference:** RTIGER runs full **EM**, so it pays the distinct-pairs sum in
+*both* the E-step (`getlogpsi`) and the M-step (`emissionUpdateState`, every iteration × per
+state) — which is the larger reason high coverage hurt it. nilHMM-counts here uses **fixed
+emissions** (θ=[err,0.5,1−err], fixed `conc`) and a **single Viterbi pass — no M-step**, so it
+pays the emission evaluation only once. If nilHMM-counts is ever fed deeper-than-skim data, the
+same cap logic applies, and per the lab's architecture rule the thinning belongs in the **caller**
+(zealtiger), not in this package. See the `zealtiger` memory `rtiger-betabinomial-cost`.
+
 ---
 
 ## 8. What's done vs. next
