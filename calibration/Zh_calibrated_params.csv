@@ -1,0 +1,2 @@
+taxon,r,err,conc,f_1,f_2,KS_D,median_block_mb,sim_median_mb,donor_frac,het_pct,alt_pct,b73_max_dosage,reference,note
+Zh,3e-05,0.01,20,0.0625,0.0938,0.0430,12.89,12.41,0.086,8.60,0.014,0.0317,agent/bc2s2_segments.csv,"KS-on-donor-block-size vs BC2S2 sim (skim=BC2S2). err kept low: raising it recovers HET:ALT toward skim-RTI ~2:1 but destroys segment-size fit. HET:ALT split not identifiable at depth~1; donor footprint + block-size distribution are the reliable outputs."
