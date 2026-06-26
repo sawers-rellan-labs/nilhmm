@@ -1,0 +1,6 @@
+taxon,n_samples,r,err,conc,f_1,f_2,KS_D,median_block_mb,sim_median_mb,donor_frac,b73_max_dosage,reference
+Zh,61,3e-05,0.01,20,0.0625,0.0938,0.0430,12.89,12.41,0.0862,0.0317,agent/bc2s2_segments.csv
+Zx,580,7e-06,0.01,20,0.0625,0.0938,0.0622,12.63,12.41,0.0787,0.0317,agent/bc2s2_segments.csv
+Zv,386,3e-06,0.01,20,0.0625,0.0938,0.0721,12.22,12.41,0.0647,0.0317,agent/bc2s2_segments.csv
+Zd,255,7e-06,0.01,20,0.0625,0.0938,0.0597,12.26,12.41,0.0554,0.0317,agent/bc2s2_segments.csv
+Zl,121,3e-06,0.01,20,0.0625,0.0938,0.0894,11.18,12.41,0.0543,0.0317,agent/bc2s2_segments.csv

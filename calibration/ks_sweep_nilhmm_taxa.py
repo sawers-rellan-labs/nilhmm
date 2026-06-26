@@ -20,7 +20,7 @@ from nilhmm.core import introgression_hmm_counts
 REF_CSV = "agent/bc2s2_segments.csv"
 OUT = "results/sim_calibration/nilhmm_taxa"
 ERR, CONC, F1, F2 = 0.01, 20.0, 0.0625, 0.0938
-RS = [1e-5, 2e-5, 3e-5, 5e-5, 7e-5, 1e-4, 2e-4, 3e-4, 5e-4, 1e-3]
+RS = [1e-6, 3e-6, 5e-6, 7e-6, 1e-5, 2e-5, 3e-5, 5e-5]
 
 def donor_blocks_mb(calls, chrom_of, pos):
     sizes = []
