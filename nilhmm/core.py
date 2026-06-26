@@ -188,6 +188,14 @@ def introgression_hmm_counts(
     depth contribute a flat (uninformative) emission. ``conc`` controls
     overdispersion (conc -> inf approaches a Binomial). Transition/init reuse the
     same r / f_1 / f_2 parameterization as the GT caller.
+
+    Implementation: emissions are evaluated once per DISTINCT (n, a) count pair
+    (sparse memoization via an integer-key np.unique; cost scales with distinct
+    pairs ~ coverage, not samples x markers, and is depth-robust in memory), and
+    the Viterbi is BATCHED across all samples of a chromosome (vectorized over the
+    sample axis). This is the same structure as RTIGER's getlogpsi memoization;
+    see Implementation.md section 7. Mathematically identical to a per-sample loop:
+    depth-0 maps to BetaBinomial(0|0,.) = 1 (log 0), a flat/uninformative emission.
     """
     from scipy.stats import betabinom
 
@@ -199,31 +207,44 @@ def introgression_hmm_counts(
     a_s = theta * conc
     b_s = (1.0 - theta) * conc
 
-    n_samples = ref.shape[0]
-    n_markers = ref.shape[1]
-    calls = np.zeros((n_samples, n_markers), dtype=int)
+    n_samples, n_markers = ref.shape
+    total = ref + alt
 
-    chroms = sorted(marker_dict.keys())
-    for chrom in chroms:
-        idx = marker_dict[chrom]
-        if len(idx) == 0:
+    # --- emission: one BetaBinomial eval per distinct (n, a) pair ---
+    base = int(total.max()) + 1 if total.size else 1          # a <= n < base
+    key = (total.astype(np.int64) * base + alt).ravel()
+    uniq, inv = np.unique(key, return_inverse=True)           # distinct pairs, cell->pair map
+    un = uniq // base
+    ua = uniq % base
+    em_uniq = np.empty((uniq.size, 3))
+    for s in range(3):
+        em_uniq[:, s] = betabinom.logpmf(ua, un, a_s[s], b_s[s])   # logpmf(0|0,.) = 0
+    inv = inv.reshape(n_samples, n_markers)
+
+    # --- batched Viterbi per chromosome (vectorized over samples) ---
+    calls = np.zeros((n_samples, n_markers), dtype=np.int8)
+    for chrom in sorted(marker_dict.keys()):
+        idx = np.asarray(marker_dict[chrom])
+        if idx.size == 0:
             continue
-        idx = np.asarray(idx)
-        logging.info(f"Processing chromosome {chrom} ({len(idx)} markers)")
-        for i in range(n_samples):
-            a = alt[i, idx]
-            n = ref[i, idx] + a
-            log_em = np.zeros((len(idx), 3))
-            covered = n > 0
-            if covered.any():
-                ac = a[covered]; nc = n[covered]
-                for s in range(3):
-                    log_em[covered, s] = betabinom.logpmf(ac, nc, a_s[s], b_s[s])
-            path = _log_viterbi(log_start, log_trans, log_em)
-            calls[i, idx] = path
+        logging.info(f"Processing chromosome {chrom} ({idx.size} markers)")
+        E = em_uniq[inv[:, idx]]                              # (S, T, 3)
+        S, T = E.shape[0], E.shape[1]
+        delta = log_start[None, :] + E[:, 0, :]              # (S, 3)
+        psi = np.empty((T, S, 3), dtype=np.int8)
+        for t in range(1, T):
+            scores = delta[:, :, None] + log_trans[None, :, :]        # (S, prev, cur)
+            best = np.argmax(scores, axis=1)                          # (S, cur)
+            psi[t] = best
+            delta = np.take_along_axis(scores, best[:, None, :], axis=1)[:, 0, :] + E[:, t, :]
+        path = np.empty((T, S), dtype=np.int8)
+        path[T - 1] = np.argmax(delta, axis=1)
+        for t in range(T - 2, -1, -1):
+            path[t] = np.take_along_axis(psi[t + 1], path[t + 1][:, None], axis=1)[:, 0]
+        calls[:, idx] = path.T
 
     if return_calls:
-        return calls
+        return calls.astype(int)
     return None
 
 

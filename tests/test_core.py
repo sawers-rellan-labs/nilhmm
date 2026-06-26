@@ -135,3 +135,37 @@ def test_read_vcf_counts(tmp_path):
     assert list(ref[0]) == [5, 0] and list(alt[0]) == [0, 3]   # S1
     assert list(ref[1]) == [0, 2] and list(alt[1]) == [0, 2]   # S2 (missing AD -> 0,0)
     assert mdict[1] == [0, 1]
+
+
+def test_counts_batched_equals_per_sample():
+    """Batched/vectorized count caller must match a per-sample Viterbi exactly."""
+    from nilhmm.core import (introgression_hmm_counts, _build_transition,
+                             _log_viterbi)
+    from scipy.stats import betabinom
+
+    rng = np.random.default_rng(1)
+    n_samples, n_markers = 6, 400
+    # sparse depth-~1 counts across 2 chromosomes
+    depth = rng.poisson(0.4, size=(n_samples, n_markers))
+    alt = rng.binomial(depth, 0.5)
+    ref = depth - alt
+    marker_dict = {1: list(range(200)), 2: list(range(200, 400))}
+
+    err, conc, r, f1, f2 = 0.05, 20.0, 3e-4, 0.0625, 0.0938
+    opt = introgression_hmm_counts(ref, alt, marker_dict, err=err, conc=conc,
+                                   r=r, f_1=f1, f_2=f2)
+
+    startprob, tmat = _build_transition(r, f1, f2)
+    ls, lt = np.log(startprob), np.log(tmat)
+    theta = np.array([err, 0.5, 1 - err]); a_s = theta * conc; b_s = (1 - theta) * conc
+    expect = np.zeros_like(opt)
+    for chrom, idx in marker_dict.items():
+        idx = np.asarray(idx)
+        for i in range(n_samples):
+            a = alt[i, idx]; n = ref[i, idx] + a
+            em = np.zeros((len(idx), 3)); cov = n > 0
+            if cov.any():
+                for s in range(3):
+                    em[cov, s] = betabinom.logpmf(a[cov], n[cov], a_s[s], b_s[s])
+            expect[i, idx] = _log_viterbi(ls, lt, em)
+    assert np.array_equal(opt, expect)
