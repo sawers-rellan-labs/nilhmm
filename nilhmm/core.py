@@ -189,12 +189,6 @@ def introgression_hmm_counts(
     overdispersion (conc -> inf approaches a Binomial). Transition/init reuse the
     same r / f_1 / f_2 parameterization as the GT caller.
     """
-    Implementation note: emissions are precomputed into a (n, a) lookup table and
-    the Viterbi is batched across all samples of a chromosome (vectorized over the
-    sample axis), so cost scales with markers, not samples x markers — needed for
-    the larger taxa (Zx ~580). Equivalent to the per-sample formulation; the depth-0
-    site maps to BetaBinomial(0|0,.)=1 (log 0), i.e. a flat/uninformative emission.
-    """
     from scipy.stats import betabinom
 
     startprob, tmat = _build_transition(r, f_1, f_2)
@@ -205,43 +199,31 @@ def introgression_hmm_counts(
     a_s = theta * conc
     b_s = (1.0 - theta) * conc
 
-    n_samples, n_markers = ref.shape
-    total = ref + alt
+    n_samples = ref.shape[0]
+    n_markers = ref.shape[1]
+    calls = np.zeros((n_samples, n_markers), dtype=int)
 
-    # log-emission lookup table[n, a, state]; depth ~1 means very few distinct (n,a)
-    nmax = int(total.max()) if total.size else 0
-    table = np.zeros((nmax + 1, nmax + 1, 3))
-    for nn in range(nmax + 1):
-        aa = np.arange(nn + 1)
-        for s in range(3):
-            table[nn, aa, s] = betabinom.logpmf(aa, nn, a_s[s], b_s[s])
-
-    calls = np.zeros((n_samples, n_markers), dtype=np.int8)
     chroms = sorted(marker_dict.keys())
     for chrom in chroms:
-        idx = np.asarray(marker_dict[chrom])
-        if idx.size == 0:
+        idx = marker_dict[chrom]
+        if len(idx) == 0:
             continue
-        logging.info(f"Processing chromosome {chrom} ({idx.size} markers)")
-        E = table[total[:, idx], alt[:, idx]]      # (S, T, 3)
-        S, T = E.shape[0], E.shape[1]
-
-        delta = log_start[None, :] + E[:, 0, :]    # (S, 3)
-        psi = np.empty((T, S, 3), dtype=np.int8)
-        for t in range(1, T):
-            scores = delta[:, :, None] + log_trans[None, :, :]   # (S, prev, cur)
-            best = np.argmax(scores, axis=1)                     # (S, cur)
-            psi[t] = best
-            delta = np.take_along_axis(scores, best[:, None, :], axis=1)[:, 0, :] + E[:, t, :]
-
-        path = np.empty((T, S), dtype=np.int8)
-        path[T - 1] = np.argmax(delta, axis=1)
-        for t in range(T - 2, -1, -1):
-            path[t] = np.take_along_axis(psi[t + 1], path[t + 1][:, None], axis=1)[:, 0]
-        calls[:, idx] = path.T
+        idx = np.asarray(idx)
+        logging.info(f"Processing chromosome {chrom} ({len(idx)} markers)")
+        for i in range(n_samples):
+            a = alt[i, idx]
+            n = ref[i, idx] + a
+            log_em = np.zeros((len(idx), 3))
+            covered = n > 0
+            if covered.any():
+                ac = a[covered]; nc = n[covered]
+                for s in range(3):
+                    log_em[covered, s] = betabinom.logpmf(ac, nc, a_s[s], b_s[s])
+            path = _log_viterbi(log_start, log_trans, log_em)
+            calls[i, idx] = path
 
     if return_calls:
-        return calls.astype(int)
+        return calls
     return None
 
 
