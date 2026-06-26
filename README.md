@@ -11,13 +11,33 @@ Based upon Jim Holland's methodology:
 - Repository: https://github.com/ncsumaize/nNIL
 - Preprint: Zhong, T. et al. (2025). A maize near-isogenic line population designed for gene discovery and characterization of allelic effects. bioRxiv. https://doi.org/10.1101/2025.01.29.635337
 
+## Two callers
+
+NILHMM provides **two emission models** over the same 3-state hidden chain
+(B73-homozygote / heterozygote / donor-homozygote), chosen by what the data can support:
+
+| caller | reads | emission | use when |
+|---|---|---|---|
+| **GT** (original) | VCF `GT` field | 3×4 categorical with explicit genotyping-error model (`germ/gert/nir/mr`) | genotypes are called/dense (≥~0.5× or imputed) |
+| **counts** (added) | VCF `FORMAT/AD` | BetaBinomial over (ref, alt) depths, per-state alt fraction θ=[`err`, 0.5, 1−`err`], concentration `conc` | ultra-low coverage where per-site GT is mostly missing / heterozygotes invisible (e.g. ~0.4× skim) |
+
+Both share the same transition/init parameterization (recombination `r`, state
+frequencies `f_1`, `f_2`) and decode per chromosome by Viterbi. The **count caller** exists
+because at ~0.4× the `GT` field is mostly missing and the donor-homozygous state is nearly
+invisible (a single read can't show zygosity); reading `AD` lets the HMM pool single-read
+observations along a segment — the same principle RTIGER uses. See
+[`Implementation.md`](Implementation.md) for the full rationale, and
+[`calibration/`](calibration/) for the BZea SNP50K calibration.
+
 ## Key Features
 
-- **Individual SNP resolution** with sophisticated genotyping error modeling
-- **VCF file processing** with support for compressed formats
-- **Parameter optimization** tools for different sequencing conditions
-- **Comprehensive output** including calls, summaries, and marker information
-- **Optimized for low coverage** sequencing (0.5-1.0× coverage)
+- **Two emission models** (called GT, or allelic-depth counts) over a shared 3-state chain
+- **Individual-marker resolution** with explicit genotyping-error modeling (GT caller)
+- **BetaBinomial count model** for ultra-low coverage / sparse GT (count caller)
+- **VCF processing** (GT and `AD`) with support for compressed files
+- **Vectorized count caller** — emissions memoized over distinct (depth, alt) pairs + Viterbi
+  batched across samples (cost scales with coverage, not sample×marker count)
+- **Parameter optimization** / KS-against-simulation calibration tools
 
 ## Installation
 
@@ -30,39 +50,64 @@ pip install -e .
 
 ### Dependencies
 ```bash
-pip install numpy pandas hmmlearn scikit-learn
+pip install numpy pandas scipy hmmlearn scikit-learn
 ```
+(`scipy` is required by the count caller's BetaBinomial emission.)
 
 ## Quick Start
 
-### Command Line
+### Command Line (GT caller)
 ```bash
-# Basic introgression calling
+# Basic introgression calling from called genotypes
 call-bzea-introgressions your_data.vcf -o results
 
 # With custom parameters for your data
 call-bzea-introgressions your_data.vcf -o results --mr 0.2 --germ 0.08
 ```
 
-### Python API
+### Python API — GT caller
 ```python
 import nilhmm
 
-# Load VCF and call introgressions
 results = nilhmm.call_introgressions(
     vcf_file="your_data.vcf",
     output_prefix="results",
-    coverage_level="low"
+    coverage_level="low",   # low/medium/high parameter presets
+)
+```
+
+### Python API — count caller (allelic depths)
+```python
+import nilhmm
+
+# Reads FORMAT/AD; BetaBinomial emission tuned for ultra-low coverage
+results = nilhmm.call_introgressions_counts(
+    vcf_file="your_data.vcf",     # must carry FORMAT/AD
+    output_prefix="results",
+    r=3e-5, err=0.01, conc=20.0,  # transition + emission params (calibrate per dataset)
+    f_1=0.0625, f_2=0.0938,       # state frequencies (here: BC2S2)
 )
 
-# Access results
-calls = results.introgression_calls
-summary = results.summary_stats
+# Lower-level access
+ref, alt, marker_dict, samples, markers = nilhmm.read_vcf_counts("your_data.vcf")
+calls = nilhmm.introgression_hmm_counts(ref, alt, marker_dict, r=3e-5)
 ```
 
 ## Model Architecture
 
-The HMM uses three hidden states (B73 homozygote, heterozygote, donor homozygote) and four observable genotype states (0/0, 0/1, 1/1, missing). Transition probabilities incorporate recombination rates and population genetics expectations, while emission probabilities model various sources of genotyping error.
+Three hidden states — B73 homozygote, heterozygote, donor homozygote — with
+recombination/population-genetics transition probabilities (parameters `r`, `f_1`, `f_2`).
+The emission is one of:
+
+- **GT caller:** four observable genotype states (`0/0`, `0/1`, `1/1`, missing) via a 3×4
+  categorical matrix that models genotyping-error sources (`germ`, `gert`, `nir`, `mr`).
+- **Count caller:** allelic depths (ref, alt) per marker via a BetaBinomial with per-state
+  expected alt fraction θ = [`err`, 0.5, 1−`err`] and concentration `conc`; zero-depth markers
+  contribute a flat (uninformative) emission. `conc → ∞` approaches a Binomial.
+
+Decoding is per-chromosome Viterbi. The count caller memoizes the BetaBinomial over the
+distinct (depth, alt) pairs and batches the Viterbi across samples, so its cost scales with
+sequencing depth (number of distinct count pairs), not the sample×marker product.
 
 ## Applications
 
@@ -75,9 +120,11 @@ The HMM uses three hidden states (B73 homozygote, heterozygote, donor homozygote
 
 ```
 nilhmm/
-├── nilhmm/           # Core package
+├── nilhmm/           # Core package (GT + count callers, IO)
 ├── scripts/          # Analysis scripts
 ├── tests/            # Unit tests
+├── calibration/      # BZea SNP50K calibration (sweeps, params, staging)
+├── Implementation.md # Count-path design, calibration, results
 ├── docs/             # Documentation
 └── setup.py          # Package metadata
 ```
