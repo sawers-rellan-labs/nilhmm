@@ -12,6 +12,7 @@ call_ancestry(
   err = 0.01,
   conc = 20,
   fit_means = FALSE,
+  p_switch = 0.01,
   f_1 = NULL,
   f_2 = NULL,
   source = "nilHMM",
@@ -26,9 +27,9 @@ call_ancestry(
 \item{design}{Breeding-design key for priors (e.g. \code{"BC2S2"}, \code{"BC2S3"}).
 Required unless \code{f_1}/\code{f_2} are supplied.}
 
-\item{r, err, conc, fit_means}{Caller parameters forwarded to \code{\link[=caller_spec]{caller_spec()}}.
-Explicit formals (not \code{...}) so that, e.g., \code{r} is never partial-matched to
-another argument.}
+\item{r, err, conc, fit_means, p_switch}{Caller parameters forwarded to
+\code{\link[=caller_spec]{caller_spec()}}. Explicit formals (not \code{...}) so that, e.g., \code{r} is never
+partial-matched to another argument.}
 
 \item{f_1, f_2}{Single-locus priors, used when \code{design} is \code{NULL}.}
 

@@ -14,6 +14,6 @@ A duration spec for \code{\link[=fit]{fit()}}.
 }
 \description{
 Self-transition rate \code{r}; the nilHMM transition. \code{r} is a resolution
-hyperparameter, \strong{not} an MLE — calibrate by KS-vs-sim (memory
+hyperparameter, \strong{not} an MLE -- calibrate by KS-vs-sim (memory
 \code{rigidity-not-mle}, \code{\link[=calibrate_r]{calibrate_r()}}).
 }

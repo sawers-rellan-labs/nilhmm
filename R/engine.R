@@ -1,5 +1,5 @@
 # Engine: the duration-aware 3-state HMM (REF/HET/ALT). Layer 1 of the
-# architecture (REFACTOR_R_PACKAGE.md §4). Emission and duration are pluggable
+# architecture (REFACTOR_R_PACKAGE.md S4). Emission and duration are pluggable
 # interfaces (see emissions.R, duration.R). Hot loops live in src/ (Rcpp:
 # count_emission_loglik_cpp, viterbi_log_cpp).
 
@@ -7,7 +7,7 @@
 # Identical parameterization to the Python _build_transition: self-transition
 # 1-r, off-diagonal recombination weighted by expected state frequencies. The
 # generation enters ONLY through f_1/f_2 here (a prior), never a baked-in
-# duration (§7).
+# duration (S7).
 .build_transition <- function(r, f_1, f_2) {
   f_0 <- 1 - f_1 - f_2
   if (f_0 <= 0) stop(".build_transition: f_1 + f_2 must be < 1")
@@ -16,7 +16,44 @@
     r * f_0 / (f_0 + f_2),       1 - r,                       r * f_2 / (f_0 + f_2),
     r * f_0 / (f_0 + f_1),       r * f_1 / (f_0 + f_1),       1 - r
   ), nrow = 3, byrow = TRUE)
-  list(log_start = log(c(f_0, f_1, f_2)), log_trans = log(tmat))
+  list(log_start = log(c(f_0, f_1, f_2)), log_trans = log(tmat), n_sub = 1L)
+}
+
+# --- internal: rigidity (RTIGER) transition via state expansion (S4, S7) ------
+# Each macro-state (REF/HET/ALT) becomes a chain of `r` sub-states: positions
+# 1..r-1 advance deterministically (forced minimum run length r), position r is
+# a free state that either self-loops (stay in the macro-state) or exits to
+# another macro-state's sub-state 1, with probabilities from the macro
+# transition `A` (built from `p_switch` + priors). r = 1 collapses to `A`
+# itself. Expanded state index = m * r + k (m, k 0-based). All sub-states of a
+# macro-state share its emission (handled in decode()).
+.build_transition_rigidity <- function(r, p_switch, f_1, f_2) {
+  macro <- .build_transition(p_switch, f_1, f_2)
+  A     <- exp(macro$log_trans)              # 3 x 3 macro transition
+  start <- exp(macro$log_start)              # c(f_0, f_1, f_2)
+  n <- as.integer(r); K <- 3L; S <- K * n
+  idx <- function(m, k) m * n + k + 1L       # m,k 0-based -> 1-based
+  Tm <- matrix(0, S, S)
+  for (m in 0:2) for (k in 0:(n - 1L)) {
+    if (k < n - 1L) {
+      Tm[idx(m, k), idx(m, k + 1L)] <- 1                       # forced advance
+    } else {
+      Tm[idx(m, k), idx(m, n - 1L)] <- A[m + 1L, m + 1L]       # free state: stay
+      for (mp in 0:2) if (mp != m) Tm[idx(m, k), idx(mp, 0L)] <- A[m + 1L, mp + 1L]  # exit
+    }
+  }
+  s0 <- numeric(S); for (m in 0:2) s0[idx(m, 0L)] <- start[m + 1L]
+  list(log_start = log(s0), log_trans = log(Tm), n_sub = n)
+}
+
+# Dispatch: (duration, priors) -> list(log_start, log_trans, n_sub).
+.duration_transition <- function(duration, priors) {
+  if (inherits(duration, "nilHMM_duration_geometric"))
+    return(.build_transition(duration$r, priors$f_1, priors$f_2))
+  if (inherits(duration, "nilHMM_duration_rigidity"))
+    return(.build_transition_rigidity(duration$r, duration$p_switch, priors$f_1, priors$f_2))
+  stop(".duration_transition(): unsupported duration '", duration$type,
+       "' (hsmm is reserved, S4)")
 }
 
 # --- internal: run-length-encode a state path into common-schema segments ----
@@ -40,7 +77,7 @@
 #' For a fixed-mean emission (the default, reproducing the Python count caller)
 #' this resolves `theta` and the transition and is otherwise a no-op. For a
 #' fittable-mean emission (`fit_means = TRUE`; required for RNA / reference-biased
-#' data per §10) it Baum-Welch EM-fits the emission means. Viterbi/EM hot loops
+#' data per S10) it Baum-Welch EM-fits the emission means. Viterbi/EM hot loops
 #' are in Rcpp.
 #'
 #' @param obs A per-(sample, chromosome) observation table from an emission's
@@ -54,15 +91,13 @@
 #' @return A fitted model: `list(theta, log_start, log_trans, emission, duration)`.
 #' @export
 fit <- function(obs, emission, duration, priors, control = list()) {
-  if (!inherits(duration, "nilHMM_duration_geometric"))
-    stop("fit(): only geometric duration is implemented (Task 4); rigidity is next")
-  tr <- .build_transition(duration$r, priors$f_1, priors$f_2)
+  td <- .duration_transition(duration, priors)
   theta <- .emission_theta(emission)                 # initial / fixed means
   if (isTRUE(emission$fit_means)) {
-    theta <- .em_fit_means(obs, emission, tr, theta, control)
+    theta <- .em_fit_means(obs, emission, td, theta, control)
   }
-  structure(list(theta = theta, log_start = tr$log_start, log_trans = tr$log_trans,
-                 emission = emission, duration = duration),
+  structure(list(theta = theta, log_start = td$log_start, log_trans = td$log_trans,
+                 n_sub = td$n_sub, emission = emission, duration = duration),
             class = "nilHMM_model")
 }
 
@@ -70,10 +105,18 @@ fit <- function(obs, emission, duration, priors, control = list()) {
 #'
 #' @param model A fitted model from [fit()].
 #' @param obs A per-(sample, chromosome) observation table.
-#' @return Integer state path over markers (0 = REF, 1 = HET, 2 = ALT).
+#' @return Integer macro-state path over markers (0 = REF, 1 = HET, 2 = ALT);
+#'   for rigidity the expanded sub-states are mapped back to macro-states.
 #' @export
 decode <- function(model, obs) {
-  em <- .emission_loglik(model$emission, obs, model$theta)
+  em <- .emission_loglik(model$emission, obs, model$theta)   # T x 3 (macro)
+  ns <- model$n_sub
+  if (ns > 1L) {
+    Tn <- nrow(em)
+    em_exp <- matrix(0, Tn, 3L * ns)                         # replicate per sub-state
+    for (m in 0:2) for (k in 0:(ns - 1L)) em_exp[, m * ns + k + 1L] <- em[, m + 1L]
+    return(viterbi_log_cpp(model$log_start, model$log_trans, em_exp) %/% ns)
+  }
   viterbi_log_cpp(model$log_start, model$log_trans, em)
 }
 
@@ -89,9 +132,9 @@ decode <- function(model, obs) {
 #' @param caller One of `"nnil"`, `"rtiger"`, `"skimbin"`.
 #' @param design Breeding-design key for priors (e.g. `"BC2S2"`, `"BC2S3"`).
 #'   Required unless `f_1`/`f_2` are supplied.
-#' @param r,err,conc,fit_means Caller parameters forwarded to [caller_spec()].
-#'   Explicit formals (not `...`) so that, e.g., `r` is never partial-matched to
-#'   another argument.
+#' @param r,err,conc,fit_means,p_switch Caller parameters forwarded to
+#'   [caller_spec()]. Explicit formals (not `...`) so that, e.g., `r` is never
+#'   partial-matched to another argument.
 #' @param f_1,f_2 Single-locus priors, used when `design` is `NULL`.
 #' @param source Value for the output `source` column.
 #' @param donor Donor/taxon label when `data` has no `donor` column.
@@ -100,10 +143,12 @@ decode <- function(model, obs) {
 #' @export
 call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
                           design = NULL, r = 0.01, err = 0.01, conc = 20,
-                          fit_means = FALSE, f_1 = NULL, f_2 = NULL,
+                          fit_means = FALSE, p_switch = 0.01,
+                          f_1 = NULL, f_2 = NULL,
                           source = "nilHMM", donor = NA_character_) {
   caller <- match.arg(caller)
-  spec <- caller_spec(caller, r = r, err = err, conc = conc, fit_means = fit_means)
+  spec <- caller_spec(caller, r = r, err = err, conc = conc,
+                      fit_means = fit_means, p_switch = p_switch)
 
   priors <- if (!is.null(design)) design_priors(design)
             else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)

@@ -10,11 +10,11 @@ emission_count(err = 0.01, conc = 20, fit_means = FALSE)
 \item{err}{Baseline genotyping/sequencing error (initialises \code{theta}).}
 
 \item{conc}{BetaBinomial concentration (overdispersion); near-no-op on BRB
-(§10) but retained for the regime axis.}
+(S10) but retained for the regime axis.}
 
 \item{fit_means}{If \code{TRUE}, EM-fit the state means; if \code{FALSE} (default) use
 the fixed \code{c(err, 0.5, 1 - err)} that reproduces the Python baseline.
-Reference-biased data (RNA / BRB) needs \code{TRUE} (§10).}
+Reference-biased data (RNA / BRB) needs \code{TRUE} (S10).}
 }
 \value{
 An emission spec for \code{\link[=fit]{fit()}}.
@@ -22,6 +22,6 @@ An emission spec for \code{\link[=fit]{fit()}}.
 \description{
 Emission on \verb{(n_ref, n_alt)} read counts. State means \code{theta}; depth-0 markers
 emit flat. \strong{Means are FITTABLE} (EM-fit / reference-bias-corrected), not the
-fixed \code{c(err, 0.5, 1 - err)} — the BRB run showed fixed \code{theta_ALT = 1 - err}
-collapses ALT->HET under reference bias (§10, BRB_run_findings.md).
+fixed \code{c(err, 0.5, 1 - err)} -- the BRB run showed fixed \code{theta_ALT = 1 - err}
+collapses ALT->HET under reference bias (S10, BRB_run_findings.md).
 }

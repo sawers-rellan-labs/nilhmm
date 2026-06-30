@@ -1,4 +1,4 @@
-# I/O (§8). Readers return marker-level observation tables; the writer emits the
+# I/O (S8). Readers return marker-level observation tables; the writer emits the
 # common segment schema. Data-agnostic: no hardcoded paths. Pipeline scripts
 # pass the file lists in.
 

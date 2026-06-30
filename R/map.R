@@ -1,6 +1,6 @@
-# Map utilities (§6). The consensus map is version-namespaced (maize_map_v5)
+# Map utilities (S6). The consensus map is version-namespaced (maize_map_v5)
 # and overridable; warn on assembly mismatch. Powers position files (cM<->Mb)
-# and optional map-aware (position-dependent) transitions (open item, §10).
+# and optional map-aware (position-dependent) transitions (open item, S10).
 
 #' Load the bundled consensus map
 #'

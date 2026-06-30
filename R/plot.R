@@ -1,5 +1,5 @@
-# Plotting (§8). Fragment-size distributions against the grey Null (the design's
-# expected Gamma from expected_fragment_dist() -- calibration/Null only, §7),
+# Plotting (S8). Fragment-size distributions against the grey Null (the design's
+# expected Gamma from expected_fragment_dist() -- calibration/Null only, S7),
 # and chromosome-painting of called segments.
 
 #' Plot called fragment sizes against the expected Null

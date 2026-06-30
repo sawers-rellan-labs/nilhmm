@@ -1,21 +1,21 @@
-# Emission models — the axis that distinguishes callers (§4, §5).
+# Emission models -- the axis that distinguishes callers (S4, S5).
 # Each constructor returns a spec: state-conditional emission log-likelihoods
-# plus which parameters are EM-fittable. Depth drives the choice (§5):
+# plus which parameters are EM-fittable. Depth drives the choice (S5):
 # saturated (>=~20x) -> gt; intermediate (~1-20x) -> count; imputed -> dosage.
 
 #' Count (BetaBinomial) emission
 #'
 #' Emission on `(n_ref, n_alt)` read counts. State means `theta`; depth-0 markers
 #' emit flat. **Means are FITTABLE** (EM-fit / reference-bias-corrected), not the
-#' fixed `c(err, 0.5, 1 - err)` — the BRB run showed fixed `theta_ALT = 1 - err`
-#' collapses ALT->HET under reference bias (§10, BRB_run_findings.md).
+#' fixed `c(err, 0.5, 1 - err)` -- the BRB run showed fixed `theta_ALT = 1 - err`
+#' collapses ALT->HET under reference bias (S10, BRB_run_findings.md).
 #'
 #' @param err Baseline genotyping/sequencing error (initialises `theta`).
 #' @param conc BetaBinomial concentration (overdispersion); near-no-op on BRB
-#'   (§10) but retained for the regime axis.
+#'   (S10) but retained for the regime axis.
 #' @param fit_means If `TRUE`, EM-fit the state means; if `FALSE` (default) use
 #'   the fixed `c(err, 0.5, 1 - err)` that reproduces the Python baseline.
-#'   Reference-biased data (RNA / BRB) needs `TRUE` (§10).
+#'   Reference-biased data (RNA / BRB) needs `TRUE` (S10).
 #' @return An emission spec for [fit()].
 #' @export
 emission_count <- function(err = 0.01, conc = 20, fit_means = FALSE) {
@@ -71,7 +71,7 @@ emission_dosage <- function(sd_dosage = 0.25) {
   stop(".emission_loglik(): only the count emission is implemented (Task 4)")
 }
 
-# Baum-Welch EM for the emission means (§10). Implemented in the next Task-4 step.
+# Baum-Welch EM for the emission means (S10). Implemented in the next Task-4 step.
 .em_fit_means <- function(obs, emission, tr, theta, control) {
   stop(".em_fit_means(): fittable emission means not yet implemented; ",
        "use fit_means = FALSE (the baseline-reproducing fixed means) for now")

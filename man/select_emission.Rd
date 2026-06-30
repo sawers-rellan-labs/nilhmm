@@ -16,7 +16,7 @@ An emission spec (\code{\link[=emission_count]{emission_count()}} / \code{\link[
 \code{\link[=emission_dosage]{emission_dosage()}}).
 }
 \description{
-Selector rule (§5): saturated (>=~20x) -> \code{gt}; intermediate (~1-20x) ->
+Selector rule (S5): saturated (>=~20x) -> \code{gt}; intermediate (~1-20x) ->
 \code{count}; imputed -> \code{dosage}. Cost basis: BetaBinomial cost is proportional
 to the number of distinct \verb{(n, k)} pairs, i.e. to coverage; above ~20-30x a
 count emission is effectively a hard call, so \code{gt} is equivalent and cheaper

@@ -12,7 +12,8 @@ decode(model, obs)
 \item{obs}{A per-(sample, chromosome) observation table.}
 }
 \value{
-Integer state path over markers (0 = REF, 1 = HET, 2 = ALT).
+Integer macro-state path over markers (0 = REF, 1 = HET, 2 = ALT);
+for rigidity the expanded sub-states are mapped back to macro-states.
 }
 \description{
 Decode the most-likely state path (Viterbi)

@@ -1,9 +1,9 @@
-# Presets layer 2a: emission-by-depth regime (§5). Convenience/defaults on top
+# Presets layer 2a: emission-by-depth regime (S5). Convenience/defaults on top
 # of the engine, NOT the engine. See docs/emission_by_depth_regime.
 
 #' Select an emission model from sequencing depth
 #'
-#' Selector rule (§5): saturated (>=~20x) -> `gt`; intermediate (~1-20x) ->
+#' Selector rule (S5): saturated (>=~20x) -> `gt`; intermediate (~1-20x) ->
 #' `count`; imputed -> `dosage`. Cost basis: BetaBinomial cost is proportional
 #' to the number of distinct `(n, k)` pairs, i.e. to coverage; above ~20-30x a
 #' count emission is effectively a hard call, so `gt` is equivalent and cheaper

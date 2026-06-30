@@ -2,7 +2,7 @@
 % Please edit documentation in R/duration.R
 \name{duration_hsmm}
 \alias{duration_hsmm}
-\title{Explicit-duration (HSMM) sojourn — reserved}
+\title{Explicit-duration (HSMM) sojourn -- reserved}
 \usage{
 duration_hsmm(sojourn = NULL)
 }
@@ -14,5 +14,5 @@ A duration spec for \code{\link[=fit]{fit()}}.
 }
 \description{
 Explicit sojourn distribution. Reserved for a genuine duration model; \strong{must
-not} be used to bake in the design's fitted Gamma (§7 circularity trap).
+not} be used to bake in the design's fitted Gamma (S7 circularity trap).
 }

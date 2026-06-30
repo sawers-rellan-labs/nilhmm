@@ -10,19 +10,23 @@ caller_spec(
   err = 0.01,
   conc = 20,
   fit_means = FALSE,
+  p_switch = 0.01,
   ...
 )
 }
 \arguments{
 \item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"skimbin"}.}
 
-\item{r}{Duration hyperparameter (self-transition rate / rigidity).}
+\item{r}{Duration hyperparameter: geometric self-transition rate for
+\code{nnil}/\code{skimbin}; integer rigidity (minimum run length) for \code{rtiger}.}
 
 \item{err}{Count-emission baseline error.}
 
 \item{conc}{Count-emission BetaBinomial concentration.}
 
-\item{fit_means}{EM-fit emission means (count emission; §10).}
+\item{fit_means}{EM-fit emission means (count emission; S10).}
+
+\item{p_switch}{Free-state switch probability for the \code{rtiger} rigidity tail.}
 
 \item{...}{Ignored extra args (e.g. \code{f_1}/\code{f_2} consumed by \code{\link[=call_ancestry]{call_ancestry()}}).}
 }
@@ -31,8 +35,8 @@ caller_spec(
 }
 \description{
 \itemize{
-\item \code{nnil}    : Holland's nNIL — count/gt emission + geometric duration.
-\item \code{rtiger}  : rigidity mode — count emission + rigidity duration (§7).
-\item \code{skimbin} : Skim-BIN — dosage/count emission + geometric duration.
+\item \code{nnil}    : Holland's nNIL -- count/gt emission + geometric duration.
+\item \code{rtiger}  : rigidity mode -- count emission + rigidity duration (S7).
+\item \code{skimbin} : Skim-BIN -- dosage/count emission + geometric duration.
 }
 }

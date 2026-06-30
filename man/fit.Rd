@@ -27,6 +27,6 @@ A fitted model: \code{list(theta, log_start, log_trans, emission, duration)}.
 For a fixed-mean emission (the default, reproducing the Python count caller)
 this resolves \code{theta} and the transition and is otherwise a no-op. For a
 fittable-mean emission (\code{fit_means = TRUE}; required for RNA / reference-biased
-data per §10) it Baum-Welch EM-fits the emission means. Viterbi/EM hot loops
+data per S10) it Baum-Welch EM-fits the emission means. Viterbi/EM hot loops
 are in Rcpp.
 }
