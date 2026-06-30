@@ -136,6 +136,21 @@ rtiger_em_suffstats_cpp <- function(ks_list, ns_list, logPI, logA, alpha, beta, 
     .Call(`_nilHMM_rtiger_em_suffstats_cpp`, ks_list, ns_list, logPI, logA, alpha, beta, r, nstates)
 }
 
+#' RTIGER full EM fit (E-step + M-step + convergence loop, all in C++)
+#'
+#' The entire fit (port of the fork's `fit`/`EM`): per-chain rigidity E-step,
+#' pooled M-steps (transition, start, emission via C++ Brent), iterated until
+#' max(|Δα|,|Δβ|) <= eps or max.iter. Deterministic init (generate_params forms,
+#' randomize off). Returns the fitted parameters and iteration count.
+#' @param ks_list,ns_list Lists of per-chain integer (k, n) vectors.
+#' @param r,nstates Rigidity and number of states.
+#' @param eps,max_iter Convergence tolerance and iteration cap.
+#' @return list(A, pi, alpha, beta, iterations).
+#' @keywords internal
+rtiger_fit_cpp <- function(ks_list, ns_list, r, nstates, eps, max_iter) {
+    .Call(`_nilHMM_rtiger_fit_cpp`, ks_list, ns_list, r, nstates, eps, max_iter)
+}
+
 #' Run-length-encode a state path into (start_bp, end_bp, state) segments
 #'
 #' @param path Integer state path (0/1/2), length T.

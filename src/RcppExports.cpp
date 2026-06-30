@@ -155,6 +155,22 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtiger_fit_cpp
+List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates, double eps, int max_iter);
+RcppExport SEXP _nilHMM_rtiger_fit_cpp(SEXP ks_listSEXP, SEXP ns_listSEXP, SEXP rSEXP, SEXP nstatesSEXP, SEXP epsSEXP, SEXP max_iterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type ks_list(ks_listSEXP);
+    Rcpp::traits::input_parameter< List >::type ns_list(ns_listSEXP);
+    Rcpp::traits::input_parameter< int >::type r(rSEXP);
+    Rcpp::traits::input_parameter< int >::type nstates(nstatesSEXP);
+    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtiger_fit_cpp(ks_list, ns_list, r, nstates, eps, max_iter));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rle_segments_cpp
 List rle_segments_cpp(IntegerVector path, IntegerVector pos);
 RcppExport SEXP _nilHMM_rle_segments_cpp(SEXP pathSEXP, SEXP posSEXP) {
@@ -232,6 +248,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_rtiger_gamma_cpp", (DL_FUNC) &_nilHMM_rtiger_gamma_cpp, 4},
     {"_nilHMM_rtiger_viterbi_cpp", (DL_FUNC) &_nilHMM_rtiger_viterbi_cpp, 5},
     {"_nilHMM_rtiger_em_suffstats_cpp", (DL_FUNC) &_nilHMM_rtiger_em_suffstats_cpp, 8},
+    {"_nilHMM_rtiger_fit_cpp", (DL_FUNC) &_nilHMM_rtiger_fit_cpp, 6},
     {"_nilHMM_rle_segments_cpp", (DL_FUNC) &_nilHMM_rle_segments_cpp, 2},
     {"_nilHMM_rle_segments_batch_cpp", (DL_FUNC) &_nilHMM_rle_segments_batch_cpp, 2},
     {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 3},

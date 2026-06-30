@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <vector>
 #include <map>
+#include <functional>
 #include <unordered_map>
 using namespace Rcpp;
 
@@ -508,4 +509,164 @@ List rtiger_em_suffstats_cpp(List ks_list, List ns_list, NumericVector logPI,
                       _["kvals"] = kvals, _["nvals"] = nvals, _["wmat"] = wmat,
                       _["sumk"] = NumericVector(sumk.begin(), sumk.end()),
                       _["sumn"] = NumericVector(sumn.begin(), sumn.end()));
+}
+
+
+// Brent's method (1-D minimization on [ax,bx]) — the algorithm R's optimize and
+// Julia's Optim.Brent both implement, so the emission M-step is now in C++ and
+// matches the fork's Brent (not the R optimize approximation). Minimizes f.
+static double brent_min(double ax, double bx, std::function<double(double)> f,
+                        double tol = 1e-8, int max_it = 200) {
+  const double gold = 0.3819660112501051;   // (3 - sqrt(5)) / 2
+  double a = ax, b = bx;
+  double x = a + gold * (b - a), w = x, v = x;
+  double fx = f(x), fw = fx, fv = fx;
+  double d = 0.0, e = 0.0;
+  for (int it = 0; it < max_it; ++it) {
+    double xm = 0.5 * (a + b);
+    double tol1 = tol * std::fabs(x) + 1e-12, tol2 = 2.0 * tol1;
+    if (std::fabs(x - xm) <= tol2 - 0.5 * (b - a)) break;
+    bool use_golden = true;
+    if (std::fabs(e) > tol1) {                 // try parabolic interpolation
+      double r = (x - w) * (fx - fv);
+      double q = (x - v) * (fx - fw);
+      double p = (x - v) * q - (x - w) * r;
+      q = 2.0 * (q - r);
+      if (q > 0.0) p = -p;
+      q = std::fabs(q);
+      double etmp = e; e = d;
+      if (std::fabs(p) < std::fabs(0.5 * q * etmp) && p > q * (a - x) && p < q * (b - x)) {
+        d = p / q; double u = x + d;
+        if (u - a < tol2 || b - u < tol2) d = (xm - x >= 0 ? tol1 : -tol1);
+        use_golden = false;
+      }
+    }
+    if (use_golden) { e = (x >= xm ? a - x : b - x); d = gold * e; }
+    double u = (std::fabs(d) >= tol1) ? x + d : x + (d >= 0 ? tol1 : -tol1);
+    double fu = f(u);
+    if (fu <= fx) {
+      if (u >= x) a = x; else b = x;
+      v = w; w = x; x = u; fv = fw; fw = fx; fx = fu;
+    } else {
+      if (u < x) a = u; else b = u;
+      if (fu <= fw || w == x) { v = w; w = u; fv = fw; fw = fu; }
+      else if (fu <= fv || v == x || v == w) { v = u; fv = fu; }
+    }
+  }
+  return x;
+}
+
+// Per-state emission M-step (port of emissionUpdateState), Brent in C++.
+static void emission_update_state(int i0, const std::vector<int>& ks,
+                                  const std::vector<int>& ns, const std::vector<double>& ws,
+                                  double sumk, double sumn,
+                                  const NumericVector& alpha_old, const NumericVector& beta_old,
+                                  double& a_out, double& b_out) {
+  double mi = sumk / sumn;
+  if (!R_FINITE(mi)) {                                   // sumn == 0: state unsupported
+    a_out = alpha_old[i0]; b_out = beta_old[i0]; return;
+  }
+  if (mi < 0.01) mi = 0.01;
+  if (mi > 0.99) mi = 0.99;
+  double tau_i = alpha_old[i0] / mi + beta_old[i0] / (1.0 - mi);
+  if (tau_i > 100.0) tau_i = 100.0;
+  auto negQ = [&](double t) -> double {
+    double a = std::max(t * mi, 1e-6), b = std::max(t * (1.0 - mi), 1e-6);
+    double lbeta_ab = R::lbeta(a, b), acc = 0.0;
+    for (size_t p = 0; p < ws.size(); ++p)
+      acc += ws[p] * (R::lchoose((double)ns[p], (double)ks[p]) + R::lbeta(ks[p] + a, ns[p] - ks[p] + b) - lbeta_ab);
+    return -acc;
+  };
+  double tau = brent_min(std::max(1e-6, tau_i - 100.0), std::max(tau_i + 1.0, 100.0), negQ);
+  a_out = tau * mi; b_out = tau * (1.0 - mi);
+}
+
+//' RTIGER full EM fit (E-step + M-step + convergence loop, all in C++)
+//'
+//' The entire fit (port of the fork's `fit`/`EM`): per-chain rigidity E-step,
+//' pooled M-steps (transition, start, emission via C++ Brent), iterated until
+//' max(|Δα|,|Δβ|) <= eps or max.iter. Deterministic init (generate_params forms,
+//' randomize off). Returns the fitted parameters and iteration count.
+//' @param ks_list,ns_list Lists of per-chain integer (k, n) vectors.
+//' @param r,nstates Rigidity and number of states.
+//' @param eps,max_iter Convergence tolerance and iteration cap.
+//' @return list(A, pi, alpha, beta, iterations).
+//' @keywords internal
+// [[Rcpp::export]]
+List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates,
+                    double eps, int max_iter) {
+  const int s = nstates;
+  const int nchains = ks_list.size();
+
+  // deterministic init (generate_params forms, randomize off)
+  NumericMatrix A(s, s);
+  for (int i = 0; i < s; ++i) { for (int j = 0; j < s; ++j) A(i, j) = 0.1; A(i, i) += 10.0; }
+  for (int i = 0; i < s; ++i) { double rs = 0; for (int j = 0; j < s; ++j) rs += A(i, j); for (int j = 0; j < s; ++j) A(i, j) /= rs; }
+  NumericVector PI(s, 1.0 / s);
+  NumericVector alpha(s), beta(s);
+  if (s == 3) { alpha[0]=20; alpha[1]=20; alpha[2]=1; beta[0]=1; beta[1]=20; beta[2]=20; }
+  else { for (int i=0;i<s;++i){ alpha[i]=20; beta[i]=20; } }
+
+  int iter = 0;
+  for (;;) {
+    NumericVector logPI(s); for (int k=0;k<s;++k) logPI[k] = std::log(PI[k]);
+    NumericMatrix logA(s, s); for (int i=0;i<s;++i) for (int j=0;j<s;++j) logA(i,j)=std::log(A(i,j));
+
+    // ---- E-step + pooled suff-stats over all chains ----
+    NumericMatrix sumZeta(s, s);
+    std::vector<double> startAcc(s, 0.0), sumk(s, 0.0), sumn(s, 0.0);
+    int nOb = 0;
+    std::map<long long, std::vector<double> > W;
+    for (int c = 0; c < nchains; ++c) {
+      IntegerVector O_k = ks_list[c]; IntegerVector O_n = ns_list[c];
+      const int Tc = O_k.size();
+      NumericMatrix lp  = rtiger_getlogpsi_cpp(O_k, O_n, alpha, beta);
+      NumericMatrix LP  = rtiger_productpsi_cpp(lp, r);
+      NumericMatrix al  = rtiger_forward_cpp(logPI, LP, logA, lp, r);
+      NumericMatrix be  = rtiger_backward_cpp(LP, logA, lp, r);
+      NumericVector z   = rtiger_zeta_cpp(al, be, logA, LP, lp, r);
+      NumericMatrix gam = rtiger_gamma_cpp(z, al, be, r);
+      for (int i = 0; i < s; ++i) for (int j = 0; j < s; ++j) {
+        double acc = 0.0;
+        for (int t = r + 1; t <= Tc - r + 1; ++t) acc += z[(t-1) + i*Tc + j*(Tc*s)];
+        sumZeta(i, j) += acc;
+      }
+      for (int st = 0; st < s; ++st) startAcc[st] += gam(st, 0);
+      nOb += 1;
+      for (int t = 0; t < Tc; ++t) {
+        const int kk = O_k[t], nn = O_n[t];
+        std::vector<double>& w = W[(long long)nn * 2147483647LL + kk];
+        if (w.empty()) w.assign(s, 0.0);
+        for (int st = 0; st < s; ++st) { double g = gam(st, t); w[st]+=g; sumk[st]+=kk*g; sumn[st]+=nn*g; }
+      }
+    }
+
+    // ---- M-step ----
+    NumericMatrix Anew(s, s);
+    for (int i = 0; i < s; ++i) {
+      double rs = 0; for (int j = 0; j < s; ++j) rs += sumZeta(i, j);
+      if (rs == 0) rs = 1;
+      for (int j = 0; j < s; ++j) Anew(i, j) = sumZeta(i, j) / rs;
+    }
+    NumericVector PInew(s); for (int st = 0; st < s; ++st) PInew[st] = startAcc[st] / nOb;
+    // flatten W to per-state (k,n,w) and update emission
+    std::vector<int> ks, ns; ks.reserve(W.size()); ns.reserve(W.size());
+    for (std::map<long long, std::vector<double> >::iterator it = W.begin(); it != W.end(); ++it) {
+      ns.push_back((int)(it->first / 2147483647LL)); ks.push_back((int)(it->first % 2147483647LL));
+    }
+    NumericVector anew(s), bnew(s);
+    for (int st = 0; st < s; ++st) {
+      std::vector<double> ws; ws.reserve(W.size());
+      for (std::map<long long, std::vector<double> >::iterator it = W.begin(); it != W.end(); ++it) ws.push_back(it->second[st]);
+      double aa, bb; emission_update_state(st, ks, ns, ws, sumk[st], sumn[st], alpha, beta, aa, bb);
+      anew[st] = aa; bnew[st] = bb;
+    }
+
+    double er = 0.0;
+    for (int st = 0; st < s; ++st) { er = std::max(er, std::fabs(alpha[st]-anew[st])); er = std::max(er, std::fabs(beta[st]-bnew[st])); }
+    A = Anew; PI = PInew; alpha = anew; beta = bnew;
+    iter += 1;
+    if (std::floor(er * 1e6 + 0.5) / 1e6 <= eps || iter >= max_iter) break;
+  }
+  return List::create(_["A"]=A, _["pi"]=PI, _["alpha"]=alpha, _["beta"]=beta, _["iterations"]=iter);
 }

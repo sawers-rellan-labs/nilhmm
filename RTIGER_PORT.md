@@ -40,7 +40,7 @@ Post: `postprocessing` shifts segment borders via `findsplit` (cumsum of emissio
 - [x] `rtiger_viterbi_cpp` (L585-646) — verified vs Julia (exact path incl. switches)
 - [x] emission M-step `emissionUpdateState` (R optimize/Brent) — verified vs Julia (a,b ~3e-6)
 - [x] transition/start M-step + EM loop + fit/decode driver (R/rtiger.R)
-- [ ] R driver: build obs (k,n) per sample×chr, init params, run EM, Viterbi, postproc,
+- [x] full EM in C++ (rtiger_fit_cpp: E-step + M-step + C++ Brent + loop); R/rtiger.R thin wrapper (build obs, decode). caller="rtiger" wiring still TODO.
       remap states→common schema. New caller `caller="rtiger"` (replace invented path).
 - [ ] validate vs frozen `rtiger_rigidity_ref/calls_taxa_r5.csv` (distributional + concordance)
 
