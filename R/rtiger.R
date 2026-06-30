@@ -123,14 +123,28 @@
 # Decode all chains with the fitted parameters (one Viterbi pass per chain),
 # optionally applying the border post-processing (default on, as RTIGER does).
 # Returns the same nested list shape as `obs`, with 1-based state paths.
-.rtiger_decode <- function(obs, params, r, postprocess = TRUE) {
+# threads>1 decodes chains in parallel (parallel::mclapply; each chain is
+# independent, so the result is identical to serial). Decode is a single pass,
+# so the speedup is modest relative to the iterated fit.
+.rtiger_decode <- function(obs, params, r, postprocess = TRUE, threads = 1L) {
   logPI <- log(params$pi); logA <- log(params$A)
-  lapply(obs, function(sm) lapply(sm, function(ch) {
+  decode_one <- function(ch) {
     lp <- rtiger_getlogpsi_cpp(ch$k, ch$n, params$alpha, params$beta)
     LP <- rtiger_productpsi_cpp(lp, r)
     v  <- rtiger_viterbi_cpp(logPI, LP, lp, logA, r)  # 1-based states
     if (postprocess) .rtiger_postprocess(v, lp) else v
-  }))
+  }
+  if (threads <= 1L || .Platform$OS.type != "unix") {
+    return(lapply(obs, function(sm) lapply(sm, decode_one)))
+  }
+  # flatten -> parallel decode -> reassemble into the nested shape
+  keys <- do.call(rbind, lapply(names(obs), function(nm)
+    cbind(nm, names(obs[[nm]]))))
+  flat <- lapply(seq_len(nrow(keys)), function(i) obs[[keys[i, 1]]][[keys[i, 2]]])
+  res  <- parallel::mclapply(flat, decode_one, mc.cores = threads)
+  out  <- lapply(obs, function(sm) stats::setNames(vector("list", length(sm)), names(sm)))
+  for (i in seq_len(nrow(keys))) out[[keys[i, 1]]][[keys[i, 2]]] <- res[[i]]
+  out
 }
 
 # call_ancestry(caller="rtiger") backend: build (k,n) observations from the
@@ -154,7 +168,7 @@
     }
   }
   fit   <- .rtiger_fit(obs, rigidity, threads = threads, seed = seed)
-  paths <- .rtiger_decode(obs, fit, rigidity, postprocess = postprocess)
+  paths <- .rtiger_decode(obs, fit, rigidity, postprocess = postprocess, threads = threads)
   out <- list()
   for (nm in names(obs)) for (cc in names(obs[[nm]])) {
     macro <- paths[[nm]][[cc]] - 1L                      # 1/2/3 -> 0/1/2
