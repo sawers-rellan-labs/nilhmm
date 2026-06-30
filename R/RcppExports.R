@@ -102,6 +102,24 @@ rtiger_gamma_cpp <- function(zeta, logalpha, logbeta, r) {
     .Call(`_nilHMM_rtiger_gamma_cpp`, zeta, logalpha, logbeta, r)
 }
 
+#' RTIGER Viterbi (rigidity max-product + rigid backtrace)
+#'
+#' Literal port of the fork's `viterbi`. Each step is a max over: "stay" in the
+#' target state (diagonal), or "enter" it from another state r positions back
+#' (using the windowed PSI). The backtrace fills a whole r-block with the
+#' current state on a switch, giving the r-rigid path. Tie-break is first state
+#' (seed at state 1, replace only on strict >), matching the fork's findmax.
+#' @param PI length-s log start probabilities.
+#' @param PSI s x (T+r) windowed-emission matrix.
+#' @param psi s x T log emission matrix.
+#' @param A s x s log transition matrix.
+#' @param r Rigidity.
+#' @return length-T integer state path (1-based states).
+#' @keywords internal
+rtiger_viterbi_cpp <- function(PI, PSI, psi, A, r) {
+    .Call(`_nilHMM_rtiger_viterbi_cpp`, PI, PSI, psi, A, r)
+}
+
 #' Run-length-encode a state path into (start_bp, end_bp, state) segments
 #'
 #' @param path Integer state path (0/1/2), length T.

@@ -12,6 +12,7 @@
 
 #include <Rcpp.h>
 #include <cmath>
+#include <algorithm>
 #include <vector>
 #include <unordered_map>
 using namespace Rcpp;
@@ -345,4 +346,78 @@ NumericMatrix rtiger_gamma_cpp(NumericVector zeta, NumericMatrix logalpha,
     for (int k = 0; k < s; ++k) gam(k, t) /= cs;
   }
   return gam;
+}
+
+
+//' RTIGER Viterbi (rigidity max-product + rigid backtrace)
+//'
+//' Literal port of the fork's `viterbi`. Each step is a max over: "stay" in the
+//' target state (diagonal), or "enter" it from another state r positions back
+//' (using the windowed PSI). The backtrace fills a whole r-block with the
+//' current state on a switch, giving the r-rigid path. Tie-break is first state
+//' (seed at state 1, replace only on strict >), matching the fork's findmax.
+//' @param PI length-s log start probabilities.
+//' @param PSI s x (T+r) windowed-emission matrix.
+//' @param psi s x T log emission matrix.
+//' @param A s x s log transition matrix.
+//' @param r Rigidity.
+//' @return length-T integer state path (1-based states).
+//' @keywords internal
+// [[Rcpp::export]]
+IntegerVector rtiger_viterbi_cpp(NumericVector PI, NumericMatrix PSI,
+                                 NumericMatrix psi, NumericMatrix A, int r) {
+  const int s = psi.nrow();
+  const int T = psi.ncol();
+
+  NumericMatrix phi(s, T);
+  std::fill(phi.begin(), phi.end(), R_NegInf);
+  IntegerMatrix b(s, T);
+
+  // phi[:, r] = PSI[:, r] + PI ; b[:, 1:r] = 1:s
+  for (int k = 1; k <= s; ++k) phi(k - 1, r - 1) = PSI(k - 1, r - 1) + PI[k - 1];
+  for (int t = 1; t <= r; ++t)
+    for (int k = 1; k <= s; ++k) b(k - 1, t - 1) = k;
+
+  for (int t = r + 1; t <= T; ++t) {
+    for (int j = 1; j <= s; ++j) {
+      // candidate score of reaching state j at t coming from row i:
+      //   i == j : stay (diagonal);  i != j : enter from i, r positions back
+      auto cand = [&](int i) -> double {
+        if (i == j) return psi(j - 1, t - 1) + A(j - 1, j - 1) + phi(j - 1, t - 2);
+        else        return A(i - 1, j - 1) + PSI(j - 1, t - 1) + phi(i - 1, t - r - 1);
+      };
+      double best = cand(1);
+      int bestidx = 1;
+      for (int i = 2; i <= s; ++i) {
+        const double val = cand(i);
+        if (val > best) { best = val; bestidx = i; }
+      }
+      phi(j - 1, t - 1) = best;
+      b(j - 1, t - 1) = bestidx;
+    }
+  }
+
+  IntegerVector v(T);
+  // v[T] = argmax_k phi[k, T]  (first max)
+  {
+    double mx = R_NegInf; int arg = 1;
+    for (int k = 1; k <= s; ++k) if (phi(k - 1, T - 1) > mx) { mx = phi(k - 1, T - 1); arg = k; }
+    v[T - 1] = arg;
+  }
+
+  int t = T;
+  while (t > 1) {
+    const int pointer = b(v[t - 1] - 1, t - 1);
+    if (pointer != v[t - 1] && r > 1) {
+      // on a switch, fill the trailing r-block with the current state
+      const int lo = std::max(t - r + 1, 1);
+      for (int p = lo; p <= t - 1; ++p) v[p - 1] = v[t - 1];
+      t = t - r + 1;
+      if (t < 2) break;
+    }
+    v[t - 2] = pointer;   // v[t-1] (1-based) <- pointer
+    t = t - 1;
+    if (t < 2) break;
+  }
+  return v;
 }

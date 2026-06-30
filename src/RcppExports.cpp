@@ -122,6 +122,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtiger_viterbi_cpp
+IntegerVector rtiger_viterbi_cpp(NumericVector PI, NumericMatrix PSI, NumericMatrix psi, NumericMatrix A, int r);
+RcppExport SEXP _nilHMM_rtiger_viterbi_cpp(SEXP PISEXP, SEXP PSISEXP, SEXP psiSEXP, SEXP ASEXP, SEXP rSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type PI(PISEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type PSI(PSISEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type psi(psiSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type A(ASEXP);
+    Rcpp::traits::input_parameter< int >::type r(rSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtiger_viterbi_cpp(PI, PSI, psi, A, r));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rle_segments_cpp
 List rle_segments_cpp(IntegerVector path, IntegerVector pos);
 RcppExport SEXP _nilHMM_rle_segments_cpp(SEXP pathSEXP, SEXP posSEXP) {
@@ -197,6 +212,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_rtiger_backward_cpp", (DL_FUNC) &_nilHMM_rtiger_backward_cpp, 4},
     {"_nilHMM_rtiger_zeta_cpp", (DL_FUNC) &_nilHMM_rtiger_zeta_cpp, 6},
     {"_nilHMM_rtiger_gamma_cpp", (DL_FUNC) &_nilHMM_rtiger_gamma_cpp, 4},
+    {"_nilHMM_rtiger_viterbi_cpp", (DL_FUNC) &_nilHMM_rtiger_viterbi_cpp, 5},
     {"_nilHMM_rle_segments_cpp", (DL_FUNC) &_nilHMM_rle_segments_cpp, 2},
     {"_nilHMM_rle_segments_batch_cpp", (DL_FUNC) &_nilHMM_rle_segments_batch_cpp, 2},
     {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 3},
