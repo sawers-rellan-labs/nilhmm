@@ -193,17 +193,19 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
                           fit_means = FALSE, p_switch = 0.01,
                           f_1 = NULL, f_2 = NULL,
                           source = "nilHMM", donor = NA_character_,
-                          parallel = FALSE, threads = 1L, seed = 1L) {
+                          parallel = FALSE, threads = 1L, seed = 1L,
+                          postprocess = TRUE) {
   caller <- match.arg(caller)
   req <- c("name", "chr", "pos", "n_ref", "n_alt")
   if (!all(req %in% names(data))) stop("call_ancestry(): data needs columns ", paste(req, collapse = ", "))
   has_donor <- "donor" %in% names(data)
 
   # RTIGER caller: its own EM/Viterbi (src/rtiger.cpp, R/rtiger.R) — a faithful
-  # port of the RTIGER fork, not the count engine. `r` is the integer rigidity.
+  # port of the RTIGER fork, not the count engine. `r` is the integer rigidity;
+  # `postprocess` applies the border re-placement (on by default, as RTIGER does).
   if (caller == "rtiger") {
     rigidity <- if (r >= 1) as.integer(r) else { warning("rtiger: r is the rigidity; using 5"); 5L }
-    return(.call_ancestry_rtiger(data, rigidity, source, donor, has_donor, threads, seed))
+    return(.call_ancestry_rtiger(data, rigidity, source, donor, has_donor, threads, seed, postprocess))
   }
 
   spec <- caller_spec(caller, r = r, err = err, conc = conc,

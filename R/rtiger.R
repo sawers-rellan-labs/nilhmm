@@ -94,14 +94,42 @@
   .rtiger_fit(obs, r, nstates, eps, max_iter, threads, best$alpha, best$beta)
 }
 
-# Decode all chains with the fitted parameters (one Viterbi pass per chain).
+# Border post-processing (port of the fork's postprocessing/findsplit/segmente/
+# getVitSeg). For each pair of adjacent segments, re-place the boundary at the
+# split that maximizes the per-marker emission likelihood: assign the first m-1
+# of the two-segment span to the left state and the rest to the right, pick the
+# best m. `psi` is the s x T per-marker log-emission (getlogpsi, NOT windowed).
+# Sequential left-to-right (only the right-border branch, as in the fork).
+.rtiger_postprocess <- function(path, psi) {
+  Tn <- length(path)
+  if (Tn < 2L) return(path)
+  brk    <- which(path[-1L] != path[-Tn])
+  starts <- c(1L, brk + 1L); ends <- c(brk, Tn); states <- path[starts]
+  nseg   <- length(starts)
+  if (nseg < 2L) return(path)
+  for (i in seq_len(nseg - 1L)) {
+    lo <- starts[i]; hi <- ends[i + 1L]               # span of segments i and i+1
+    dec <- psi[, lo:hi, drop = FALSE]
+    ls  <- cumsum(dec[states[i], ])                   # left state, prefix sums
+    rs  <- rev(cumsum(rev(dec[states[i + 1L], ])))    # right state, suffix sums
+    e   <- which.max(c(0, ls) + c(rs, 0))             # best split (1-based)
+    ends[i] <- lo + e - 2L; starts[i + 1L] <- lo + e - 1L
+  }
+  out <- integer(Tn)
+  for (i in seq_len(nseg)) if (starts[i] <= ends[i]) out[starts[i]:ends[i]] <- states[i]
+  out
+}
+
+# Decode all chains with the fitted parameters (one Viterbi pass per chain),
+# optionally applying the border post-processing (default on, as RTIGER does).
 # Returns the same nested list shape as `obs`, with 1-based state paths.
-.rtiger_decode <- function(obs, params, r) {
+.rtiger_decode <- function(obs, params, r, postprocess = TRUE) {
   logPI <- log(params$pi); logA <- log(params$A)
   lapply(obs, function(sm) lapply(sm, function(ch) {
     lp <- rtiger_getlogpsi_cpp(ch$k, ch$n, params$alpha, params$beta)
     LP <- rtiger_productpsi_cpp(lp, r)
-    rtiger_viterbi_cpp(logPI, LP, lp, logA, r)        # 1-based states
+    v  <- rtiger_viterbi_cpp(logPI, LP, lp, logA, r)  # 1-based states
+    if (postprocess) .rtiger_postprocess(v, lp) else v
   }))
 }
 
@@ -110,7 +138,8 @@
 # [pat,het,mat]=(1,2,3) -> common [REF,HET,ALT]=(0,1,2) via state-1, and RLE to
 # the common segment schema. RTIGER fits across all samples in `data` (the
 # consumer groups per taxon). No post-processing yet (separate item).
-.call_ancestry_rtiger <- function(data, rigidity, source, donor, has_donor, threads, seed) {
+.call_ancestry_rtiger <- function(data, rigidity, source, donor, has_donor, threads, seed,
+                                  postprocess = TRUE) {
   by_name <- split(data, data$name, drop = TRUE)
   obs <- list(); pos <- list(); donor_of <- character(0)
   for (nm in names(by_name)) {
@@ -125,7 +154,7 @@
     }
   }
   fit   <- .rtiger_fit(obs, rigidity, threads = threads, seed = seed)
-  paths <- .rtiger_decode(obs, fit, rigidity)
+  paths <- .rtiger_decode(obs, fit, rigidity, postprocess = postprocess)
   out <- list()
   for (nm in names(obs)) for (cc in names(obs[[nm]])) {
     macro <- paths[[nm]][[cc]] - 1L                      # 1/2/3 -> 0/1/2

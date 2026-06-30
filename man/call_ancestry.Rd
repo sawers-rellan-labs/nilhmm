@@ -19,7 +19,8 @@ call_ancestry(
   donor = NA_character_,
   parallel = FALSE,
   threads = 1L,
-  seed = 1L
+  seed = 1L,
+  postprocess = TRUE
 )
 }
 \arguments{
