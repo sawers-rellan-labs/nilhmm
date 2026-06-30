@@ -41,53 +41,23 @@
 }
 
 # --- one EM iteration over all chains; returns updated (A, pi, alpha, beta).
-# Pooled streaming sufficient statistics, mirroring EM (rHMM_methods.jl L1057-1242):
-# transitionMultiple (sumZeta), startMultiple (startAcc/nOb), emission (per-state
-# distinct-(k,n) weights W + weighted totals sumk/sumn).
-.rtiger_em <- function(obs, logPI, logA, alpha, beta, r, nstates = 3L) {
+# The per-chain E-step and the pooled suff-stat fold run in C++
+# (rtiger_em_suffstats_cpp); only the M-step (cheap) stays in R. Mirrors the
+# fork's EM (rHMM_methods.jl L1057-1242): transition (sumZeta), start
+# (startAcc/nOb), emission (per-state distinct-(k,n) weights + sumk/sumn).
+.rtiger_em <- function(ks_list, ns_list, logPI, logA, alpha, beta, r, nstates = 3L) {
   s <- nstates
-  sumZeta <- matrix(0, s, s)
-  startAcc <- numeric(s)
-  nOb <- 0L
-  W    <- replicate(s, new.env(parent = emptyenv()), simplify = FALSE)  # (k,n) -> Σγ
-  sumk <- numeric(s); sumn <- numeric(s)
+  ss <- rtiger_em_suffstats_cpp(ks_list, ns_list, logPI, logA, alpha, beta,
+                                as.integer(r), as.integer(nstates))
 
-  for (sm in obs) for (ch in sm) {
-    O_k <- ch$k; O_n <- ch$n
-    Tc <- length(O_k)
-    e  <- .rtiger_estep_chain(O_k, O_n, logPI, logA, alpha, beta, r)
-    z  <- e$zeta; gam <- e$gamma                       # z: T x s x s ; gam: s x T
+  rs <- rowSums(ss$sumZeta); rs[rs == 0] <- 1           # zero-row guard
+  Anew  <- ss$sumZeta / rs
+  PInew <- ss$startAcc / ss$nOb
 
-    # transition: Σ over band (r+1):(T-r+1) of zeta[t,,]
-    band <- (r + 1):(Tc - r + 1)
-    sumZeta <- sumZeta + apply(z[band, , , drop = FALSE], c(2, 3), sum)
-    # start: Σ gamma[,1]
-    startAcc <- startAcc + gam[, 1]
-    nOb <- nOb + 1L
-    # emission: per state, group γ by distinct (k,n); accumulate weighted totals
-    key <- paste(O_k, O_n, sep = "_")
-    for (st in 1:s) {
-      agg <- tapply(gam[st, ], key, sum)
-      for (nm in names(agg)) {
-        cur <- W[[st]][[nm]]
-        W[[st]][[nm]] <- (if (is.null(cur)) 0 else cur) + agg[[nm]]
-      }
-      sumk[st] <- sumk[st] + sum(O_k * gam[st, ])
-      sumn[st] <- sumn[st] + sum(O_n * gam[st, ])
-    }
-  }
-
-  # M-step: transition (row-normalize, zero-row guard), start, emission.
-  rs <- rowSums(sumZeta); rs[rs == 0] <- 1
-  Anew <- sumZeta / rs
-  PInew <- startAcc / nOb
   anew <- numeric(s); bnew <- numeric(s)
   for (st in 1:s) {
-    keys <- ls(W[[st]])
-    kn <- do.call(rbind, strsplit(keys, "_", fixed = TRUE))
-    ks <- as.integer(kn[, 1]); ns <- as.integer(kn[, 2])
-    ws <- vapply(keys, function(nm) W[[st]][[nm]], numeric(1))
-    ab <- .rtiger_emission_update_state(st, ks, ns, ws, sumk[st], sumn[st], alpha, beta)
+    ab <- .rtiger_emission_update_state(st, ss$kvals, ss$nvals, ss$wmat[, st],
+                                        ss$sumk[st], ss$sumn[st], alpha, beta)
     anew[st] <- ab["a"]; bnew[st] <- ab["b"]
   }
   list(A = Anew, pi = PInew, alpha = anew, beta = bnew)
@@ -98,13 +68,20 @@
 # emission α=[20,20,1] β=[1,20,20], pi uniform (the generate_params forms).
 .rtiger_fit <- function(obs, r, nstates = 3L, eps = 0.01, max_iter = 50L) {
   s <- nstates
+  # flatten chains once (the C++ fold consumes flat k/n lists)
+  ks_list <- list(); ns_list <- list()
+  for (sm in obs) for (ch in sm) {
+    ks_list[[length(ks_list) + 1L]] <- as.integer(ch$k)
+    ns_list[[length(ns_list) + 1L]] <- as.integer(ch$n)
+  }
+
   A  <- matrix(0.1, s, s) + diag(s) * 10; A <- A / rowSums(A)
   PI <- rep(1 / s, s)
   alpha <- if (s == 3L) c(20, 20, 1)  else rep(20, s)
   beta  <- if (s == 3L) c(1, 20, 20)  else rep(20, s)
   iter <- 0L
   repeat {
-    nw <- .rtiger_em(obs, log(PI), log(A), alpha, beta, r, nstates)
+    nw <- .rtiger_em(ks_list, ns_list, log(PI), log(A), alpha, beta, r, nstates)
     er <- max(abs(alpha - nw$alpha), abs(beta - nw$beta))
     A <- nw$A; PI <- nw$pi; alpha <- nw$alpha; beta <- nw$beta
     iter <- iter + 1L

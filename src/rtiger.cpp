@@ -14,8 +14,17 @@
 #include <cmath>
 #include <algorithm>
 #include <vector>
+#include <map>
 #include <unordered_map>
 using namespace Rcpp;
+
+// forward declarations (kernels defined below; used by the EM driver)
+NumericMatrix rtiger_getlogpsi_cpp(IntegerVector, IntegerVector, NumericVector, NumericVector);
+NumericMatrix rtiger_productpsi_cpp(NumericMatrix, int);
+NumericMatrix rtiger_forward_cpp(NumericVector, NumericMatrix, NumericMatrix, NumericMatrix, int);
+NumericMatrix rtiger_backward_cpp(NumericMatrix, NumericMatrix, NumericMatrix, int);
+NumericVector rtiger_zeta_cpp(NumericMatrix, NumericMatrix, NumericMatrix, NumericMatrix, NumericMatrix, int);
+NumericMatrix rtiger_gamma_cpp(NumericVector, NumericMatrix, NumericMatrix, int);
 
 // log-add-exp of two scalars, matching the fork's logaddexp (handles -Inf).
 static inline double logaddexp2(double x, double y) {
@@ -420,4 +429,83 @@ IntegerVector rtiger_viterbi_cpp(NumericVector PI, NumericMatrix PSI,
     if (t < 2) break;
   }
   return v;
+}
+
+
+//' RTIGER one-EM-iteration sufficient statistics (E-step + fold, all in C++)
+//'
+//' Runs the per-chain E-step (getlogpsi..gamma) and accumulates the pooled
+//' sufficient statistics, replacing the slow R-level fold (apply()/tapply()).
+//' Mirrors the fork's EM accumulation: transition band-sum of zeta, start =
+//' Σ gamma[,1], and per-state emission weights grouped by distinct (k,n).
+//' @param ks_list,ns_list Lists of per-chain integer (k, n) vectors.
+//' @param logPI,logA log start / log transition.
+//' @param alpha,beta current BetaBinomial shape vectors.
+//' @param r,nstates Rigidity and number of states.
+//' @return list(sumZeta, startAcc, nOb, kvals, nvals, wmat, sumk, sumn).
+//' @keywords internal
+// [[Rcpp::export]]
+List rtiger_em_suffstats_cpp(List ks_list, List ns_list, NumericVector logPI,
+                             NumericMatrix logA, NumericVector alpha,
+                             NumericVector beta, int r, int nstates) {
+  const int s = nstates;
+  NumericMatrix sumZeta(s, s);
+  NumericVector startAcc(s);
+  int nOb = 0;
+  std::map<long long, std::vector<double> > W;          // (k,n) key -> per-state Σγ
+  std::vector<double> sumk(s, 0.0), sumn(s, 0.0);
+
+  const int nchains = ks_list.size();
+  for (int c = 0; c < nchains; ++c) {
+    IntegerVector O_k = ks_list[c];
+    IntegerVector O_n = ns_list[c];
+    const int Tc = O_k.size();
+
+    NumericMatrix lp  = rtiger_getlogpsi_cpp(O_k, O_n, alpha, beta);
+    NumericMatrix LP  = rtiger_productpsi_cpp(lp, r);
+    NumericMatrix al  = rtiger_forward_cpp(logPI, LP, logA, lp, r);
+    NumericMatrix be  = rtiger_backward_cpp(LP, logA, lp, r);
+    NumericVector z   = rtiger_zeta_cpp(al, be, logA, LP, lp, r);   // T x s x s flat
+    NumericMatrix gam = rtiger_gamma_cpp(z, al, be, r);            // s x T
+
+    // transition: Σ over band (r+1):(Tc-r+1) of zeta[t, i, j]
+    for (int i = 0; i < s; ++i) {
+      for (int j = 0; j < s; ++j) {
+        double acc = 0.0;
+        for (int t = r + 1; t <= Tc - r + 1; ++t) acc += z[(t - 1) + i * Tc + j * (Tc * s)];
+        sumZeta(i, j) += acc;
+      }
+    }
+    // start: Σ gamma[,1]
+    for (int st = 0; st < s; ++st) startAcc[st] += gam(st, 0);
+    nOb += 1;
+    // emission: per marker, accumulate per-state weights by distinct (k,n)
+    for (int t = 0; t < Tc; ++t) {
+      const int kk = O_k[t], nn = O_n[t];
+      const long long key = (long long)nn * 2147483647LL + kk;
+      std::vector<double>& w = W[key];
+      if (w.empty()) w.assign(s, 0.0);
+      for (int st = 0; st < s; ++st) {
+        const double g = gam(st, t);
+        w[st]   += g;
+        sumk[st] += kk * g;
+        sumn[st] += nn * g;
+      }
+    }
+  }
+
+  const int np = (int)W.size();
+  IntegerVector kvals(np), nvals(np);
+  NumericMatrix wmat(np, s);
+  int p = 0;
+  for (std::map<long long, std::vector<double> >::iterator it = W.begin(); it != W.end(); ++it) {
+    nvals[p] = (int)(it->first / 2147483647LL);
+    kvals[p] = (int)(it->first % 2147483647LL);
+    for (int st = 0; st < s; ++st) wmat(p, st) = it->second[st];
+    ++p;
+  }
+  return List::create(_["sumZeta"] = sumZeta, _["startAcc"] = startAcc, _["nOb"] = nOb,
+                      _["kvals"] = kvals, _["nvals"] = nvals, _["wmat"] = wmat,
+                      _["sumk"] = NumericVector(sumk.begin(), sumk.end()),
+                      _["sumn"] = NumericVector(sumn.begin(), sumn.end()));
 }

@@ -137,6 +137,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtiger_em_suffstats_cpp
+List rtiger_em_suffstats_cpp(List ks_list, List ns_list, NumericVector logPI, NumericMatrix logA, NumericVector alpha, NumericVector beta, int r, int nstates);
+RcppExport SEXP _nilHMM_rtiger_em_suffstats_cpp(SEXP ks_listSEXP, SEXP ns_listSEXP, SEXP logPISEXP, SEXP logASEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP rSEXP, SEXP nstatesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< List >::type ks_list(ks_listSEXP);
+    Rcpp::traits::input_parameter< List >::type ns_list(ns_listSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type logPI(logPISEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logA(logASEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< int >::type r(rSEXP);
+    Rcpp::traits::input_parameter< int >::type nstates(nstatesSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtiger_em_suffstats_cpp(ks_list, ns_list, logPI, logA, alpha, beta, r, nstates));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rle_segments_cpp
 List rle_segments_cpp(IntegerVector path, IntegerVector pos);
 RcppExport SEXP _nilHMM_rle_segments_cpp(SEXP pathSEXP, SEXP posSEXP) {
@@ -213,6 +231,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_rtiger_zeta_cpp", (DL_FUNC) &_nilHMM_rtiger_zeta_cpp, 6},
     {"_nilHMM_rtiger_gamma_cpp", (DL_FUNC) &_nilHMM_rtiger_gamma_cpp, 4},
     {"_nilHMM_rtiger_viterbi_cpp", (DL_FUNC) &_nilHMM_rtiger_viterbi_cpp, 5},
+    {"_nilHMM_rtiger_em_suffstats_cpp", (DL_FUNC) &_nilHMM_rtiger_em_suffstats_cpp, 8},
     {"_nilHMM_rle_segments_cpp", (DL_FUNC) &_nilHMM_rle_segments_cpp, 2},
     {"_nilHMM_rle_segments_batch_cpp", (DL_FUNC) &_nilHMM_rle_segments_batch_cpp, 2},
     {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 3},

@@ -120,6 +120,22 @@ rtiger_viterbi_cpp <- function(PI, PSI, psi, A, r) {
     .Call(`_nilHMM_rtiger_viterbi_cpp`, PI, PSI, psi, A, r)
 }
 
+#' RTIGER one-EM-iteration sufficient statistics (E-step + fold, all in C++)
+#'
+#' Runs the per-chain E-step (getlogpsi..gamma) and accumulates the pooled
+#' sufficient statistics, replacing the slow R-level fold (apply()/tapply()).
+#' Mirrors the fork's EM accumulation: transition band-sum of zeta, start =
+#' Σ gamma[,1], and per-state emission weights grouped by distinct (k,n).
+#' @param ks_list,ns_list Lists of per-chain integer (k, n) vectors.
+#' @param logPI,logA log start / log transition.
+#' @param alpha,beta current BetaBinomial shape vectors.
+#' @param r,nstates Rigidity and number of states.
+#' @return list(sumZeta, startAcc, nOb, kvals, nvals, wmat, sumk, sumn).
+#' @keywords internal
+rtiger_em_suffstats_cpp <- function(ks_list, ns_list, logPI, logA, alpha, beta, r, nstates) {
+    .Call(`_nilHMM_rtiger_em_suffstats_cpp`, ks_list, ns_list, logPI, logA, alpha, beta, r, nstates)
+}
+
 #' Run-length-encode a state path into (start_bp, end_bp, state) segments
 #'
 #' @param path Integer state path (0/1/2), length T.
