@@ -15,6 +15,17 @@ count_emission_loglik_cpp <- function(n, a, theta, conc) {
     .Call(`_nilHMM_count_emission_loglik_cpp`, n, a, theta, conc)
 }
 
+#' Forward-backward state posteriors (log-space; time-homogeneous transitions)
+#'
+#' @param log_init Length-K log initial-state probabilities.
+#' @param log_trans K x K log transition matrix (row = from, col = to).
+#' @param log_emit T x K log emission matrix.
+#' @return T x K matrix of posterior state probabilities (rows sum to 1).
+#' @keywords internal
+forward_backward_cpp <- function(log_init, log_trans, log_emit) {
+    .Call(`_nilHMM_forward_backward_cpp`, log_init, log_trans, log_emit)
+}
+
 #' Generic log-space Viterbi decode (time-homogeneous transitions)
 #'
 #' @param log_init Length-K vector of log initial-state probabilities.

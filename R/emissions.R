@@ -71,8 +71,37 @@ emission_dosage <- function(sd_dosage = 0.25) {
   stop(".emission_loglik(): only the count emission is implemented (Task 4)")
 }
 
-# Baum-Welch EM for the emission means (S10). Implemented in the next Task-4 step.
-.em_fit_means <- function(obs, emission, tr, theta, control) {
-  stop(".em_fit_means(): fittable emission means not yet implemented; ",
-       "use fit_means = FALSE (the baseline-reproducing fixed means) for now")
+# Baum-Welch EM for the count-emission state means (S10 fix for reference-biased
+# data). E-step: forward-backward posteriors per chromosome sequence. M-step:
+# theta_s = sum(gamma_s * a) / sum(gamma_s * n) (the posterior-weighted alt
+# fraction; exact for a Binomial, the mean update for BetaBinomial at fixed
+# conc). Pooled across `obs_list` (a sample's chromosomes) so theta_ALT is
+# estimated from all donor evidence, not one chromosome. A state that is never
+# visited (denominator ~ 0) keeps its current mean. Transitions are held fixed
+# (only means are fit); rigidity sub-state posteriors are summed back to macro.
+.em_fit_means <- function(obs_list, emission, td, theta, control = list()) {
+  max_iter <- if (!is.null(control$max_iter)) control$max_iter else 100L
+  tol      <- if (!is.null(control$tol)) control$tol else 1e-5
+  eps      <- 1e-4
+  ns <- td$n_sub
+  for (iter in seq_len(max_iter)) {
+    num <- numeric(3); den <- numeric(3)
+    for (o in obs_list) {
+      em <- .expand_emission(count_emission_loglik_cpp(as.integer(o$n), as.integer(o$a),
+                                                       theta, emission$conc), ns)
+      g <- forward_backward_cpp(td$log_start, td$log_trans, em)   # T x (3*ns)
+      gm <- if (ns > 1L)
+              sapply(0:2, function(m) rowSums(g[, (m * ns + 1L):(m * ns + ns), drop = FALSE]))
+            else g
+      num <- num + colSums(gm * o$a)
+      den <- den + colSums(gm * o$n)
+    }
+    new_theta <- theta
+    upd <- den > eps
+    new_theta[upd] <- pmin(pmax(num[upd] / den[upd], eps), 1 - eps)
+    delta <- max(abs(new_theta - theta))
+    theta <- new_theta
+    if (delta < tol) break
+  }
+  theta
 }

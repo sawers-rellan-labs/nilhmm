@@ -94,11 +94,20 @@ fit <- function(obs, emission, duration, priors, control = list()) {
   td <- .duration_transition(duration, priors)
   theta <- .emission_theta(emission)                 # initial / fixed means
   if (isTRUE(emission$fit_means)) {
-    theta <- .em_fit_means(obs, emission, td, theta, control)
+    theta <- .em_fit_means(list(obs), emission, td, theta, control)  # single sequence
   }
   structure(list(theta = theta, log_start = td$log_start, log_trans = td$log_trans,
                  n_sub = td$n_sub, emission = emission, duration = duration),
             class = "nilHMM_model")
+}
+
+# Replicate a T x 3 macro emission across each macro-state's n_sub sub-states
+# (expanded column index = m * n_sub + k). n_sub = 1 is a no-op.
+.expand_emission <- function(em3, n_sub) {
+  if (n_sub == 1L) return(em3)
+  out <- matrix(0, nrow(em3), 3L * n_sub)
+  for (m in 0:2) for (k in 0:(n_sub - 1L)) out[, m * n_sub + k + 1L] <- em3[, m + 1L]
+  out
 }
 
 #' Decode the most-likely state path (Viterbi)
@@ -109,15 +118,9 @@ fit <- function(obs, emission, duration, priors, control = list()) {
 #'   for rigidity the expanded sub-states are mapped back to macro-states.
 #' @export
 decode <- function(model, obs) {
-  em <- .emission_loglik(model$emission, obs, model$theta)   # T x 3 (macro)
-  ns <- model$n_sub
-  if (ns > 1L) {
-    Tn <- nrow(em)
-    em_exp <- matrix(0, Tn, 3L * ns)                         # replicate per sub-state
-    for (m in 0:2) for (k in 0:(ns - 1L)) em_exp[, m * ns + k + 1L] <- em[, m + 1L]
-    return(viterbi_log_cpp(model$log_start, model$log_trans, em_exp) %/% ns)
-  }
-  viterbi_log_cpp(model$log_start, model$log_trans, em)
+  em <- .expand_emission(.emission_loglik(model$emission, obs, model$theta), model$n_sub)
+  path <- viterbi_log_cpp(model$log_start, model$log_trans, em)
+  if (model$n_sub > 1L) path %/% model$n_sub else path
 }
 
 #' Top-level ancestry-calling API
@@ -158,18 +161,28 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
   if (!all(req %in% names(data))) stop("call_ancestry(): data needs columns ", paste(req, collapse = ", "))
   has_donor <- "donor" %in% names(data)
 
+  td     <- .duration_transition(spec$duration, priors)   # same for all samples
+  theta0 <- .emission_theta(spec$emission)
+
   out <- list()
   for (nm in unique(data$name)) {
     dn <- data[data$name == nm, , drop = FALSE]
     donor_nm <- if (has_donor) dn$donor[1] else donor
-    for (cc in unique(dn$chr)) {
+    # per-chromosome observation sequences for this sample (HMM decodes each chr
+    # independently; emission params are shared and fit pooled across them).
+    obs_list <- lapply(sort(unique(dn$chr)), function(cc) {
       dc <- dn[dn$chr == cc, , drop = FALSE]
       dc <- dc[order(dc$pos), , drop = FALSE]
-      obs <- list(n = dc$n_ref + dc$n_alt, a = dc$n_alt)
-      model <- fit(obs, spec$emission, spec$duration, priors)
-      path <- decode(model, obs)
-      out[[length(out) + 1L]] <- .rle_segments(path, dc$pos, cc, nm, source, donor_nm)
-    }
+      list(chr = cc, pos = dc$pos, n = dc$n_ref + dc$n_alt, a = dc$n_alt)
+    })
+    theta <- if (isTRUE(spec$emission$fit_means))
+               .em_fit_means(obs_list, spec$emission, td, theta0) else theta0
+    model <- structure(list(theta = theta, log_start = td$log_start,
+                            log_trans = td$log_trans, n_sub = td$n_sub,
+                            emission = spec$emission, duration = spec$duration),
+                       class = "nilHMM_model")
+    for (o in obs_list)
+      out[[length(out) + 1L]] <- .rle_segments(decode(model, o), o$pos, o$chr, nm, source, donor_nm)
   }
   calls <- do.call(rbind, out)
   calls[order(calls$donor, calls$name, calls$chr, calls$start_bp), , drop = FALSE]
