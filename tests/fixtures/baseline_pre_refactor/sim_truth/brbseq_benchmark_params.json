@@ -1,0 +1,20 @@
+{
+  "n_lines": 100,
+  "n_markers": 66608,
+  "lambda_mean": 2.81,
+  "lambda_shape": 7.04,
+  "lambda_min": 0.1,
+  "pi_floor": 0.3227,
+  "k_decay": 0.518,
+  "error": 0.005,
+  "m": 10,
+  "p": 0,
+  "donor_allele": 2,
+  "seed": 20260620,
+  "seqnames": ["chr1", "chr10", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9"],
+  "realized_mean_coverage": 2.8092,
+  "realized_mean_missingness": 0.5043,
+  "mean_co_detectable": 20.77,
+  "simcross": "0.8",
+  "date": "2026-06-20 11:49:51.67105"
+}
