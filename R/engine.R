@@ -62,13 +62,11 @@
 # and the RTIGER segments).
 .rle_segments <- function(path, pos, chr, name, source, donor) {
   if (length(path) == 0) return(NULL)
-  brk    <- which(diff(path) != 0)
-  starts <- c(1L, brk + 1L)
-  ends   <- c(brk, length(path))
+  r <- rle_segments_cpp(as.integer(path), as.integer(pos))   # boundaries in C++
   data.frame(
     source = source, donor = donor, name = name, chr = as.integer(chr),
-    start_bp = as.integer(pos[starts]), end_bp = as.integer(pos[ends]),
-    state = as.integer(path[starts]), stringsAsFactors = FALSE
+    start_bp = r$start_bp, end_bp = r$end_bp, state = r$state,
+    stringsAsFactors = FALSE
   )
 }
 
@@ -164,16 +162,18 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
   td     <- .duration_transition(spec$duration, priors)   # same for all samples
   theta0 <- .emission_theta(spec$emission)
 
+  # Split by sample ONCE (O(n)) rather than re-scanning the frame per sample
+  # (which is O(samples * rows) and dominates wall-clock on large cohorts).
+  by_name <- split(data, data$name, drop = TRUE)
   out <- list()
-  for (nm in unique(data$name)) {
-    dn <- data[data$name == nm, , drop = FALSE]
+  for (nm in names(by_name)) {
+    dn <- by_name[[nm]]
     donor_nm <- if (has_donor) dn$donor[1] else donor
     # per-chromosome observation sequences for this sample (HMM decodes each chr
     # independently; emission params are shared and fit pooled across them).
-    obs_list <- lapply(sort(unique(dn$chr)), function(cc) {
-      dc <- dn[dn$chr == cc, , drop = FALSE]
+    obs_list <- lapply(split(dn, dn$chr, drop = TRUE), function(dc) {
       dc <- dc[order(dc$pos), , drop = FALSE]
-      list(chr = cc, pos = dc$pos, n = dc$n_ref + dc$n_alt, a = dc$n_alt)
+      list(chr = dc$chr[1], pos = dc$pos, n = dc$n_ref + dc$n_alt, a = dc$n_alt)
     })
     theta <- if (isTRUE(spec$emission$fit_means))
                .em_fit_means(obs_list, spec$emission, td, theta0) else theta0

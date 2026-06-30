@@ -64,11 +64,20 @@ emission_dosage <- function(sd_dosage = 0.25) {
 }
 
 # T x K log-emission matrix for a per-(sample, chromosome) observation table.
+# Memoized: the BetaBinomial is evaluated once per DISTINCT (n, a) count pair and
+# indexed back (cost ~ #distinct pairs ~ coverage, not samples x markers; the
+# RTIGER getlogpsi trick, Implementation.md S7, memory rtiger-betabinomial-cost).
 .emission_loglik <- function(emission, obs, theta) {
-  if (inherits(emission, "nilHMM_emission_count"))
-    return(count_emission_loglik_cpp(as.integer(obs$n), as.integer(obs$a),
-                                     theta, emission$conc))
-  stop(".emission_loglik(): only the count emission is implemented (Task 4)")
+  if (!inherits(emission, "nilHMM_emission_count"))
+    stop(".emission_loglik(): only the count emission is implemented (Task 4)")
+  n <- as.integer(obs$n); a <- as.integer(obs$a)
+  if (length(n) == 0L) return(matrix(0, 0L, 3L))
+  base <- max(n) + 1                                  # a <= n < base => key unique per (n,a)
+  key  <- as.double(n) * base + a
+  u    <- unique(key)
+  em_u <- count_emission_loglik_cpp(as.integer(u %/% base), as.integer(u %% base),
+                                    theta, emission$conc)   # one eval per distinct pair
+  em_u[match(key, u), , drop = FALSE]
 }
 
 # Baum-Welch EM for the count-emission state means (S10 fix for reference-biased

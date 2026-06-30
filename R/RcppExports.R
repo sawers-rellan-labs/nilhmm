@@ -26,6 +26,16 @@ forward_backward_cpp <- function(log_init, log_trans, log_emit) {
     .Call(`_nilHMM_forward_backward_cpp`, log_init, log_trans, log_emit)
 }
 
+#' Run-length-encode a state path into (start_bp, end_bp, state) segments
+#'
+#' @param path Integer state path (0/1/2), length T.
+#' @param pos Integer marker positions, length T (same order as path).
+#' @return List of equal-length integer vectors: start_bp, end_bp, state.
+#' @keywords internal
+rle_segments_cpp <- function(path, pos) {
+    .Call(`_nilHMM_rle_segments_cpp`, path, pos)
+}
+
 #' Generic log-space Viterbi decode (time-homogeneous transitions)
 #'
 #' @param log_init Length-K vector of log initial-state probabilities.
