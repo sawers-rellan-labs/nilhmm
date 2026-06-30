@@ -147,8 +147,8 @@ rtiger_em_suffstats_cpp <- function(ks_list, ns_list, logPI, logA, alpha, beta, 
 #' @param eps,max_iter Convergence tolerance and iteration cap.
 #' @return list(A, pi, alpha, beta, iterations).
 #' @keywords internal
-rtiger_fit_cpp <- function(ks_list, ns_list, r, nstates, eps, max_iter, threads) {
-    .Call(`_nilHMM_rtiger_fit_cpp`, ks_list, ns_list, r, nstates, eps, max_iter, threads)
+rtiger_fit_cpp <- function(ks_list, ns_list, r, nstates, eps, max_iter, threads, init_alpha, init_beta) {
+    .Call(`_nilHMM_rtiger_fit_cpp`, ks_list, ns_list, r, nstates, eps, max_iter, threads, init_alpha, init_beta)
 }
 
 #' Run-length-encode a state path into (start_bp, end_bp, state) segments

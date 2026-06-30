@@ -156,8 +156,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // rtiger_fit_cpp
-List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates, double eps, int max_iter, int threads);
-RcppExport SEXP _nilHMM_rtiger_fit_cpp(SEXP ks_listSEXP, SEXP ns_listSEXP, SEXP rSEXP, SEXP nstatesSEXP, SEXP epsSEXP, SEXP max_iterSEXP, SEXP threadsSEXP) {
+List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates, double eps, int max_iter, int threads, NumericVector init_alpha, NumericVector init_beta);
+RcppExport SEXP _nilHMM_rtiger_fit_cpp(SEXP ks_listSEXP, SEXP ns_listSEXP, SEXP rSEXP, SEXP nstatesSEXP, SEXP epsSEXP, SEXP max_iterSEXP, SEXP threadsSEXP, SEXP init_alphaSEXP, SEXP init_betaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -168,7 +168,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
     Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
     Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
-    rcpp_result_gen = Rcpp::wrap(rtiger_fit_cpp(ks_list, ns_list, r, nstates, eps, max_iter, threads));
+    Rcpp::traits::input_parameter< NumericVector >::type init_alpha(init_alphaSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type init_beta(init_betaSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtiger_fit_cpp(ks_list, ns_list, r, nstates, eps, max_iter, threads, init_alpha, init_beta));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -249,7 +251,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_rtiger_gamma_cpp", (DL_FUNC) &_nilHMM_rtiger_gamma_cpp, 4},
     {"_nilHMM_rtiger_viterbi_cpp", (DL_FUNC) &_nilHMM_rtiger_viterbi_cpp, 5},
     {"_nilHMM_rtiger_em_suffstats_cpp", (DL_FUNC) &_nilHMM_rtiger_em_suffstats_cpp, 8},
-    {"_nilHMM_rtiger_fit_cpp", (DL_FUNC) &_nilHMM_rtiger_fit_cpp, 7},
+    {"_nilHMM_rtiger_fit_cpp", (DL_FUNC) &_nilHMM_rtiger_fit_cpp, 9},
     {"_nilHMM_rle_segments_cpp", (DL_FUNC) &_nilHMM_rle_segments_cpp, 2},
     {"_nilHMM_rle_segments_batch_cpp", (DL_FUNC) &_nilHMM_rle_segments_batch_cpp, 2},
     {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 3},

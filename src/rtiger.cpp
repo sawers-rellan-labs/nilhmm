@@ -777,7 +777,8 @@ struct EStepChunk : public Worker {
 //' @keywords internal
 // [[Rcpp::export]]
 List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates,
-                    double eps, int max_iter, int threads) {
+                    double eps, int max_iter, int threads,
+                    NumericVector init_alpha, NumericVector init_beta) {
   const int s = nstates;
   const int nchains = ks_list.size();
 
@@ -787,7 +788,9 @@ List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates,
   for (int i = 0; i < s; ++i) { double rs = 0; for (int j = 0; j < s; ++j) rs += A(i, j); for (int j = 0; j < s; ++j) A(i, j) /= rs; }
   NumericVector PI(s, 1.0 / s);
   NumericVector alpha(s), beta(s);
-  if (s == 3) { alpha[0]=20; alpha[1]=20; alpha[2]=1; beta[0]=1; beta[1]=20; beta[2]=20; }
+  if (init_alpha.size() == s && init_beta.size() == s) {              // caller-supplied init
+    for (int i=0;i<s;++i){ alpha[i]=init_alpha[i]; beta[i]=init_beta[i]; }
+  } else if (s == 3) { alpha[0]=20; alpha[1]=20; alpha[2]=1; beta[0]=1; beta[1]=20; beta[2]=20; }
   else { for (int i=0;i<s;++i){ alpha[i]=20; beta[i]=20; } }
 
   // Extract chains to plain C++ ONCE (thread-safe + avoids per-iter List re-wrap).

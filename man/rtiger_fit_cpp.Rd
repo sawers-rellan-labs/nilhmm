@@ -4,7 +4,17 @@
 \alias{rtiger_fit_cpp}
 \title{RTIGER full EM fit (E-step + M-step + convergence loop, all in C++)}
 \usage{
-rtiger_fit_cpp(ks_list, ns_list, r, nstates, eps, max_iter, threads)
+rtiger_fit_cpp(
+  ks_list,
+  ns_list,
+  r,
+  nstates,
+  eps,
+  max_iter,
+  threads,
+  init_alpha,
+  init_beta
+)
 }
 \arguments{
 \item{ks_list, ns_list}{Lists of per-chain integer (k, n) vectors.}

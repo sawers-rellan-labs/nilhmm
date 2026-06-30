@@ -23,10 +23,57 @@
 # Fit RTIGER parameters by the full C++ EM. Returns list(A, pi, alpha, beta, iterations).
 # `threads` parallelizes the per-chain E-step (RcppParallel); result is
 # deterministic for a fixed thread count (Viterbi-identical to threads=1).
-.rtiger_fit <- function(obs, r, nstates = 3L, eps = 0.01, max_iter = 50L, threads = 1L) {
+.rtiger_fit <- function(obs, r, nstates = 3L, eps = 0.01, max_iter = 50L, threads = 1L,
+                        init_alpha = numeric(0), init_beta = numeric(0)) {
   ch <- .rtiger_chains(obs)
   rtiger_fit_cpp(ch$ks, ch$ns, as.integer(r), as.integer(nstates), eps,
-                 as.integer(max_iter), as.integer(threads))
+                 as.integer(max_iter), as.integer(threads),
+                 as.numeric(init_alpha), as.numeric(init_beta))
+}
+
+# Total data log-likelihood of `obs` under fitted `params`: sum over chains of
+# logsumexp_k(forward[k,r] + backward[k,r]) (the un-normalized gammar column,
+# which is logP(O) for the chain). Used to rank multi-start fits.
+.rtiger_loglik <- function(obs, params, r) {
+  logPI <- log(params$pi); logA <- log(params$A)
+  lse <- function(x) { m <- max(x); if (!is.finite(m)) return(-Inf); m + log(sum(exp(x - m))) }
+  total <- 0
+  for (sm in obs) for (ch in sm) {
+    lp <- rtiger_getlogpsi_cpp(ch$k, ch$n, params$alpha, params$beta)
+    LP <- rtiger_productpsi_cpp(lp, r)
+    al <- rtiger_forward_cpp(logPI, LP, logA, lp, r)
+    be <- rtiger_backward_cpp(LP, logA, lp, r)
+    total <- total + lse(al[, r] + be[, r])
+  }
+  total
+}
+
+# Subsample-probe multi-start: probe M random inits on a small subsample for a
+# few iters, keep the highest-likelihood one, then run the full fit warm-started
+# from it. Robust to the local-optimum traps a single deterministic init can hit
+# (e.g. Zv). Costs ~one full fit plus the cheap probes.
+.rtiger_fit_multistart <- function(obs, r, nstates = 3L, eps = 0.01, max_iter = 50L,
+                                   threads = 1L, M = 6L, sub_n = 50L, probe_iter = 10L,
+                                   seed = 1L, verbose = FALSE) {
+  set.seed(seed)
+  sub <- obs[utils::head(names(obs), sub_n)]
+  # candidate inits: the canonical one + (M-1) jittered over the het/donor mean space
+  cand <- list(list(a = c(20, 20, 1), b = c(1, 20, 20)))            # canonical (= default)
+  for (m in seq_len(max(0L, M - 1L))) {
+    mu  <- c(runif(1, 0.90, 0.99), runif(1, 0.30, 0.70), runif(1, 0.02, 0.20))  # pat/het/donor means
+    tau <- runif(3, 5, 30)
+    cand[[length(cand) + 1L]] <- list(a = tau * mu, b = tau * (1 - mu))
+  }
+  best <- NULL; best_ll <- -Inf
+  for (m in seq_along(cand)) {
+    f  <- .rtiger_fit(sub, r, nstates, eps, probe_iter, threads, cand[[m]]$a, cand[[m]]$b)
+    ll <- .rtiger_loglik(sub, f, r)
+    if (verbose) cat(sprintf("  probe %d: loglik=%.1f means=%s\n", m, ll,
+                             paste(round(f$alpha / (f$alpha + f$beta), 3), collapse = ",")))
+    if (ll > best_ll) { best_ll <- ll; best <- f }
+  }
+  # warm-start the full fit from the winning probe's evolved emission means
+  .rtiger_fit(obs, r, nstates, eps, max_iter, threads, best$alpha, best$beta)
 }
 
 # Decode all chains with the fitted parameters (one Viterbi pass per chain).
