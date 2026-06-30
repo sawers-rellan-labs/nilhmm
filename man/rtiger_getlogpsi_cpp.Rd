@@ -17,7 +17,7 @@ rtiger_getlogpsi_cpp(k, n, a, b)
 s x T matrix of log emission probabilities.
 }
 \description{
-logpsi\link{i,t} = logpdf(BetaBinomial(n_t, a_i, b_i), k_t). Memoized over distinct
+logpsi(i,t) = logpdf(BetaBinomial(n_t, a_i, b_i), k_t). Memoized over distinct
 (k,n) pairs (as in the fork's getlogpsi cache; bit-identical values).
 }
 \keyword{internal}

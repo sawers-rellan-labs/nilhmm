@@ -15,7 +15,7 @@ rtiger_productpsi_cpp(logpsi, r)
 s x (T+r) matrix.
 }
 \description{
-PSI\link{i,t} = sum of psi\link{i, t-r+1 .. t} (sliding window of r), as a running
+PSI(i,t) = sum of psi over the window (t-r+1 .. t) (sliding window of r), as a running
 cumulative sum. PSI is s x (T+r): the tail columns T+1..T+r-1 carry the
 trailing partial sums and column T+r is left 0 (exactly as the fork).
 }

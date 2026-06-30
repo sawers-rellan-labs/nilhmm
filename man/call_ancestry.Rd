@@ -47,7 +47,12 @@ partial-matched to another argument.}
 \code{\link[RcppParallel:setThreadOptions]{RcppParallel::setThreadOptions()}}). Identical results to serial.}
 
 \item{threads, seed}{RTIGER caller only: E-step threads and the seed for its
-randomized init (see \code{\link{.rtiger_fit}}).}
+randomized init.}
+
+\item{postprocess}{RTIGER caller only: apply the border re-placement (default TRUE).}
+
+\item{emission}{Optional emission override (\code{"count"}, \code{"gt"}, \code{"dosage"}) for
+the \code{nnil} caller; \code{NULL} uses the caller's default.}
 }
 \value{
 data.frame in the common schema

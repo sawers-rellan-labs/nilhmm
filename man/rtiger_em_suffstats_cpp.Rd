@@ -22,6 +22,6 @@ list(sumZeta, startAcc, nOb, kvals, nvals, wmat, sumk, sumn).
 Runs the per-chain E-step (getlogpsi..gamma) and accumulates the pooled
 sufficient statistics, replacing the slow R-level fold (apply()/tapply()).
 Mirrors the fork's EM accumulation: transition band-sum of zeta, start =
-Σ gamma\link{,1}, and per-state emission weights grouped by distinct (k,n).
+Sum of gamma column 1, and per-state emission weights grouped by distinct (k,n).
 }
 \keyword{internal}

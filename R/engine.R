@@ -184,7 +184,10 @@ decode <- function(model, obs) {
 #'   (only the fixed-means batched path; control thread count with
 #'   [RcppParallel::setThreadOptions()]). Identical results to serial.
 #' @param threads,seed RTIGER caller only: E-step threads and the seed for its
-#'   randomized init (see [`.rtiger_fit`]).
+#'   randomized init.
+#' @param postprocess RTIGER caller only: apply the border re-placement (default TRUE).
+#' @param emission Optional emission override (`"count"`, `"gt"`, `"dosage"`) for
+#'   the `nnil` caller; `NULL` uses the caller's default.
 #' @return data.frame in the common schema
 #'   (`source, donor, name, chr, start_bp, end_bp, state`).
 #' @export

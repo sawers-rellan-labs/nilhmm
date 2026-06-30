@@ -30,9 +30,9 @@
 # transition/start converge quickly).
 .rtiger_init <- function(nstates = 3L, seed = 1L) {
   set.seed(seed)
-  ps <- 1 + runif(1, -0.5, 0.5)
-  av <- (if (nstates == 3L) c(20, 20, 1) else rep(20, nstates)) + runif(nstates, -0.5, 0.5)
-  bv <- (if (nstates == 3L) c(1, 20, 20) else rep(20, nstates)) + runif(nstates, -0.5, 0.5)
+  ps <- 1 + stats::runif(1, -0.5, 0.5)
+  av <- (if (nstates == 3L) c(20, 20, 1) else rep(20, nstates)) + stats::runif(nstates, -0.5, 0.5)
+  bv <- (if (nstates == 3L) c(1, 20, 20) else rep(20, nstates)) + stats::runif(nstates, -0.5, 0.5)
   list(alpha = av * ps, beta = bv * ps)
 }
 
@@ -78,8 +78,8 @@
   # candidate inits: the canonical one + (M-1) jittered over the het/donor mean space
   cand <- list(list(a = c(20, 20, 1), b = c(1, 20, 20)))            # canonical (= default)
   for (m in seq_len(max(0L, M - 1L))) {
-    mu  <- c(runif(1, 0.90, 0.99), runif(1, 0.30, 0.70), runif(1, 0.02, 0.20))  # pat/het/donor means
-    tau <- runif(3, 5, 30)
+    mu  <- c(stats::runif(1, 0.90, 0.99), stats::runif(1, 0.30, 0.70), stats::runif(1, 0.02, 0.20))  # pat/het/donor means
+    tau <- stats::runif(3, 5, 30)
     cand[[length(cand) + 1L]] <- list(a = tau * mu, b = tau * (1 - mu))
   }
   best <- NULL; best_ll <- -Inf

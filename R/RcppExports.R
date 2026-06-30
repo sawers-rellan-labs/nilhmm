@@ -28,7 +28,7 @@ forward_backward_cpp <- function(log_init, log_trans, log_emit) {
 
 #' RTIGER emission log-probabilities (getlogpsi)
 #'
-#' logpsi[i,t] = logpdf(BetaBinomial(n_t, a_i, b_i), k_t). Memoized over distinct
+#' logpsi(i,t) = logpdf(BetaBinomial(n_t, a_i, b_i), k_t). Memoized over distinct
 #' (k,n) pairs (as in the fork's getlogpsi cache; bit-identical values).
 #' @param k Integer vector of ref-allele counts (length T).
 #' @param n Integer vector of totals (length T).
@@ -41,7 +41,7 @@ rtiger_getlogpsi_cpp <- function(k, n, a, b) {
 
 #' RTIGER windowed emission product (productpsi)
 #'
-#' PSI[i,t] = sum of psi[i, t-r+1 .. t] (sliding window of r), as a running
+#' PSI(i,t) = sum of psi over the window (t-r+1 .. t) (sliding window of r), as a running
 #' cumulative sum. PSI is s x (T+r): the tail columns T+1..T+r-1 carry the
 #' trailing partial sums and column T+r is left 0 (exactly as the fork).
 #' @param logpsi s x T matrix from rtiger_getlogpsi_cpp.
@@ -125,7 +125,7 @@ rtiger_viterbi_cpp <- function(PI, PSI, psi, A, r) {
 #' Runs the per-chain E-step (getlogpsi..gamma) and accumulates the pooled
 #' sufficient statistics, replacing the slow R-level fold (apply()/tapply()).
 #' Mirrors the fork's EM accumulation: transition band-sum of zeta, start =
-#' Σ gamma[,1], and per-state emission weights grouped by distinct (k,n).
+#' Sum of gamma column 1, and per-state emission weights grouped by distinct (k,n).
 #' @param ks_list,ns_list Lists of per-chain integer (k, n) vectors.
 #' @param logPI,logA log start / log transition.
 #' @param alpha,beta current BetaBinomial shape vectors.
