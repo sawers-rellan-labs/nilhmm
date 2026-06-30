@@ -23,8 +23,26 @@
 # Fit RTIGER parameters by the full C++ EM. Returns list(A, pi, alpha, beta, iterations).
 # `threads` parallelizes the per-chain E-step (RcppParallel); result is
 # deterministic for a fixed thread count (Viterbi-identical to threads=1).
+# RTIGER's randomized emission init (generate_params, randomize=TRUE): jitter the
+# canonical alpha=[20,20,1] beta=[1,20,20] by runif and scale by priorstrength
+# ~1+-0.5. Seeded for reproducibility (RTIGER's own is unseeded). A/pi keep the
+# C++ deterministic diagonal-dominant default (the emission means drive the fit;
+# transition/start converge quickly).
+.rtiger_init <- function(nstates = 3L, seed = 1L) {
+  set.seed(seed)
+  ps <- 1 + runif(1, -0.5, 0.5)
+  av <- (if (nstates == 3L) c(20, 20, 1) else rep(20, nstates)) + runif(nstates, -0.5, 0.5)
+  bv <- (if (nstates == 3L) c(1, 20, 20) else rep(20, nstates)) + runif(nstates, -0.5, 0.5)
+  list(alpha = av * ps, beta = bv * ps)
+}
+
+# Default init is now RTIGER's seeded randomized init (faithful to the original);
+# pass init_alpha/init_beta to override, or seed= to change the draw.
 .rtiger_fit <- function(obs, r, nstates = 3L, eps = 0.01, max_iter = 50L, threads = 1L,
-                        init_alpha = numeric(0), init_beta = numeric(0)) {
+                        init_alpha = NULL, init_beta = NULL, seed = 1L) {
+  if (is.null(init_alpha) || is.null(init_beta)) {
+    ini <- .rtiger_init(nstates, seed); init_alpha <- ini$alpha; init_beta <- ini$beta
+  }
   ch <- .rtiger_chains(obs)
   rtiger_fit_cpp(ch$ks, ch$ns, as.integer(r), as.integer(nstates), eps,
                  as.integer(max_iter), as.integer(threads),
