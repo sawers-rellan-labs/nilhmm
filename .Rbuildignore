@@ -23,3 +23,4 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
+^RTIGER_PORT\.md$

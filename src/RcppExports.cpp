@@ -37,6 +37,32 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtiger_getlogpsi_cpp
+NumericMatrix rtiger_getlogpsi_cpp(IntegerVector k, IntegerVector n, NumericVector a, NumericVector b);
+RcppExport SEXP _nilHMM_rtiger_getlogpsi_cpp(SEXP kSEXP, SEXP nSEXP, SEXP aSEXP, SEXP bSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector >::type k(kSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type n(nSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type a(aSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type b(bSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtiger_getlogpsi_cpp(k, n, a, b));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtiger_productpsi_cpp
+NumericMatrix rtiger_productpsi_cpp(NumericMatrix logpsi, int r);
+RcppExport SEXP _nilHMM_rtiger_productpsi_cpp(SEXP logpsiSEXP, SEXP rSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type logpsi(logpsiSEXP);
+    Rcpp::traits::input_parameter< int >::type r(rSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtiger_productpsi_cpp(logpsi, r));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rle_segments_cpp
 List rle_segments_cpp(IntegerVector path, IntegerVector pos);
 RcppExport SEXP _nilHMM_rle_segments_cpp(SEXP pathSEXP, SEXP posSEXP) {
@@ -106,6 +132,8 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_count_emission_loglik_cpp", (DL_FUNC) &_nilHMM_count_emission_loglik_cpp, 4},
     {"_nilHMM_forward_backward_cpp", (DL_FUNC) &_nilHMM_forward_backward_cpp, 3},
+    {"_nilHMM_rtiger_getlogpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_getlogpsi_cpp, 4},
+    {"_nilHMM_rtiger_productpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_productpsi_cpp, 2},
     {"_nilHMM_rle_segments_cpp", (DL_FUNC) &_nilHMM_rle_segments_cpp, 2},
     {"_nilHMM_rle_segments_batch_cpp", (DL_FUNC) &_nilHMM_rle_segments_batch_cpp, 2},
     {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 3},

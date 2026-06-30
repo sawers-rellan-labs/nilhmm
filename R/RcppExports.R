@@ -26,6 +26,32 @@ forward_backward_cpp <- function(log_init, log_trans, log_emit) {
     .Call(`_nilHMM_forward_backward_cpp`, log_init, log_trans, log_emit)
 }
 
+#' RTIGER emission log-probabilities (getlogpsi)
+#'
+#' logpsi[i,t] = logpdf(BetaBinomial(n_t, a_i, b_i), k_t). Memoized over distinct
+#' (k,n) pairs (same as the fork's getlogpsi cache; bit-identical values).
+#' @param k Integer vector of ref-allele counts (length T).
+#' @param n Integer vector of totals (length T).
+#' @param a,b Per-state BetaBinomial shape vectors (length s).
+#' @return s x T matrix of log emission probabilities.
+#' @keywords internal
+rtiger_getlogpsi_cpp <- function(k, n, a, b) {
+    .Call(`_nilHMM_rtiger_getlogpsi_cpp`, k, n, a, b)
+}
+
+#' RTIGER windowed emission product (productpsi)
+#'
+#' PSI[i,t] = sum of psi[i, t-r+1 .. t] (sliding window of r), as a cumulative
+#' sum; PSI is s x (T+r) with the tail columns T+1..T+r-1 carrying the trailing
+#' partial sums and column T+r left 0 (exactly as the fork's productpsi).
+#' @param logpsi s x T matrix from rtiger_getlogpsi_cpp.
+#' @param r Rigidity.
+#' @return s x (T+r) matrix.
+#' @keywords internal
+rtiger_productpsi_cpp <- function(logpsi, r) {
+    .Call(`_nilHMM_rtiger_productpsi_cpp`, logpsi, r)
+}
+
 #' Run-length-encode a state path into (start_bp, end_bp, state) segments
 #'
 #' @param path Integer state path (0/1/2), length T.
