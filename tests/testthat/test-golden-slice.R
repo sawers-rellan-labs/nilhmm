@@ -40,10 +40,37 @@ test_that("brb slice carries donor (non-REF) signal to exercise HET/ALT", {
   expect_gt(sum(calls$state != 0L), 0L)
 })
 
-test_that("[Task 4] engine reproduces the skim golden slice", {
-  skip("call_ancestry() not yet implemented (Task 4); strict concordance target")
-  # counts <- read_golden_counts(golden_slice_path("skim","counts","PN14_SID1259.chr1.tsv"))
-  # got    <- call_ancestry(counts, caller = "nnil", design = "BC2S2")
-  # exp    <- read_golden_expected(golden_slice_path("skim","expected_calls_chr1.csv"))
-  # expect concordance(got, exp[exp$name=="PN14_SID1259",]) above tolerance
+# Strict regression: the R count caller (fixed means, the baseline-reproducing
+# default) must be bit-identical to the frozen Python calls on chr1. Both skim
+# and BRB used fixed emission means, so both reproduce exactly. (fit_means=TRUE,
+# the §10 fix for BRB's ALT collapse, is a deliberate FUTURE divergence and is
+# tested separately once implemented.)
+seg_cols <- c("chr", "start_bp", "end_bp", "state")
+
+reproduces <- function(src, sample, donor, design, r) {
+  raw <- read_golden_counts(golden_slice_path(src, "counts", paste0(sample, ".chr1.tsv")))
+  counts <- data.frame(name = sample, chr = as.integer(sub("^chr", "", raw$chr)),
+                       pos = raw$pos, n_ref = raw$n_ref, n_alt = raw$n_alt, donor = donor)
+  got <- call_ancestry(counts, caller = "nnil", design = design, r = r)
+  exp <- read_golden_expected(golden_slice_path(src, "expected_calls_chr1.csv"))
+  exp <- exp[exp$name == sample, ]
+  expect_equal(got[, seg_cols], exp[, seg_cols], ignore_attr = TRUE, info = paste(src, sample))
+}
+
+test_that("count caller reproduces the skim baseline (BC2S2, fixed means)", {
+  reproduces("skim", "PN14_SID1259", "Zd", "BC2S2", r = 7e-6)
+  reproduces("skim", "PN3_SID235",   "Zx", "BC2S2", r = 7e-6)
+  reproduces("skim", "PN17_SID1630", "Zx", "BC2S2", r = 7e-6)
+})
+
+test_that("count caller reproduces the BRB baseline (BC2S3, fixed means)", {
+  reproduces("brb", "PN1_SID25", "Zd", "BC2S3", r = 1e-8)
+  reproduces("brb", "PN1_SID32", "Zd", "BC2S3", r = 1e-8)
+  reproduces("brb", "PN1_SID11", "Zv", "BC2S3", r = 1e-8)
+})
+
+test_that("call_ancestry rejects missing priors and bad columns", {
+  d <- data.frame(name = "s", chr = 1L, pos = 1L, n_ref = 0L, n_alt = 0L)
+  expect_error(call_ancestry(d, caller = "nnil"), "supply")
+  expect_error(call_ancestry(data.frame(x = 1), caller = "nnil", design = "BC2S2"), "columns")
 })

@@ -20,10 +20,12 @@ test_that("emission/duration constructors return tagged specs", {
   expect_identical(duration_rigidity(5)$r, 5L)  # coerced to integer
 })
 
-test_that("unimplemented engine entry points fail loudly (Task 4)", {
-  expect_error(fit(NULL, emission_count(), duration_geometric(), list()),
-               "not yet implemented")
-  expect_error(call_ancestry(NULL, "nnil"), "not yet implemented")
+test_that("not-yet-implemented callers/emissions fail loudly", {
+  # gt/dosage emissions and rigidity duration are still stubs (Task 4 follow-ups)
+  expect_error(caller_spec("skimbin"), NA)          # constructs (decode would stop)
+  d <- data.frame(name = "s", chr = 1L, pos = 1L, n_ref = 1L, n_alt = 0L, donor = "Zx")
+  expect_error(call_ancestry(d, caller = "rtiger", design = "BC2S2", r = 5),
+               "rigidity")
 })
 
 test_that("viterbi_log_cpp decodes a trivial 2-state chain", {

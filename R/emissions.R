@@ -13,10 +13,12 @@
 #' @param err Baseline genotyping/sequencing error (initialises `theta`).
 #' @param conc BetaBinomial concentration (overdispersion); near-no-op on BRB
 #'   (§10) but retained for the regime axis.
-#' @param fit_means If `TRUE`, EM-fit the state means rather than fixing them.
+#' @param fit_means If `TRUE`, EM-fit the state means; if `FALSE` (default) use
+#'   the fixed `c(err, 0.5, 1 - err)` that reproduces the Python baseline.
+#'   Reference-biased data (RNA / BRB) needs `TRUE` (§10).
 #' @return An emission spec for [fit()].
 #' @export
-emission_count <- function(err = 0.005, conc = 8, fit_means = TRUE) {
+emission_count <- function(err = 0.01, conc = 20, fit_means = FALSE) {
   structure(list(type = "count", err = err, conc = conc, fit_means = fit_means),
             class = c("nilHMM_emission_count", "nilHMM_emission"))
 }
@@ -50,4 +52,27 @@ emission_gt <- function(germ = 0.05, gert = 0.10, p = 0.5, mr = 0.10, nir = 0.01
 emission_dosage <- function(sd_dosage = 0.25) {
   structure(list(type = "dosage", sd_dosage = sd_dosage),
             class = c("nilHMM_emission_dosage", "nilHMM_emission"))
+}
+
+# --- internal emission interface (consumed by fit()/decode()) ----------------
+
+# Initial / fixed REF/HET/ALT expected alt-fractions for an emission.
+.emission_theta <- function(emission) {
+  if (inherits(emission, "nilHMM_emission_count"))
+    return(c(emission$err, 0.5, 1 - emission$err))
+  stop(".emission_theta(): only the count emission is implemented (Task 4)")
+}
+
+# T x K log-emission matrix for a per-(sample, chromosome) observation table.
+.emission_loglik <- function(emission, obs, theta) {
+  if (inherits(emission, "nilHMM_emission_count"))
+    return(count_emission_loglik_cpp(as.integer(obs$n), as.integer(obs$a),
+                                     theta, emission$conc))
+  stop(".emission_loglik(): only the count emission is implemented (Task 4)")
+}
+
+# Baum-Welch EM for the emission means (§10). Implemented in the next Task-4 step.
+.em_fit_means <- function(obs, emission, tr, theta, control) {
+  stop(".em_fit_means(): fittable emission means not yet implemented; ",
+       "use fit_means = FALSE (the baseline-reproducing fixed means) for now")
 }

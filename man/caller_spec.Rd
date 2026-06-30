@@ -4,13 +4,27 @@
 \alias{caller_spec}
 \title{Resolve a named caller into emission + duration specs}
 \usage{
-caller_spec(caller = c("nnil", "rtiger", "skimbin"), ...)
+caller_spec(
+  caller = c("nnil", "rtiger", "skimbin"),
+  r = 0.01,
+  err = 0.01,
+  conc = 20,
+  fit_means = FALSE,
+  ...
+)
 }
 \arguments{
 \item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"skimbin"}.}
 
-\item{...}{Parameter overrides forwarded to the emission/duration
-constructors (\code{r}, \code{err}, \code{conc}, ...).}
+\item{r}{Duration hyperparameter (self-transition rate / rigidity).}
+
+\item{err}{Count-emission baseline error.}
+
+\item{conc}{Count-emission BetaBinomial concentration.}
+
+\item{fit_means}{EM-fit emission means (count emission; §10).}
+
+\item{...}{Ignored extra args (e.g. \code{f_1}/\code{f_2} consumed by \code{\link[=call_ancestry]{call_ancestry()}}).}
 }
 \value{
 \code{list(emission, duration)}.

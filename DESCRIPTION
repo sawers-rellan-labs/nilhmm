@@ -18,7 +18,8 @@ Depends:
 LinkingTo:
     Rcpp
 Imports:
-    Rcpp
+    Rcpp,
+    utils
 Suggests:
     testthat (>= 3.0.0),
     GenomicRanges

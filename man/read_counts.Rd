@@ -4,15 +4,19 @@
 \alias{read_counts}
 \title{Read allelic counts into the engine's observation table}
 \usage{
-read_counts(path, format = c("gatk_table", "tsv", "vcf_ad"))
+read_counts(path, format = c("tsv", "gatk_table", "vcf_ad"), name = NULL)
 }
 \arguments{
-\item{path}{File or directory of counts.}
+\item{path}{A count TSV file, or a directory of them.}
 
-\item{format}{One of \code{"gatk_table"}, \code{"tsv"}, \code{"vcf_ad"}.}
+\item{format}{One of \code{"tsv"} (the \verb{chr pos ref n_ref alt n_alt} headerless
+layout used by the skim/BRB counts), \code{"gatk_table"}, \code{"vcf_ad"}.}
+
+\item{name}{Optional sample name for a single file; defaults to the file's
+basename with extensions stripped.}
 }
 \value{
-A counts observation table.
+A long observation table: \verb{name, chr, pos, n_ref, n_alt}.
 }
 \description{
 Reads CollectAllelicCounts-style read counts (the GATK-table readcount

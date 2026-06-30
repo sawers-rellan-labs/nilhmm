@@ -4,12 +4,12 @@
 \alias{decode}
 \title{Decode the most-likely state path (Viterbi)}
 \usage{
-decode(model, data)
+decode(model, obs)
 }
 \arguments{
 \item{model}{A fitted model from \code{\link[=fit]{fit()}}.}
 
-\item{data}{Per-chromosome observation object.}
+\item{obs}{A per-(sample, chromosome) observation table.}
 }
 \value{
 Integer state path over markers (0 = REF, 1 = HET, 2 = ALT).

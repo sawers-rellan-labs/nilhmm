@@ -10,6 +10,20 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// count_emission_loglik_cpp
+NumericMatrix count_emission_loglik_cpp(IntegerVector n, IntegerVector a, NumericVector theta, double conc);
+RcppExport SEXP _nilHMM_count_emission_loglik_cpp(SEXP nSEXP, SEXP aSEXP, SEXP thetaSEXP, SEXP concSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector >::type n(nSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type a(aSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< double >::type conc(concSEXP);
+    rcpp_result_gen = Rcpp::wrap(count_emission_loglik_cpp(n, a, theta, conc));
+    return rcpp_result_gen;
+END_RCPP
+}
 // viterbi_log_cpp
 IntegerVector viterbi_log_cpp(NumericVector log_init, NumericMatrix log_trans, NumericMatrix log_emit);
 RcppExport SEXP _nilHMM_viterbi_log_cpp(SEXP log_initSEXP, SEXP log_transSEXP, SEXP log_emitSEXP) {
@@ -25,6 +39,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_nilHMM_count_emission_loglik_cpp", (DL_FUNC) &_nilHMM_count_emission_loglik_cpp, 4},
     {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 3},
     {NULL, NULL, 0}
 };

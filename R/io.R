@@ -10,13 +10,33 @@
 #' TSV->counts adapter covers the wideseq-thinned BRB inputs (cf. the Python
 #' `agent/brb_nilhmm_counts.py`).
 #'
-#' @param path File or directory of counts.
-#' @param format One of `"gatk_table"`, `"tsv"`, `"vcf_ad"`.
-#' @return A counts observation table.
+#' @param path A count TSV file, or a directory of them.
+#' @param format One of `"tsv"` (the `chr pos ref n_ref alt n_alt` headerless
+#'   layout used by the skim/BRB counts), `"gatk_table"`, `"vcf_ad"`.
+#' @param name Optional sample name for a single file; defaults to the file's
+#'   basename with extensions stripped.
+#' @return A long observation table: `name, chr, pos, n_ref, n_alt`.
 #' @export
-read_counts <- function(path, format = c("gatk_table", "tsv", "vcf_ad")) {
+read_counts <- function(path, format = c("tsv", "gatk_table", "vcf_ad"), name = NULL) {
   format <- match.arg(format)
-  stop("nilHMM::read_counts() not yet implemented (Task 4)")
+  if (format != "tsv") stop("read_counts(): only format='tsv' is implemented (Task 4)")
+
+  if (dir.exists(path)) {
+    files <- list.files(path, pattern = "\\.tsv$", full.names = TRUE)
+    return(do.call(rbind, lapply(files, read_counts, format = "tsv")))
+  }
+
+  d <- utils::read.table(path, sep = "\t", header = FALSE, stringsAsFactors = FALSE,
+                         col.names = c("chr", "pos", "ref", "n_ref", "alt", "n_alt"))
+  nm <- if (!is.null(name)) name else sub("\\..*$", "", basename(path))
+  data.frame(
+    name  = nm,
+    chr   = as.integer(sub("^chr", "", d$chr)),
+    pos   = as.integer(d$pos),
+    n_ref = as.integer(d$n_ref),
+    n_alt = as.integer(d$n_alt),
+    stringsAsFactors = FALSE
+  )
 }
 
 #' Write segment calls in the common schema
@@ -29,5 +49,9 @@ read_counts <- function(path, format = c("gatk_table", "tsv", "vcf_ad")) {
 #' @return `path`, invisibly.
 #' @export
 write_common_schema <- function(calls, path) {
-  stop("nilHMM::write_common_schema() not yet implemented (Task 4)")
+  cols <- c("source", "donor", "name", "chr", "start_bp", "end_bp", "state")
+  if (!all(cols %in% names(calls)))
+    stop("write_common_schema(): calls must have columns ", paste(cols, collapse = ", "))
+  utils::write.csv(calls[, cols], path, row.names = FALSE)
+  invisible(path)
 }

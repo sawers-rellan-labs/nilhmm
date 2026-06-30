@@ -9,11 +9,22 @@
 #' - `skimbin` : Skim-BIN — dosage/count emission + geometric duration.
 #'
 #' @param caller One of `"nnil"`, `"rtiger"`, `"skimbin"`.
-#' @param ... Parameter overrides forwarded to the emission/duration
-#'   constructors (`r`, `err`, `conc`, ...).
+#' @param r Duration hyperparameter (self-transition rate / rigidity).
+#' @param err Count-emission baseline error.
+#' @param conc Count-emission BetaBinomial concentration.
+#' @param fit_means EM-fit emission means (count emission; §10).
+#' @param ... Ignored extra args (e.g. `f_1`/`f_2` consumed by [call_ancestry()]).
 #' @return `list(emission, duration)`.
 #' @export
-caller_spec <- function(caller = c("nnil", "rtiger", "skimbin"), ...) {
+caller_spec <- function(caller = c("nnil", "rtiger", "skimbin"),
+                        r = 0.01, err = 0.01, conc = 20, fit_means = FALSE, ...) {
   caller <- match.arg(caller)
-  stop("nilHMM::caller_spec() not yet implemented (Task 4)")
+  switch(caller,
+    nnil    = list(emission = emission_count(err, conc, fit_means),
+                   duration = duration_geometric(r)),
+    rtiger  = list(emission = emission_count(err, conc, fit_means),
+                   duration = duration_rigidity(r)),
+    skimbin = list(emission = emission_dosage(),
+                   duration = duration_geometric(r))
+  )
 }

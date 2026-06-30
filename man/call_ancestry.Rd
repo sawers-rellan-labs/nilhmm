@@ -8,31 +8,41 @@ call_ancestry(
   data,
   caller = c("nnil", "rtiger", "skimbin"),
   design = NULL,
-  regime = NULL,
-  ...
+  r = 0.01,
+  err = 0.01,
+  conc = 20,
+  fit_means = FALSE,
+  f_1 = NULL,
+  f_2 = NULL,
+  source = "nilHMM",
+  donor = NA_character_
 )
 }
 \arguments{
-\item{data}{Marker-level input (counts / GT / dosage) plus positions; the
-caller is data-agnostic about provenance.}
+\item{data}{Long observation table with columns \verb{name, chr, pos, n_ref, n_alt} (and optionally \code{donor}). From \code{\link[=read_counts]{read_counts()}}.}
 
-\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"skimbin"} (see \code{\link[=caller_spec]{caller_spec()}}).}
+\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"skimbin"}.}
 
-\item{design}{Breeding-design key (e.g. \code{"BC2S2"}, \code{"BC2S3"}) selecting
-priors and the expected-fragment Null (see \code{\link[=design_priors]{design_priors()}}).}
+\item{design}{Breeding-design key for priors (e.g. \code{"BC2S2"}, \code{"BC2S3"}).
+Required unless \code{f_1}/\code{f_2} are supplied.}
 
-\item{regime}{Optional emission-by-depth regime override (see
-\code{\link[=select_emission]{select_emission()}}); inferred from depth when \code{NULL}.}
+\item{r, err, conc, fit_means}{Caller parameters forwarded to \code{\link[=caller_spec]{caller_spec()}}.
+Explicit formals (not \code{...}) so that, e.g., \code{r} is never partial-matched to
+another argument.}
 
-\item{...}{Caller-specific parameter overrides (\code{r}, \code{err}, \code{conc}, ...).}
+\item{f_1, f_2}{Single-locus priors, used when \code{design} is \code{NULL}.}
+
+\item{source}{Value for the output \code{source} column.}
+
+\item{donor}{Donor/taxon label when \code{data} has no \code{donor} column.}
 }
 \value{
-A data.frame in the common segment schema
+data.frame in the common schema
 (\verb{source, donor, name, chr, start_bp, end_bp, state}).
 }
 \description{
-Convenience wrapper that resolves a named caller (and optional
-source/design presets) into emission + duration specs, runs \code{\link[=fit]{fit()}} /
-\code{\link[=decode]{decode()}} per chromosome, and returns common-schema segment calls. This is
-the function pipeline scripts call.
+Resolves a named caller (and optional design preset) into emission + duration
+specs, runs \code{\link[=fit]{fit()}} / \code{\link[=decode]{decode()}} per (sample, chromosome), and returns
+common-schema segment calls. Data-agnostic: pass the observations in; this
+function never reads paths.
 }

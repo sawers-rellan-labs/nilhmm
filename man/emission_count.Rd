@@ -4,7 +4,7 @@
 \alias{emission_count}
 \title{Count (BetaBinomial) emission}
 \usage{
-emission_count(err = 0.005, conc = 8, fit_means = TRUE)
+emission_count(err = 0.01, conc = 20, fit_means = FALSE)
 }
 \arguments{
 \item{err}{Baseline genotyping/sequencing error (initialises \code{theta}).}
@@ -12,7 +12,9 @@ emission_count(err = 0.005, conc = 8, fit_means = TRUE)
 \item{conc}{BetaBinomial concentration (overdispersion); near-no-op on BRB
 (§10) but retained for the regime axis.}
 
-\item{fit_means}{If \code{TRUE}, EM-fit the state means rather than fixing them.}
+\item{fit_means}{If \code{TRUE}, EM-fit the state means; if \code{FALSE} (default) use
+the fixed \code{c(err, 0.5, 1 - err)} that reproduces the Python baseline.
+Reference-biased data (RNA / BRB) needs \code{TRUE} (§10).}
 }
 \value{
 An emission spec for \code{\link[=fit]{fit()}}.

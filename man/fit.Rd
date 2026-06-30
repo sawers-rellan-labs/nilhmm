@@ -2,29 +2,31 @@
 % Please edit documentation in R/engine.R
 \name{fit}
 \alias{fit}
-\title{Fit HMM emission/transition parameters by Baum-Welch EM}
+\title{Fit HMM emission/transition parameters}
 \usage{
-fit(data, emission, duration, priors, control = list())
+fit(obs, emission, duration, priors, control = list())
 }
 \arguments{
-\item{data}{Per-chromosome observation object (see emission constructors).}
+\item{obs}{A per-(sample, chromosome) observation table from an emission's
+reader (for \code{count}: columns \code{n}, \code{a}).}
 
-\item{emission}{An emission spec from \code{\link[=emission_count]{emission_count()}} / \code{\link[=emission_gt]{emission_gt()}} /
-\code{\link[=emission_dosage]{emission_dosage()}}.}
+\item{emission}{Emission spec (\code{\link[=emission_count]{emission_count()}} / \code{\link[=emission_gt]{emission_gt()}} /
+\code{\link[=emission_dosage]{emission_dosage()}}).}
 
-\item{duration}{A duration spec from \code{\link[=duration_geometric]{duration_geometric()}} /
-\code{\link[=duration_rigidity]{duration_rigidity()}} / \code{\link[=duration_hsmm]{duration_hsmm()}}.}
+\item{duration}{Duration spec (\code{\link[=duration_geometric]{duration_geometric()}} /
+\code{\link[=duration_rigidity]{duration_rigidity()}} / \code{\link[=duration_hsmm]{duration_hsmm()}}).}
 
-\item{priors}{Single-locus genotype-frequency priors \code{list(f_1, f_2)} (from
-\code{\link[=design_priors]{design_priors()}}); never a generation prior baked into the transition.}
+\item{priors}{Single-locus genotype-frequency priors \code{list(f_1, f_2)}.}
 
-\item{control}{EM control (max_iter, tol, init).}
+\item{control}{EM control (\code{max_iter}, \code{tol}).}
 }
 \value{
-A fitted model object consumed by \code{\link[=decode]{decode()}}.
+A fitted model: \code{list(theta, log_start, log_trans, emission, duration)}.
 }
 \description{
-Fits the fittable parameters of an emission model (e.g. EM-fit emission
-means for count/ref-biased data, see §10) and transition rate where
-applicable. Hot loop in Rcpp.
+For a fixed-mean emission (the default, reproducing the Python count caller)
+this resolves \code{theta} and the transition and is otherwise a no-op. For a
+fittable-mean emission (\code{fit_means = TRUE}; required for RNA / reference-biased
+data per §10) it Baum-Welch EM-fits the emission means. Viterbi/EM hot loops
+are in Rcpp.
 }
