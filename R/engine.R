@@ -131,7 +131,9 @@ fit <- function(obs, emission, duration, priors, control = list()) {
   td <- .duration_transition(duration, priors)
   theta <- .emission_theta(emission)                 # initial / fixed means
   if (isTRUE(emission$fit_means)) {
-    theta <- .em_fit_means(list(obs), emission, td, theta, control)  # single sequence
+    td_fit <- if (td$n_sub == 1L) td                 # fit means on collapsed 3-state model
+              else .build_transition(duration$p_switch, priors$f_1, priors$f_2)
+    theta <- .em_fit_means(list(obs), emission, td_fit, theta, control)
   }
   structure(list(theta = theta, log_start = td$log_start, log_trans = td$log_trans,
                  n_sub = td$n_sub, emission = emission, duration = duration),
@@ -228,8 +230,15 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
       dc <- dc[order(dc$pos), , drop = FALSE]
       list(chr = dc$chr[1], pos = dc$pos, n = dc$n_ref + dc$n_alt, a = dc$n_alt)
     })
-    theta <- if (isTRUE(spec$emission$fit_means))
-               .em_fit_means(obs_list, spec$emission, td, theta0) else theta0
+    # Emission means are fit on the COLLAPSED 3-state model (means are
+    # ~duration-independent; the expanded rigidity FB is K^2 = (3r)^2 and far
+    # slower). Decoding still uses the full duration transition `td`.
+    theta <- theta0
+    if (isTRUE(spec$emission$fit_means)) {
+      td_fit <- if (td$n_sub == 1L) td
+                else .build_transition(spec$duration$p_switch, priors$f_1, priors$f_2)
+      theta <- .em_fit_means(obs_list, spec$emission, td_fit, theta0)
+    }
     model <- structure(list(theta = theta, log_start = td$log_start,
                             log_trans = td$log_trans, n_sub = td$n_sub,
                             emission = spec$emission, duration = spec$duration),
