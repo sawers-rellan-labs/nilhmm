@@ -104,3 +104,34 @@
     rtiger_viterbi_cpp(logPI, LP, lp, logA, r)        # 1-based states
   }))
 }
+
+# call_ancestry(caller="rtiger") backend: build (k,n) observations from the
+# common input, fit + decode the faithful RTIGER, remap states
+# [pat,het,mat]=(1,2,3) -> common [REF,HET,ALT]=(0,1,2) via state-1, and RLE to
+# the common segment schema. RTIGER fits across all samples in `data` (the
+# consumer groups per taxon). No post-processing yet (separate item).
+.call_ancestry_rtiger <- function(data, rigidity, source, donor, has_donor, threads, seed) {
+  by_name <- split(data, data$name, drop = TRUE)
+  obs <- list(); pos <- list(); donor_of <- character(0)
+  for (nm in names(by_name)) {
+    dn <- by_name[[nm]]
+    donor_of[nm] <- if (has_donor) as.character(dn$donor[1]) else donor
+    chr_l <- split(dn, dn$chr, drop = TRUE)
+    obs[[nm]] <- list(); pos[[nm]] <- list()
+    for (cc in names(chr_l)) {
+      dc <- chr_l[[cc]]; dc <- dc[order(dc$pos), , drop = FALSE]
+      obs[[nm]][[cc]] <- list(k = dc$n_ref, n = dc$n_ref + dc$n_alt)
+      pos[[nm]][[cc]] <- dc$pos
+    }
+  }
+  fit   <- .rtiger_fit(obs, rigidity, threads = threads, seed = seed)
+  paths <- .rtiger_decode(obs, fit, rigidity)
+  out <- list()
+  for (nm in names(obs)) for (cc in names(obs[[nm]])) {
+    macro <- paths[[nm]][[cc]] - 1L                      # 1/2/3 -> 0/1/2
+    out[[length(out) + 1L]] <- .rle_segments(macro, pos[[nm]][[cc]], as.integer(cc),
+                                             nm, source, donor_of[[nm]])
+  }
+  calls <- do.call(rbind, out)
+  calls[order(calls$donor, calls$name, calls$chr, calls$start_bp), , drop = FALSE]
+}

@@ -183,6 +183,8 @@ decode <- function(model, obs) {
 #' @param parallel If `TRUE`, decode samples across cores via RcppParallel
 #'   (only the fixed-means batched path; control thread count with
 #'   [RcppParallel::setThreadOptions()]). Identical results to serial.
+#' @param threads,seed RTIGER caller only: E-step threads and the seed for its
+#'   randomized init (see [`.rtiger_fit`]).
 #' @return data.frame in the common schema
 #'   (`source, donor, name, chr, start_bp, end_bp, state`).
 #' @export
@@ -191,18 +193,25 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
                           fit_means = FALSE, p_switch = 0.01,
                           f_1 = NULL, f_2 = NULL,
                           source = "nilHMM", donor = NA_character_,
-                          parallel = FALSE) {
+                          parallel = FALSE, threads = 1L, seed = 1L) {
   caller <- match.arg(caller)
+  req <- c("name", "chr", "pos", "n_ref", "n_alt")
+  if (!all(req %in% names(data))) stop("call_ancestry(): data needs columns ", paste(req, collapse = ", "))
+  has_donor <- "donor" %in% names(data)
+
+  # RTIGER caller: its own EM/Viterbi (src/rtiger.cpp, R/rtiger.R) — a faithful
+  # port of the RTIGER fork, not the count engine. `r` is the integer rigidity.
+  if (caller == "rtiger") {
+    rigidity <- if (r >= 1) as.integer(r) else { warning("rtiger: r is the rigidity; using 5"); 5L }
+    return(.call_ancestry_rtiger(data, rigidity, source, donor, has_donor, threads, seed))
+  }
+
   spec <- caller_spec(caller, r = r, err = err, conc = conc,
                       fit_means = fit_means, p_switch = p_switch)
 
   priors <- if (!is.null(design)) design_priors(design)
             else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
             else stop("call_ancestry(): supply `design` or both `f_1` and `f_2`")
-
-  req <- c("name", "chr", "pos", "n_ref", "n_alt")
-  if (!all(req %in% names(data))) stop("call_ancestry(): data needs columns ", paste(req, collapse = ", "))
-  has_donor <- "donor" %in% names(data)
 
   td     <- .duration_transition(spec$duration, priors)   # same for all samples
   theta0 <- .emission_theta(spec$emission)

@@ -17,7 +17,9 @@ call_ancestry(
   f_2 = NULL,
   source = "nilHMM",
   donor = NA_character_,
-  parallel = FALSE
+  parallel = FALSE,
+  threads = 1L,
+  seed = 1L
 )
 }
 \arguments{
@@ -41,6 +43,9 @@ partial-matched to another argument.}
 \item{parallel}{If \code{TRUE}, decode samples across cores via RcppParallel
 (only the fixed-means batched path; control thread count with
 \code{\link[RcppParallel:setThreadOptions]{RcppParallel::setThreadOptions()}}). Identical results to serial.}
+
+\item{threads, seed}{RTIGER caller only: E-step threads and the seed for its
+randomized init (see \code{\link{.rtiger_fit}}).}
 }
 \value{
 data.frame in the common schema
