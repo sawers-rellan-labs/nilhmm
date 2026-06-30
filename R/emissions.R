@@ -56,28 +56,57 @@ emission_dosage <- function(sd_dosage = 0.25) {
 
 # --- internal emission interface (consumed by fit()/decode()) ----------------
 
-# Initial / fixed REF/HET/ALT expected alt-fractions for an emission.
+# Initial / fixed REF/HET/ALT state parameter for an emission (only the count
+# emission EM-fits it; gt/dosage carry fixed parameters, so theta is a no-op).
 .emission_theta <- function(emission) {
-  if (inherits(emission, "nilHMM_emission_count"))
-    return(c(emission$err, 0.5, 1 - emission$err))
-  stop(".emission_theta(): only the count emission is implemented (Task 4)")
+  if (inherits(emission, "nilHMM_emission_count"))  return(c(emission$err, 0.5, 1 - emission$err))
+  if (inherits(emission, "nilHMM_emission_gt"))     return(NA_real_)   # categorical; theta unused
+  if (inherits(emission, "nilHMM_emission_dosage")) return(c(0, 1, 2)) # state dosages; theta unused
+  stop(".emission_theta(): unsupported emission")
+}
+
+# Holland's nNIL genotype emission matrix (3 states x 4 obs {0,1,2,missing}),
+# verbatim from the Python introgression_hmm (nilhmm/core.py). Rows: REF-hom /
+# het / donor-hom; cols: major-hom / het / minor-hom call / missing.
+.gt_emimat <- function(e) {
+  germ <- e$germ; gert <- e$gert; p <- e$p; mr <- e$mr; nir <- e$nir
+  matrix(c(
+    (1 - germ) * (1 - mr), p * germ * (1 - mr), (1 - p) * germ * (1 - mr), mr,
+    (((1 - nir) * 0.5 * gert) + nir * (1 - germ)) * (1 - mr),
+      (((1 - nir) * (1 - gert)) + (nir * germ * p)) * (1 - mr),
+      (((1 - nir) * 0.5 * gert) + nir * germ * (1 - p)) * (1 - mr), mr,
+    ((1 - nir) * germ * (1 - p) + (nir * (1 - germ))) * (1 - mr), germ * p * (1 - mr),
+      ((1 - nir) * (1 - germ) + (nir * germ * (1 - p))) * (1 - mr), mr
+  ), nrow = 3, byrow = TRUE)
 }
 
 # T x K log-emission matrix for a per-(sample, chromosome) observation table.
-# Memoized: the BetaBinomial is evaluated once per DISTINCT (n, a) count pair and
-# indexed back (cost ~ #distinct pairs ~ coverage, not samples x markers; the
-# RTIGER getlogpsi trick, Implementation.md S7, memory rtiger-betabinomial-cost).
 .emission_loglik <- function(emission, obs, theta) {
-  if (!inherits(emission, "nilHMM_emission_count"))
-    stop(".emission_loglik(): only the count emission is implemented (Task 4)")
-  n <- as.integer(obs$n); a <- as.integer(obs$a)
-  if (length(n) == 0L) return(matrix(0, 0L, 3L))
-  base <- max(n) + 1                                  # a <= n < base => key unique per (n,a)
-  key  <- as.double(n) * base + a
-  u    <- unique(key)
-  em_u <- count_emission_loglik_cpp(as.integer(u %/% base), as.integer(u %% base),
-                                    theta, emission$conc)   # one eval per distinct pair
-  em_u[match(key, u), , drop = FALSE]
+  if (inherits(emission, "nilHMM_emission_count")) {
+    # Memoized: BetaBinomial once per DISTINCT (n,a) pair, indexed back (RTIGER
+    # getlogpsi trick, memory rtiger-betabinomial-cost).
+    n <- as.integer(obs$n); a <- as.integer(obs$a)
+    if (length(n) == 0L) return(matrix(0, 0L, 3L))
+    base <- max(n) + 1
+    key  <- as.double(n) * base + a
+    u    <- unique(key)
+    em_u <- count_emission_loglik_cpp(as.integer(u %/% base), as.integer(u %% base),
+                                      theta, emission$conc)
+    return(em_u[match(key, u), , drop = FALSE])
+  }
+  if (inherits(emission, "nilHMM_emission_gt")) {
+    # categorical: emission[t,s] = log(emimat[s, g_t]); g in {0,1,2,3=missing}
+    g <- as.integer(obs$g)
+    return(t(log(.gt_emimat(emission))[, g + 1L, drop = FALSE]))   # T x 3
+  }
+  if (inherits(emission, "nilHMM_emission_dosage")) {
+    # Gaussian centred at state dosages 0/1/2; missing dosage -> flat emission.
+    d <- obs$d; sd <- emission$sd_dosage
+    out <- vapply(0:2, function(s) stats::dnorm(d, mean = s, sd = sd, log = TRUE), numeric(length(d)))
+    out[is.na(d), ] <- 0
+    return(out)
+  }
+  stop(".emission_loglik(): unsupported emission")
 }
 
 # Baum-Welch EM for the count-emission state means (S10 fix for reference-biased

@@ -20,13 +20,14 @@ test_that("emission/duration constructors return tagged specs", {
   expect_identical(duration_rigidity(5)$r, 5L)  # coerced to integer
 })
 
-test_that("not-yet-implemented emissions fail loudly", {
-  # gt/dosage emissions are still stubs (Task 4 follow-up); skimbin uses dosage.
-  expect_error(caller_spec("skimbin"), NA)          # constructs fine
-  d <- data.frame(name = "s", chr = 1L, pos = 1:3, n_ref = c(1L,0L,1L),
-                  n_alt = c(0L,1L,0L), donor = "Zx")
-  expect_error(call_ancestry(d, caller = "skimbin", design = "BC2S2", r = 0.01),
-               "only the count emission")
+test_that("all three emissions are implemented and run via call_ancestry", {
+  d <- data.frame(name = "s", chr = 1L, pos = 1:6, n_ref = c(2L,0L,1L,2L,0L,1L),
+                  n_alt = c(0L,2L,1L,0L,2L,0L), donor = "Zx")
+  for (cc in list(list(caller="nnil"), list(caller="nnil", emission="gt"),
+                  list(caller="skimbin"))) {                       # count, gt, dosage
+    g <- do.call(call_ancestry, c(list(d, design = "BC2S2", r = 0.01), cc))
+    expect_true(all(g$state %in% 0:2))
+  }
 })
 
 test_that("viterbi_log_cpp decodes a trivial 2-state chain", {

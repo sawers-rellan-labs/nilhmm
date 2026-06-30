@@ -21,6 +21,7 @@ LinkingTo:
 Imports:
     Rcpp,
     RcppParallel,
+    stats,
     utils
 SystemRequirements: GNU make
 Suggests:

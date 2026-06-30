@@ -15,5 +15,7 @@
 #'   [emission_dosage()]).
 #' @export
 select_emission <- function(depth, imputed = FALSE) {
-  stop("nilHMM::select_emission() not yet implemented (Task 4)")
+  if (isTRUE(imputed)) return(emission_dosage())   # imputed dosages
+  if (depth >= 20)     return(emission_gt())        # saturated -> hard genotype call
+  emission_count()                                  # intermediate -> counts
 }

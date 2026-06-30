@@ -20,7 +20,8 @@ call_ancestry(
   parallel = FALSE,
   threads = 1L,
   seed = 1L,
-  postprocess = TRUE
+  postprocess = TRUE,
+  emission = NULL
 )
 }
 \arguments{

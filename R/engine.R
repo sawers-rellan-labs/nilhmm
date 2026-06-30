@@ -194,7 +194,7 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
                           f_1 = NULL, f_2 = NULL,
                           source = "nilHMM", donor = NA_character_,
                           parallel = FALSE, threads = 1L, seed = 1L,
-                          postprocess = TRUE) {
+                          postprocess = TRUE, emission = NULL) {
   caller <- match.arg(caller)
   req <- c("name", "chr", "pos", "n_ref", "n_alt")
   if (!all(req %in% names(data))) stop("call_ancestry(): data needs columns ", paste(req, collapse = ", "))
@@ -210,6 +210,10 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
 
   spec <- caller_spec(caller, r = r, err = err, conc = conc,
                       fit_means = fit_means, p_switch = p_switch)
+  if (!is.null(emission)) spec$emission <- switch(match.arg(emission, c("count","gt","dosage")),
+    count  = emission_count(err, conc, fit_means),
+    gt     = emission_gt(),
+    dosage = emission_dosage())
 
   priors <- if (!is.null(design)) design_priors(design)
             else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
@@ -239,7 +243,11 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
     # independently; emission params are shared and fit pooled across them).
     obs_list <- lapply(split(dn, dn$chr, drop = TRUE), function(dc) {
       dc <- dc[order(dc$pos), , drop = FALSE]
-      list(chr = dc$chr[1], pos = dc$pos, n = dc$n_ref + dc$n_alt, a = dc$n_alt)
+      n <- dc$n_ref + dc$n_alt; a <- dc$n_alt; f <- ifelse(n == 0, NA_real_, a / n)
+      list(chr = dc$chr[1], pos = dc$pos, n = n, a = a,
+           # derived for gt/dosage emissions: hard genotype call and alt dosage
+           g = ifelse(is.na(f), 3L, ifelse(f < 1/3, 0L, ifelse(f > 2/3, 2L, 1L))),
+           d = ifelse(is.na(f), NA_real_, 2 * f))
     })
     # Emission means are fit on the COLLAPSED 3-state model (means are
     # ~duration-independent; the expanded rigidity FB is K^2 = (3r)^2 and far
