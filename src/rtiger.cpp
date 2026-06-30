@@ -11,6 +11,7 @@
 // subtract 1. (s, T) = (#states, #markers).
 
 #include <Rcpp.h>
+#include <RcppParallel.h>
 #include <cmath>
 #include <algorithm>
 #include <vector>
@@ -18,6 +19,7 @@
 #include <functional>
 #include <unordered_map>
 using namespace Rcpp;
+using namespace RcppParallel;
 
 // forward declarations (kernels defined below; used by the EM driver)
 NumericMatrix rtiger_getlogpsi_cpp(IntegerVector, IntegerVector, NumericVector, NumericVector);
@@ -589,8 +591,8 @@ static void emission_update_state(int i0, const std::vector<int>& ks,
 // s x T matrix indexes (i,t)=i+t*s; the zeta buffer is Tmax x s x s and indexes
 // (t,j,k)=t + j*Tmax + k*Tmax*s (Tmax stride, so one buffer fits every chain).
 // ---------------------------------------------------------------------------
-static void getlogpsi_buf(std::vector<double>& lp, const IntegerVector& O_k,
-                          const IntegerVector& O_n, const NumericVector& a,
+static void getlogpsi_buf(std::vector<double>& lp, const int* O_k,
+                          const int* O_n, const NumericVector& a,
                           const NumericVector& b, int T, int s) {
   std::vector<double> lbeta_ab(s);
   for (int i = 0; i < s; ++i) lbeta_ab[i] = R::lbeta(a[i], b[i]);
@@ -698,6 +700,70 @@ static void gamma_buf(std::vector<double>& gam, const std::vector<double>& z, co
   for (int t = 0; t < T; ++t) { double cs = 0.0; for (int k = 0; k < s; ++k) cs += gam[k + t * s]; for (int k = 0; k < s; ++k) gam[k + t * s] /= cs; }
 }
 
+// Parallel E-step worker: each chunk processes a contiguous range of chains
+// into its OWN partial accumulators (parts[ch]) with its OWN buffer set, so
+// there are no races. The serial ordered reduce of parts[0..K-1] then makes the
+// result deterministic for a fixed thread count (Viterbi-identical to serial;
+// parameters differ only by float-summation order). Read-only Rcpp params
+// (logPI/logA/alpha/beta) are shared — concurrent reads are safe.
+struct EStepChunk : public Worker {
+  const std::vector<std::vector<int> >& KS;
+  const std::vector<std::vector<int> >& NS;
+  const NumericVector& logPI; const NumericMatrix& logA;
+  const NumericVector& alpha; const NumericVector& beta;
+  const std::vector<int>& edges;          // chunk boundaries, size nchunks+1
+  int r, s, Tmax;
+  std::vector<std::vector<double> >& sumZeta_p;   // [ch] -> s*s (col-major)
+  std::vector<std::vector<double> >& startAcc_p;  // [ch] -> s
+  std::vector<std::vector<double> >& sumk_p;      // [ch] -> s
+  std::vector<std::vector<double> >& sumn_p;      // [ch] -> s
+  std::vector<std::map<long long, std::vector<double> > >& W_p;
+
+  EStepChunk(const std::vector<std::vector<int> >& KS_, const std::vector<std::vector<int> >& NS_,
+             const NumericVector& logPI_, const NumericMatrix& logA_,
+             const NumericVector& alpha_, const NumericVector& beta_,
+             const std::vector<int>& edges_, int r_, int s_, int Tmax_,
+             std::vector<std::vector<double> >& sZ, std::vector<std::vector<double> >& sA,
+             std::vector<std::vector<double> >& sk, std::vector<std::vector<double> >& sn,
+             std::vector<std::map<long long, std::vector<double> > >& Wp)
+    : KS(KS_), NS(NS_), logPI(logPI_), logA(logA_), alpha(alpha_), beta(beta_),
+      edges(edges_), r(r_), s(s_), Tmax(Tmax_),
+      sumZeta_p(sZ), startAcc_p(sA), sumk_p(sk), sumn_p(sn), W_p(Wp) {}
+
+  void operator()(std::size_t begin, std::size_t end) {
+    const size_t sT = (size_t)Tmax * s;
+    std::vector<double> lp(s * Tmax), PSI(s * (Tmax + r)), al(s * Tmax),
+                        be(s * Tmax), gam(s * Tmax), L(Tmax), M(Tmax), z((size_t)Tmax * s * s);
+    for (std::size_t ch = begin; ch < end; ++ch) {
+      std::vector<double>& sZ = sumZeta_p[ch]; std::vector<double>& sA = startAcc_p[ch];
+      std::vector<double>& sk = sumk_p[ch];    std::vector<double>& sn = sumn_p[ch];
+      std::map<long long, std::vector<double> >& W = W_p[ch];
+      for (int c = edges[ch]; c < edges[ch + 1]; ++c) {
+        const int* O_k = KS[c].data(); const int* O_n = NS[c].data();
+        const int Tc = (int)KS[c].size();
+        getlogpsi_buf(lp, O_k, O_n, alpha, beta, Tc, s);
+        productpsi_buf(PSI, lp, Tc, r, s);
+        forward_buf(al, Tc, r, s, logPI, PSI, logA, lp);
+        backward_buf(be, Tc, r, s, PSI, logA, lp);
+        zeta_buf(z, al, be, logA, PSI, lp, r, Tc, s, Tmax);
+        gamma_buf(gam, z, al, be, r, Tc, s, Tmax, L, M);
+        for (int i = 0; i < s; ++i) for (int j = 0; j < s; ++j) {
+          double acc = 0.0;
+          for (int t = r + 1; t <= Tc - r + 1; ++t) acc += z[(t - 1) + i * Tmax + j * sT];
+          sZ[i + j * s] += acc;
+        }
+        for (int st = 0; st < s; ++st) sA[st] += gam[st];
+        for (int t = 0; t < Tc; ++t) {
+          const int kk = O_k[t], nn = O_n[t];
+          std::vector<double>& w = W[(long long)nn * 2147483647LL + kk];
+          if (w.empty()) w.assign(s, 0.0);
+          for (int st = 0; st < s; ++st) { double g = gam[st + t * s]; w[st]+=g; sk[st]+=kk*g; sn[st]+=nn*g; }
+        }
+      }
+    }
+  }
+};
+
 //' RTIGER full EM fit (E-step + M-step + convergence loop, all in C++)
 //'
 //' The entire fit (port of the fork's `fit`/`EM`): per-chain rigidity E-step,
@@ -711,7 +777,7 @@ static void gamma_buf(std::vector<double>& gam, const std::vector<double>& z, co
 //' @keywords internal
 // [[Rcpp::export]]
 List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates,
-                    double eps, int max_iter) {
+                    double eps, int max_iter, int threads) {
   const int s = nstates;
   const int nchains = ks_list.size();
 
@@ -724,47 +790,50 @@ List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates,
   if (s == 3) { alpha[0]=20; alpha[1]=20; alpha[2]=1; beta[0]=1; beta[1]=20; beta[2]=20; }
   else { for (int i=0;i<s;++i){ alpha[i]=20; beta[i]=20; } }
 
-  // E-step buffers: allocated ONCE and reused across all chains and iterations
-  // (fork optimization #4/#5 — eliminates per-call allocation). Sized to the
-  // largest chain; the zeta buffer uses Tmax strides so one fits every chain.
+  // Extract chains to plain C++ ONCE (thread-safe + avoids per-iter List re-wrap).
+  std::vector<std::vector<int> > KS(nchains), NS(nchains);
   int Tmax = 0;
-  for (int c = 0; c < nchains; ++c) { IntegerVector t = ks_list[c]; if (t.size() > Tmax) Tmax = t.size(); }
-  std::vector<double> bf_lp(s * Tmax), bf_PSI(s * (Tmax + r)), bf_al(s * Tmax),
-                      bf_be(s * Tmax), bf_gam(s * Tmax), bf_L(Tmax), bf_M(Tmax);
-  std::vector<double> bf_z((size_t)Tmax * s * s);
+  for (int c = 0; c < nchains; ++c) {
+    KS[c] = as<std::vector<int> >(ks_list[c]);
+    NS[c] = as<std::vector<int> >(ns_list[c]);
+    if ((int)KS[c].size() > Tmax) Tmax = (int)KS[c].size();
+  }
+  // Contiguous chunking for the parallel E-step: K = min(threads, nchains)
+  // chunks, each folded into its own partial, reduced in chunk order (so the
+  // result is deterministic for a fixed thread count). threads=1 -> 1 chunk =
+  // serial order = bit-identical to the single-threaded path.
+  const int nthr = std::max(1, threads);
+  const int nchunks = std::max(1, std::min(nthr, nchains));
+  std::vector<int> edges(nchunks + 1);
+  for (int ch = 0; ch <= nchunks; ++ch) edges[ch] = (int)((long long)ch * nchains / nchunks);
 
   int iter = 0;
   for (;;) {
     NumericVector logPI(s); for (int k=0;k<s;++k) logPI[k] = std::log(PI[k]);
     NumericMatrix logA(s, s); for (int i=0;i<s;++i) for (int j=0;j<s;++j) logA(i,j)=std::log(A(i,j));
 
-    // ---- E-step + pooled suff-stats over all chains ----
+    // ---- E-step: parallel per-chunk fold, then ordered serial reduce ----
+    std::vector<std::vector<double> > sumZeta_p(nchunks, std::vector<double>(s * s, 0.0));
+    std::vector<std::vector<double> > startAcc_p(nchunks, std::vector<double>(s, 0.0));
+    std::vector<std::vector<double> > sumk_p(nchunks, std::vector<double>(s, 0.0));
+    std::vector<std::vector<double> > sumn_p(nchunks, std::vector<double>(s, 0.0));
+    std::vector<std::map<long long, std::vector<double> > > W_p(nchunks);
+    EStepChunk worker(KS, NS, logPI, logA, alpha, beta, edges, r, s, Tmax,
+                      sumZeta_p, startAcc_p, sumk_p, sumn_p, W_p);
+    parallelFor(0, nchunks, worker, 1);              // grain 1 -> each chunk independent
+
+    // reduce partials in fixed chunk order (deterministic for fixed thread count)
     NumericMatrix sumZeta(s, s);
     std::vector<double> startAcc(s, 0.0), sumk(s, 0.0), sumn(s, 0.0);
-    int nOb = 0;
     std::map<long long, std::vector<double> > W;
-    const size_t sT = (size_t)Tmax * s;
-    for (int c = 0; c < nchains; ++c) {
-      IntegerVector O_k = ks_list[c]; IntegerVector O_n = ns_list[c];
-      const int Tc = O_k.size();
-      getlogpsi_buf(bf_lp, O_k, O_n, alpha, beta, Tc, s);
-      productpsi_buf(bf_PSI, bf_lp, Tc, r, s);
-      forward_buf(bf_al, Tc, r, s, logPI, bf_PSI, logA, bf_lp);
-      backward_buf(bf_be, Tc, r, s, bf_PSI, logA, bf_lp);
-      zeta_buf(bf_z, bf_al, bf_be, logA, bf_PSI, bf_lp, r, Tc, s, Tmax);
-      gamma_buf(bf_gam, bf_z, bf_al, bf_be, r, Tc, s, Tmax, bf_L, bf_M);
-      for (int i = 0; i < s; ++i) for (int j = 0; j < s; ++j) {
-        double acc = 0.0;
-        for (int t = r + 1; t <= Tc - r + 1; ++t) acc += bf_z[(t - 1) + i * Tmax + j * sT];
-        sumZeta(i, j) += acc;
-      }
-      for (int st = 0; st < s; ++st) startAcc[st] += bf_gam[st];
-      nOb += 1;
-      for (int t = 0; t < Tc; ++t) {
-        const int kk = O_k[t], nn = O_n[t];
-        std::vector<double>& w = W[(long long)nn * 2147483647LL + kk];
+    int nOb = nchains;
+    for (int ch = 0; ch < nchunks; ++ch) {
+      for (int i = 0; i < s; ++i) for (int j = 0; j < s; ++j) sumZeta(i, j) += sumZeta_p[ch][i + j * s];
+      for (int st = 0; st < s; ++st) { startAcc[st] += startAcc_p[ch][st]; sumk[st] += sumk_p[ch][st]; sumn[st] += sumn_p[ch][st]; }
+      for (std::map<long long, std::vector<double> >::iterator it = W_p[ch].begin(); it != W_p[ch].end(); ++it) {
+        std::vector<double>& w = W[it->first];
         if (w.empty()) w.assign(s, 0.0);
-        for (int st = 0; st < s; ++st) { double g = bf_gam[st + t * s]; w[st]+=g; sumk[st]+=kk*g; sumn[st]+=nn*g; }
+        for (int st = 0; st < s; ++st) w[st] += it->second[st];
       }
     }
 

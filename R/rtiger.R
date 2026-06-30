@@ -21,9 +21,12 @@
 }
 
 # Fit RTIGER parameters by the full C++ EM. Returns list(A, pi, alpha, beta, iterations).
-.rtiger_fit <- function(obs, r, nstates = 3L, eps = 0.01, max_iter = 50L) {
+# `threads` parallelizes the per-chain E-step (RcppParallel); result is
+# deterministic for a fixed thread count (Viterbi-identical to threads=1).
+.rtiger_fit <- function(obs, r, nstates = 3L, eps = 0.01, max_iter = 50L, threads = 1L) {
   ch <- .rtiger_chains(obs)
-  rtiger_fit_cpp(ch$ks, ch$ns, as.integer(r), as.integer(nstates), eps, as.integer(max_iter))
+  rtiger_fit_cpp(ch$ks, ch$ns, as.integer(r), as.integer(nstates), eps,
+                 as.integer(max_iter), as.integer(threads))
 }
 
 # Decode all chains with the fitted parameters (one Viterbi pass per chain).
