@@ -18,6 +18,6 @@ s x T matrix of log emission probabilities.
 }
 \description{
 logpsi\link{i,t} = logpdf(BetaBinomial(n_t, a_i, b_i), k_t). Memoized over distinct
-(k,n) pairs (same as the fork's getlogpsi cache; bit-identical values).
+(k,n) pairs (as in the fork's getlogpsi cache; bit-identical values).
 }
 \keyword{internal}

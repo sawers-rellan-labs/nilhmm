@@ -29,7 +29,7 @@ forward_backward_cpp <- function(log_init, log_trans, log_emit) {
 #' RTIGER emission log-probabilities (getlogpsi)
 #'
 #' logpsi[i,t] = logpdf(BetaBinomial(n_t, a_i, b_i), k_t). Memoized over distinct
-#' (k,n) pairs (same as the fork's getlogpsi cache; bit-identical values).
+#' (k,n) pairs (as in the fork's getlogpsi cache; bit-identical values).
 #' @param k Integer vector of ref-allele counts (length T).
 #' @param n Integer vector of totals (length T).
 #' @param a,b Per-state BetaBinomial shape vectors (length s).
@@ -41,9 +41,9 @@ rtiger_getlogpsi_cpp <- function(k, n, a, b) {
 
 #' RTIGER windowed emission product (productpsi)
 #'
-#' PSI[i,t] = sum of psi[i, t-r+1 .. t] (sliding window of r), as a cumulative
-#' sum; PSI is s x (T+r) with the tail columns T+1..T+r-1 carrying the trailing
-#' partial sums and column T+r left 0 (exactly as the fork's productpsi).
+#' PSI[i,t] = sum of psi[i, t-r+1 .. t] (sliding window of r), as a running
+#' cumulative sum. PSI is s x (T+r): the tail columns T+1..T+r-1 carry the
+#' trailing partial sums and column T+r is left 0 (exactly as the fork).
 #' @param logpsi s x T matrix from rtiger_getlogpsi_cpp.
 #' @param r Rigidity.
 #' @return s x (T+r) matrix.
@@ -54,15 +54,14 @@ rtiger_productpsi_cpp <- function(logpsi, r) {
 
 #' RTIGER forward pass (rigidity-aware Baum-Welch forward)
 #'
-#' Literal port of the fork's `forward` (rHMM_methods.jl): only a diagonal
-#' "stay" each step, or an "enter" from another state r positions back. Indices
-#' are 1-based to mirror the Julia exactly.
+#' Literal port of the fork's `forward`: at each step a state either "stays"
+#' (diagonal transition) or was "entered" from another state r positions back.
 #' @param logPI length-s log start probabilities.
 #' @param logPSI s x (T+r) windowed-emission matrix (rtiger_productpsi_cpp).
 #' @param logA s x s log transition matrix.
 #' @param logpsi s x T log emission matrix (rtiger_getlogpsi_cpp).
 #' @param r Rigidity.
-#' @return s x T matrix of log forward probabilities (cols 1 and >T-r+1 stay -Inf).
+#' @return s x T log forward matrix (cols 1 and >T-r+1 stay -Inf).
 #' @keywords internal
 rtiger_forward_cpp <- function(logPI, logPSI, logA, logpsi, r) {
     .Call(`_nilHMM_rtiger_forward_cpp`, logPI, logPSI, logA, logpsi, r)
@@ -70,11 +69,37 @@ rtiger_forward_cpp <- function(logPI, logPSI, logA, logpsi, r) {
 
 #' RTIGER backward pass (rigidity-aware Baum-Welch backward)
 #'
-#' Literal port of the fork's `backward`. @inheritParams rtiger_forward_cpp
-#' @return s x T matrix of log backward probabilities.
+#' Literal port of the fork's `backward` (the time-reversed mirror of forward).
+#' @inheritParams rtiger_forward_cpp
+#' @return s x T log backward matrix.
 #' @keywords internal
 rtiger_backward_cpp <- function(logPSI, logA, logpsi, r) {
     .Call(`_nilHMM_rtiger_backward_cpp`, logPSI, logA, logpsi, r)
+}
+
+#' RTIGER zeta (pairwise posteriors over the rigidity window)
+#'
+#' Literal port of the fork's `zeta`: build the log values, then normalize by
+#' the global max and exponentiate (so exp(-Inf - PO) = 0). Returned as a
+#' T x s x s array (column-major), non-log, as in the Julia.
+#' @return T x s x s numeric array.
+#' @keywords internal
+rtiger_zeta_cpp <- function(logalpha, logbeta, logA, logPSI, logpsi, r) {
+    .Call(`_nilHMM_rtiger_zeta_cpp`, logalpha, logbeta, logA, logPSI, logpsi, r)
+}
+
+#' RTIGER gamma (state posteriors from zeta)
+#'
+#' Literal port of the fork's `gamma`. Works in linear space (zeta is already
+#' exponentiated): the first r columns are the normalized alpha*beta at the
+#' window edge; interior columns add the windowed cumulative sum of the
+#' off-diagonal zeta to the diagonal term; the tail repeats; columns are then
+#' normalized to sum to 1.
+#' @param zeta T x s x s array from rtiger_zeta_cpp.
+#' @return s x T matrix of state posteriors.
+#' @keywords internal
+rtiger_gamma_cpp <- function(zeta, logalpha, logbeta, r) {
+    .Call(`_nilHMM_rtiger_gamma_cpp`, zeta, logalpha, logbeta, r)
 }
 
 #' Run-length-encode a state path into (start_bp, end_bp, state) segments

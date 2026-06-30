@@ -18,11 +18,10 @@ rtiger_forward_cpp(logPI, logPSI, logA, logpsi, r)
 \item{r}{Rigidity.}
 }
 \value{
-s x T matrix of log forward probabilities (cols 1 and >T-r+1 stay -Inf).
+s x T log forward matrix (cols 1 and >T-r+1 stay -Inf).
 }
 \description{
-Literal port of the fork's \code{forward} (rHMM_methods.jl): only a diagonal
-"stay" each step, or an "enter" from another state r positions back. Indices
-are 1-based to mirror the Julia exactly.
+Literal port of the fork's \code{forward}: at each step a state either "stays"
+(diagonal transition) or was "entered" from another state r positions back.
 }
 \keyword{internal}

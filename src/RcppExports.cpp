@@ -92,6 +92,36 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtiger_zeta_cpp
+NumericVector rtiger_zeta_cpp(NumericMatrix logalpha, NumericMatrix logbeta, NumericMatrix logA, NumericMatrix logPSI, NumericMatrix logpsi, int r);
+RcppExport SEXP _nilHMM_rtiger_zeta_cpp(SEXP logalphaSEXP, SEXP logbetaSEXP, SEXP logASEXP, SEXP logPSISEXP, SEXP logpsiSEXP, SEXP rSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type logalpha(logalphaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logbeta(logbetaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logA(logASEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logPSI(logPSISEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logpsi(logpsiSEXP);
+    Rcpp::traits::input_parameter< int >::type r(rSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtiger_zeta_cpp(logalpha, logbeta, logA, logPSI, logpsi, r));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtiger_gamma_cpp
+NumericMatrix rtiger_gamma_cpp(NumericVector zeta, NumericMatrix logalpha, NumericMatrix logbeta, int r);
+RcppExport SEXP _nilHMM_rtiger_gamma_cpp(SEXP zetaSEXP, SEXP logalphaSEXP, SEXP logbetaSEXP, SEXP rSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type zeta(zetaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logalpha(logalphaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logbeta(logbetaSEXP);
+    Rcpp::traits::input_parameter< int >::type r(rSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtiger_gamma_cpp(zeta, logalpha, logbeta, r));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rle_segments_cpp
 List rle_segments_cpp(IntegerVector path, IntegerVector pos);
 RcppExport SEXP _nilHMM_rle_segments_cpp(SEXP pathSEXP, SEXP posSEXP) {
@@ -165,6 +195,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_rtiger_productpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_productpsi_cpp, 2},
     {"_nilHMM_rtiger_forward_cpp", (DL_FUNC) &_nilHMM_rtiger_forward_cpp, 5},
     {"_nilHMM_rtiger_backward_cpp", (DL_FUNC) &_nilHMM_rtiger_backward_cpp, 4},
+    {"_nilHMM_rtiger_zeta_cpp", (DL_FUNC) &_nilHMM_rtiger_zeta_cpp, 6},
+    {"_nilHMM_rtiger_gamma_cpp", (DL_FUNC) &_nilHMM_rtiger_gamma_cpp, 4},
     {"_nilHMM_rle_segments_cpp", (DL_FUNC) &_nilHMM_rle_segments_cpp, 2},
     {"_nilHMM_rle_segments_batch_cpp", (DL_FUNC) &_nilHMM_rle_segments_batch_cpp, 2},
     {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 3},

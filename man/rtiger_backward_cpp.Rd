@@ -6,10 +6,19 @@
 \usage{
 rtiger_backward_cpp(logPSI, logA, logpsi, r)
 }
+\arguments{
+\item{logPSI}{s x (T+r) windowed-emission matrix (rtiger_productpsi_cpp).}
+
+\item{logA}{s x s log transition matrix.}
+
+\item{logpsi}{s x T log emission matrix (rtiger_getlogpsi_cpp).}
+
+\item{r}{Rigidity.}
+}
 \value{
-s x T matrix of log backward probabilities.
+s x T log backward matrix.
 }
 \description{
-Literal port of the fork's \code{backward}. @inheritParams rtiger_forward_cpp
+Literal port of the fork's \code{backward} (the time-reversed mirror of forward).
 }
 \keyword{internal}
