@@ -29,8 +29,8 @@ duration_geometric <- function(r = 0.01) {
 #'
 #' @param r Minimum run length in markers (the rigidity, integer >= 1).
 #' @param p_switch Per-marker switch probability at the free (post-minimum)
-#'   state -- the geometric tail beyond the enforced minimum run. `r = 1` reduces
-#'   the expansion to a plain geometric transition with this switch rate.
+#'   state -- the geometric tail beyond the enforced minimum run. Rigidity of 1
+#'   reduces the expansion to a plain geometric transition with this switch rate.
 #' @return A duration spec for [fit()].
 #' @export
 duration_rigidity <- function(r = 5L, p_switch = 0.01) {

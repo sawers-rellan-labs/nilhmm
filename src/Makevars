@@ -1,0 +1,3 @@
+# Link the TBB runtime bundled with RcppParallel (for viterbi_batch_par_cpp).
+# Headers come via LinkingTo: RcppParallel. Requires GNU make ($(shell ...)).
+PKG_LIBS += $(shell "${R_HOME}/bin${R_ARCH_BIN}/Rscript" -e "RcppParallel::RcppParallelLibs()")

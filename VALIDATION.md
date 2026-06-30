@@ -65,13 +65,30 @@ bit-identical):
    reading memoized emission through an index matrix (mirrors numpy batching);
    plus `rle_segments_batch_cpp` (segment RLE for the whole sample matrix in C++).
 
-Result: R is **~1.9x** of Python (2.5s vs 1.35s). Profiling shows the **compiled
-kernel alone (~1.2s) now matches Python's *total* runtime** — the residual gap is
-R-level pivot overhead (`unique`/`match`/`split` for the long->wide reshape,
-~0.6s) plus numpy's SIMD-vectorized inner Viterbi. The batched path activates for
-the fixed-means count caller on a rectangular cohort; fit_means / rigidity /
-ragged inputs fall back to the (correct, slower) per-sample loop. Further parity
-would need a sample-vectorized (or OpenMP) inner Viterbi — diminishing returns.
+Serial result: R is **~1.9x** of Python (2.5s vs 1.35s). Profiling shows the
+**compiled kernel alone (~1.2s) matches Python's *total* runtime** — the residual
+gap is R-level pivot overhead (`unique`/`match`/`split` for the long->wide
+reshape, ~0.6s) plus numpy's vectorized inner Viterbi.
+
+4. **Threaded decode** (`call_ancestry(parallel = TRUE)`, opt-in) — RcppParallel
+   /TBB splits the independent sample axis across cores (`viterbi_batch_par_cpp`).
+   Bit-identical to serial.
+
+| threads (Zd) | time | vs Python |
+|---|---|---|
+| serial | 2.50s | 1.9x |
+| 4 | 1.30s | 0.96x |
+| **8** | **1.24s** | **0.92x (faster)** |
+
+At 8 threads R **beats the original Python** (1.24s vs 1.35s) while staying
+bit-identical. Scaling is ~2x (not 8x) because the serial long->wide pivot
+(~0.6s, Amdahl) and the slower efficiency cores bound it. The batched path
+activates for the fixed-means count caller on a rectangular cohort; fit_means /
+rigidity / ragged inputs fall back to the (correct, slower) per-sample loop. NEON
+SIMD (xsimd) was considered but is only 2-wide for doubles on arm64 and the
+argmax branch blocks auto-vectorization (`-O3 -mcpu=native` gave 0 gain) —
+threading is the higher-ROI lever here. `parallel = FALSE` remains the default so
+the validated path is deterministic without thread setup.
 
 ## Status
 

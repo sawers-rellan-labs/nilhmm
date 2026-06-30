@@ -13,4 +13,8 @@
 #' @keywords internal
 #' @useDynLib nilHMM, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
+#' @importFrom RcppParallel RcppParallelLibs
 "_PACKAGE"
+# The RcppParallel import forces its namespace (and the bundled TBB runtime) to
+# load before nilHMM's DLL, so viterbi_batch_par_cpp resolves @rpath/libtbb at
+# load time (otherwise dlopen fails on a clean install / R CMD check).

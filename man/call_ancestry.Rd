@@ -16,7 +16,8 @@ call_ancestry(
   f_1 = NULL,
   f_2 = NULL,
   source = "nilHMM",
-  donor = NA_character_
+  donor = NA_character_,
+  parallel = FALSE
 )
 }
 \arguments{
@@ -36,6 +37,10 @@ partial-matched to another argument.}
 \item{source}{Value for the output \code{source} column.}
 
 \item{donor}{Donor/taxon label when \code{data} has no \code{donor} column.}
+
+\item{parallel}{If \code{TRUE}, decode samples across cores via RcppParallel
+(only the fixed-means batched path; control thread count with
+\code{\link[RcppParallel:setThreadOptions]{RcppParallel::setThreadOptions()}}). Identical results to serial.}
 }
 \value{
 data.frame in the common schema

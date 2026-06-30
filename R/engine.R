@@ -75,7 +75,9 @@
 # pairs, and run one C++ viterbi_batch over all samples. Returns NULL if the
 # data is not a clean rectangular grid (every sample x every position once),
 # so call_ancestry can fall back to the safe per-sample loop.
-.batched_calls <- function(data, emission, td, theta, source, donor, has_donor) {
+.batched_calls <- function(data, emission, td, theta, source, donor, has_donor,
+                           parallel = FALSE) {
+  viterbi_fun <- if (parallel) viterbi_batch_par_cpp else viterbi_batch_cpp
   by_chr <- split(seq_len(nrow(data)), data$chr)   # row indices per chr, O(n)
   out <- vector("list", length(by_chr))
   for (i in seq_along(by_chr)) {
@@ -94,7 +96,7 @@
     em_u  <- count_emission_loglik_cpp(as.integer(u %/% base), as.integer(u %% base),
                                        theta, emission$conc)
     inv   <- matrix(match(key, u) - 1L, Tn, S)
-    paths <- viterbi_batch_cpp(td$log_start, td$log_trans, em_u, inv)   # Tn x S
+    paths <- viterbi_fun(td$log_start, td$log_trans, em_u, inv)         # Tn x S
     seg   <- rle_segments_batch_cpp(paths, pos_lv)                      # all samples at once
     dn_by <- if (has_donor) data$donor[ri][match(samples, nm_v)] else rep(donor, S)
     out[[i]] <- data.frame(
@@ -176,6 +178,9 @@ decode <- function(model, obs) {
 #' @param f_1,f_2 Single-locus priors, used when `design` is `NULL`.
 #' @param source Value for the output `source` column.
 #' @param donor Donor/taxon label when `data` has no `donor` column.
+#' @param parallel If `TRUE`, decode samples across cores via RcppParallel
+#'   (only the fixed-means batched path; control thread count with
+#'   [RcppParallel::setThreadOptions()]). Identical results to serial.
 #' @return data.frame in the common schema
 #'   (`source, donor, name, chr, start_bp, end_bp, state`).
 #' @export
@@ -183,7 +188,8 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
                           design = NULL, r = 0.01, err = 0.01, conc = 20,
                           fit_means = FALSE, p_switch = 0.01,
                           f_1 = NULL, f_2 = NULL,
-                          source = "nilHMM", donor = NA_character_) {
+                          source = "nilHMM", donor = NA_character_,
+                          parallel = FALSE) {
   caller <- match.arg(caller)
   spec <- caller_spec(caller, r = r, err = err, conc = conc,
                       fit_means = fit_means, p_switch = p_switch)
@@ -205,7 +211,7 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
   # non-rectangular grid make batching unsafe.
   if (!isTRUE(spec$emission$fit_means) && td$n_sub == 1L &&
       inherits(spec$emission, "nilHMM_emission_count")) {
-    batched <- .batched_calls(data, spec$emission, td, theta0, source, donor, has_donor)
+    batched <- .batched_calls(data, spec$emission, td, theta0, source, donor, has_donor, parallel)
     if (!is.null(batched)) return(batched)
   }
 

@@ -72,3 +72,13 @@ viterbi_batch_cpp <- function(log_init, log_trans, em_uniq, inv) {
     .Call(`_nilHMM_viterbi_batch_cpp`, log_init, log_trans, em_uniq, inv)
 }
 
+#' Threaded batched log-space Viterbi (RcppParallel)
+#'
+#' Identical result to [viterbi_batch_cpp]; splits the sample axis across cores.
+#' @inheritParams viterbi_batch_cpp
+#' @return T x S integer matrix of most-likely state paths (0-based).
+#' @keywords internal
+viterbi_batch_par_cpp <- function(log_init, log_trans, em_uniq, inv) {
+    .Call(`_nilHMM_viterbi_batch_par_cpp`, log_init, log_trans, em_uniq, inv)
+}
+

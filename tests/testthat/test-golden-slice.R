@@ -69,6 +69,17 @@ test_that("count caller reproduces the BRB baseline (BC2S3, fixed means)", {
   reproduces("brb", "PN1_SID11", "Zv", "BC2S3", r = 1e-8)
 })
 
+test_that("threaded decode (parallel=TRUE) is identical to serial", {
+  RcppParallel::setThreadOptions(numThreads = 2)
+  on.exit(RcppParallel::setThreadOptions(numThreads = 1), add = TRUE)
+  raw <- read_golden_counts(golden_slice_path("skim", "counts", "PN14_SID1259.chr1.tsv"))
+  counts <- data.frame(name = "PN14_SID1259", chr = 1L, pos = raw$pos,
+                       n_ref = raw$n_ref, n_alt = raw$n_alt, donor = "Zd")
+  ser <- call_ancestry(counts, "nnil", design = "BC2S2", r = 7e-6, parallel = FALSE)
+  par <- call_ancestry(counts, "nnil", design = "BC2S2", r = 7e-6, parallel = TRUE)
+  expect_equal(ser, par)
+})
+
 test_that("call_ancestry rejects missing priors and bad columns", {
   d <- data.frame(name = "s", chr = 1L, pos = 1L, n_ref = 0L, n_alt = 0L)
   expect_error(call_ancestry(d, caller = "nnil"), "supply")

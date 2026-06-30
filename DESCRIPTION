@@ -16,10 +16,13 @@ Encoding: UTF-8
 Depends:
     R (>= 4.1)
 LinkingTo:
-    Rcpp
+    Rcpp,
+    RcppParallel
 Imports:
     Rcpp,
+    RcppParallel,
     utils
+SystemRequirements: GNU make
 Suggests:
     testthat (>= 3.0.0),
     GenomicRanges

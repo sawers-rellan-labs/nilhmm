@@ -10,8 +10,8 @@ duration_rigidity(r = 5L, p_switch = 0.01)
 \item{r}{Minimum run length in markers (the rigidity, integer >= 1).}
 
 \item{p_switch}{Per-marker switch probability at the free (post-minimum)
-state -- the geometric tail beyond the enforced minimum run. \code{r = 1} reduces
-the expansion to a plain geometric transition with this switch rate.}
+state -- the geometric tail beyond the enforced minimum run. Rigidity of 1
+reduces the expansion to a plain geometric transition with this switch rate.}
 }
 \value{
 A duration spec for \code{\link[=fit]{fit()}}.
