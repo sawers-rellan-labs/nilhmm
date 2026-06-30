@@ -24,23 +24,38 @@ flipping on floating-point differences — within S9.4 tolerance).
 Conclusion: the R count caller reproduces the frozen nilHMM baselines on both
 regimes. **The refactor's core acceptance gate is met.**
 
-## Rigidity (`rtiger`) vs RTIGER's `calls_taxa_r5.csv` — distributional, UNCALIBRATED
+## Rigidity (`rtiger`) vs RTIGER's `calls_taxa_r5.csv` — CALIBRATED
 
-RTIGER EM-fits its emissions in Julia and uses its own transition; our rigidity
-mode here runs with **fixed means**, `rigidity=5`, `p_switch=1e-3` — not tuned to
-RTIGER. So this is a regime check, not a match.
+RTIGER EM-fits its emissions in Julia and uses its own transition, so this is a
+distributional match (not bit-identical). Calibrated on Zx via a
+`(fit_means, p_switch, rigidity)` sweep against the actual RTIGER calls
+(`agent/calibrate_rigidity.R`), scored on donor fraction, donor-block-size KS,
+and per-marker state concordance with RTIGER.
 
-| metric (40-sample subset) | R rigidity | RTIGER r5 |
-|---|---|---|
-| donor genome fraction | 0.058 | 0.102 |
-| donor-block median (Mb) | 3.9 | 8.2 |
-| block-size KS D | 0.223 | — |
+**Calibrated setting: `fit_means = TRUE, p_switch = 2e-3, r = 5`.**
 
-The gap is the expected fixed-means under-calling (cf. `BRB_run_findings.md`):
-RTIGER recovers ~2x more donor via EM-fit emissions and produces longer blocks.
-**Matching RTIGER is a calibration task** — `fit_means=TRUE` plus a KS-calibrated
-`(rigidity, p_switch)` — not part of this validation. The rigidity *mechanism* is
-correct (min-run enforced; r=1 == geometric; see `tests/testthat/test-rigidity.R`).
+| Zx (target: donor 0.103, median 8.2 Mb) | donor frac | median block | block-KS | concordance vs RTIGER |
+|---|---|---|---|---|
+| fixed means, `p_switch=1e-3` (uncalibrated) | 0.059 | 4.9 Mb | 0.19 | 0.906 |
+| **`fit_means`, `p_switch=2e-3`** | **0.108** | 10.4 Mb | **0.133** | **0.949** |
+
+Findings:
+- **`fit_means=TRUE` is what matches RTIGER** — it lifts donor fraction from ~0.06
+  to ~0.108 (RTIGER 0.103) and raises per-marker concordance 0.906 -> **0.949**
+  (95% of calls agree with RTIGER's independent Julia implementation).
+- **Rigidity `r` (3/5/8) is ~irrelevant on skim density** — a few-marker minimum
+  run is tiny vs marker spacing; `p_switch` is the effective length knob.
+  `p_switch >= ~5e-3` over-calls (donor fraction inflates, concordance drops).
+- **Residual:** median block runs ~25% long (10.4 vs 8.2 Mb) and can't shrink
+  without inflating donor fraction — because we EM-fit only the emission *means*,
+  while RTIGER jointly EM-fits emissions *and* transitions. Matching both block
+  size and donor fraction simultaneously would need transition fitting (not done).
+- **Per-taxon:** RTIGER's median block varies 4–15 Mb across taxa (real
+  donor-specific structure), so block-size matching wants a per-taxon `p_switch`;
+  donor fraction and ~95% concordance hold with the single calibrated setting.
+
+The rigidity *mechanism* is also unit-tested (min-run enforced; r=1 == geometric;
+`tests/testthat/test-rigidity.R`).
 
 ## Performance (arm64-native, head-to-head)
 
