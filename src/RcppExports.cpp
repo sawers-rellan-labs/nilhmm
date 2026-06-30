@@ -63,6 +63,35 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtiger_forward_cpp
+NumericMatrix rtiger_forward_cpp(NumericVector logPI, NumericMatrix logPSI, NumericMatrix logA, NumericMatrix logpsi, int r);
+RcppExport SEXP _nilHMM_rtiger_forward_cpp(SEXP logPISEXP, SEXP logPSISEXP, SEXP logASEXP, SEXP logpsiSEXP, SEXP rSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type logPI(logPISEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logPSI(logPSISEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logA(logASEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logpsi(logpsiSEXP);
+    Rcpp::traits::input_parameter< int >::type r(rSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtiger_forward_cpp(logPI, logPSI, logA, logpsi, r));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtiger_backward_cpp
+NumericMatrix rtiger_backward_cpp(NumericMatrix logPSI, NumericMatrix logA, NumericMatrix logpsi, int r);
+RcppExport SEXP _nilHMM_rtiger_backward_cpp(SEXP logPSISEXP, SEXP logASEXP, SEXP logpsiSEXP, SEXP rSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type logPSI(logPSISEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logA(logASEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type logpsi(logpsiSEXP);
+    Rcpp::traits::input_parameter< int >::type r(rSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtiger_backward_cpp(logPSI, logA, logpsi, r));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rle_segments_cpp
 List rle_segments_cpp(IntegerVector path, IntegerVector pos);
 RcppExport SEXP _nilHMM_rle_segments_cpp(SEXP pathSEXP, SEXP posSEXP) {
@@ -134,6 +163,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_forward_backward_cpp", (DL_FUNC) &_nilHMM_forward_backward_cpp, 3},
     {"_nilHMM_rtiger_getlogpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_getlogpsi_cpp, 4},
     {"_nilHMM_rtiger_productpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_productpsi_cpp, 2},
+    {"_nilHMM_rtiger_forward_cpp", (DL_FUNC) &_nilHMM_rtiger_forward_cpp, 5},
+    {"_nilHMM_rtiger_backward_cpp", (DL_FUNC) &_nilHMM_rtiger_backward_cpp, 4},
     {"_nilHMM_rle_segments_cpp", (DL_FUNC) &_nilHMM_rle_segments_cpp, 2},
     {"_nilHMM_rle_segments_batch_cpp", (DL_FUNC) &_nilHMM_rle_segments_batch_cpp, 2},
     {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 3},

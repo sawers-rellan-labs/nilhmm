@@ -52,6 +52,31 @@ rtiger_productpsi_cpp <- function(logpsi, r) {
     .Call(`_nilHMM_rtiger_productpsi_cpp`, logpsi, r)
 }
 
+#' RTIGER forward pass (rigidity-aware Baum-Welch forward)
+#'
+#' Literal port of the fork's `forward` (rHMM_methods.jl): only a diagonal
+#' "stay" each step, or an "enter" from another state r positions back. Indices
+#' are 1-based to mirror the Julia exactly.
+#' @param logPI length-s log start probabilities.
+#' @param logPSI s x (T+r) windowed-emission matrix (rtiger_productpsi_cpp).
+#' @param logA s x s log transition matrix.
+#' @param logpsi s x T log emission matrix (rtiger_getlogpsi_cpp).
+#' @param r Rigidity.
+#' @return s x T matrix of log forward probabilities (cols 1 and >T-r+1 stay -Inf).
+#' @keywords internal
+rtiger_forward_cpp <- function(logPI, logPSI, logA, logpsi, r) {
+    .Call(`_nilHMM_rtiger_forward_cpp`, logPI, logPSI, logA, logpsi, r)
+}
+
+#' RTIGER backward pass (rigidity-aware Baum-Welch backward)
+#'
+#' Literal port of the fork's `backward`. @inheritParams rtiger_forward_cpp
+#' @return s x T matrix of log backward probabilities.
+#' @keywords internal
+rtiger_backward_cpp <- function(logPSI, logA, logpsi, r) {
+    .Call(`_nilHMM_rtiger_backward_cpp`, logPSI, logA, logpsi, r)
+}
+
 #' Run-length-encode a state path into (start_bp, end_bp, state) segments
 #'
 #' @param path Integer state path (0/1/2), length T.

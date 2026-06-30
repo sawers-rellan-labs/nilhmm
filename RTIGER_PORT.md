@@ -35,7 +35,7 @@ Post: `postprocessing` shifts segment borders via `findsplit` (cumsum of emissio
 ## Port status (src/rtiger.cpp, R/ driver TBD)
 - [x] `rtiger_getlogpsi_cpp`  — verified vs Julia (max|Δ| 4e-9)
 - [x] `rtiger_productpsi_cpp` — verified vs Julia (max|Δ| 5e-9)
-- [ ] `forward` / `backward` (rHMM_methods.jl L95-196) — verify vs Julia
+- [x] `rtiger_forward_cpp` / `rtiger_backward_cpp` (L95-196) — verified vs Julia (max|Δ| 5e-9)
 - [ ] `zeta` (L218-250) / `gamma` (L262-322) — verify vs Julia
 - [ ] `viterbi` rigidity + backtrace (L585-646) — verify vs Julia
 - [ ] emission M-step `emissionUpdateState` (Brent; L459-517) — use R optimize/C++ Brent

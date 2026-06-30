@@ -10,6 +10,7 @@
 // time. Done so far: getlogpsi, productpsi.
 
 #include <Rcpp.h>
+#include <cmath>
 #include <vector>
 #include <unordered_map>
 using namespace Rcpp;
@@ -68,4 +69,88 @@ NumericMatrix rtiger_productpsi_cpp(NumericMatrix logpsi, int r) {
     for (int t = T; t < T + r - 1; ++t) PSI(i, t) = PSI(i, t - 1) - logpsi(i, t - r);
   }
   return PSI;
+}
+
+// log-add-exp of two scalars, matching the fork's logaddexp (handles -Inf).
+static inline double logaddexp2(double x, double y) {
+  double m = x > y ? x : y, mn = x > y ? y : x;
+  return m == R_NegInf ? R_NegInf : m + std::log1p(std::exp(mn - m));
+}
+
+//' RTIGER forward pass (rigidity-aware Baum-Welch forward)
+//'
+//' Literal port of the fork's `forward` (rHMM_methods.jl): only a diagonal
+//' "stay" each step, or an "enter" from another state r positions back. Indices
+//' are 1-based to mirror the Julia exactly.
+//' @param logPI length-s log start probabilities.
+//' @param logPSI s x (T+r) windowed-emission matrix (rtiger_productpsi_cpp).
+//' @param logA s x s log transition matrix.
+//' @param logpsi s x T log emission matrix (rtiger_getlogpsi_cpp).
+//' @param r Rigidity.
+//' @return s x T matrix of log forward probabilities (cols 1 and >T-r+1 stay -Inf).
+//' @keywords internal
+// [[Rcpp::export]]
+NumericMatrix rtiger_forward_cpp(NumericVector logPI, NumericMatrix logPSI,
+                                 NumericMatrix logA, NumericMatrix logpsi, int r) {
+  const int s = logpsi.nrow(), T = logpsi.ncol();
+  NumericMatrix alpha(s, T);
+  std::fill(alpha.begin(), alpha.end(), R_NegInf);
+  for (int k = 1; k <= s; ++k) alpha(k - 1, r - 1) = logPI[k - 1] + logPSI(k - 1, r - 1);
+  for (int t = r + 1; t <= 2 * r - 1; ++t)
+    for (int k = 1; k <= s; ++k)
+      alpha(k - 1, t - 1) = logpsi(k - 1, t - 1) + logA(k - 1, k - 1) + alpha(k - 1, t - 2);
+  for (int t = 2 * r; t <= T - r + 1; ++t) {
+    for (int k = 1; k <= s; ++k) {
+      double stay = logpsi(k - 1, t - 1) + logA(k - 1, k - 1) + alpha(k - 1, t - 2);
+      double maxv = R_NegInf; int amax = 0;
+      for (int i = 1; i <= s; ++i) if (i != k) {
+        double x = logA(i - 1, k - 1) + alpha(i - 1, t - r - 1);
+        if (x > maxv) { maxv = x; amax = i; }
+      }
+      double enter = R_NegInf;
+      if (maxv != R_NegInf) {
+        double acc = 0.0;
+        for (int i = 1; i <= s; ++i) if (i != k && i != amax)
+          acc += std::exp(logA(i - 1, k - 1) + alpha(i - 1, t - r - 1) - maxv);
+        enter = logPSI(k - 1, t - 1) + maxv + std::log1p(acc);
+      }
+      alpha(k - 1, t - 1) = logaddexp2(stay, enter);
+    }
+  }
+  return alpha;
+}
+
+//' RTIGER backward pass (rigidity-aware Baum-Welch backward)
+//'
+//' Literal port of the fork's `backward`. @inheritParams rtiger_forward_cpp
+//' @return s x T matrix of log backward probabilities.
+//' @keywords internal
+// [[Rcpp::export]]
+NumericMatrix rtiger_backward_cpp(NumericMatrix logPSI, NumericMatrix logA,
+                                  NumericMatrix logpsi, int r) {
+  const int s = logpsi.nrow(), T = logpsi.ncol();
+  NumericMatrix beta(s, T);
+  std::fill(beta.begin(), beta.end(), R_NegInf);
+  for (int c = T - r + 1; c <= T; ++c)
+    for (int j = 1; j <= s; ++j) beta(j - 1, c - 1) = logPSI(j - 1, c + r - 1);
+  for (int i = 0; i <= T - 2 * r; ++i) {
+    const int t = T - r - i;
+    for (int j = 1; j <= s; ++j) {
+      double stay = logpsi(j - 1, t) + logA(j - 1, j - 1) + beta(j - 1, t);  // (t+1)-1
+      double maxv = R_NegInf; int amax = 0;
+      for (int k = 1; k <= s; ++k) if (k != j) {
+        double x = logA(j - 1, k - 1) + logPSI(k - 1, t + r - 1) + beta(k - 1, t + r - 1);
+        if (x > maxv) { maxv = x; amax = k; }
+      }
+      double leave = R_NegInf;
+      if (maxv != R_NegInf) {
+        double acc = 0.0;
+        for (int k = 1; k <= s; ++k) if (k != j && k != amax)
+          acc += std::exp(logA(j - 1, k - 1) + logPSI(k - 1, t + r - 1) + beta(k - 1, t + r - 1) - maxv);
+        leave = maxv + std::log1p(acc);
+      }
+      beta(j - 1, t - 1) = logaddexp2(stay, leave);
+    }
+  }
+  return beta;
 }
