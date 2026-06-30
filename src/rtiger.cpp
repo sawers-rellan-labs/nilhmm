@@ -581,6 +581,123 @@ static void emission_update_state(int i0, const std::vector<int>& ks,
   a_out = tau * mi; b_out = tau * (1.0 - mi);
 }
 
+// ---------------------------------------------------------------------------
+// In-place buffered E-step kernels (fork optimization #4/#5: ~5x fwd/bwd,
+// ~12x viterbi constant factor). Each writes into caller-provided buffers
+// reused across all chains/iterations, eliminating per-call allocation. Same
+// arithmetic as the verified rtiger_*_cpp kernels. Column-major strides: an
+// s x T matrix indexes (i,t)=i+t*s; the zeta buffer is Tmax x s x s and indexes
+// (t,j,k)=t + j*Tmax + k*Tmax*s (Tmax stride, so one buffer fits every chain).
+// ---------------------------------------------------------------------------
+static void getlogpsi_buf(std::vector<double>& lp, const IntegerVector& O_k,
+                          const IntegerVector& O_n, const NumericVector& a,
+                          const NumericVector& b, int T, int s) {
+  std::vector<double> lbeta_ab(s);
+  for (int i = 0; i < s; ++i) lbeta_ab[i] = R::lbeta(a[i], b[i]);
+  std::unordered_map<long long, int> seen;
+  for (int t = 0; t < T; ++t) {
+    const int kt = O_k[t], nt = O_n[t];
+    const long long key = (long long)nt * 2147483647LL + kt;
+    std::unordered_map<long long, int>::iterator it = seen.find(key);
+    if (it != seen.end()) {
+      const int src = it->second;
+      for (int i = 0; i < s; ++i) lp[i + t * s] = lp[i + src * s];
+      continue;
+    }
+    const double lc = R::lchoose((double)nt, (double)kt);
+    for (int i = 0; i < s; ++i) lp[i + t * s] = lc + R::lbeta(kt + a[i], nt - kt + b[i]) - lbeta_ab[i];
+    seen[key] = t;
+  }
+}
+
+static void productpsi_buf(std::vector<double>& PSI, const std::vector<double>& lp, int T, int r, int s) {
+  for (int i = 0; i < s; ++i) {
+    for (int t = 0; t < T + r; ++t) PSI[i + t * s] = 0.0;
+    PSI[i] = lp[i];
+    for (int t = 1; t < r; ++t)         PSI[i + t * s] = PSI[i + (t - 1) * s] + lp[i + t * s];
+    for (int t = r; t < T; ++t)         PSI[i + t * s] = PSI[i + (t - 1) * s] + lp[i + t * s] - lp[i + (t - r) * s];
+    for (int t = T; t < T + r - 1; ++t) PSI[i + t * s] = PSI[i + (t - 1) * s] - lp[i + (t - r) * s];
+  }
+}
+
+static void forward_buf(std::vector<double>& al, int T, int r, int s, const NumericVector& logPI,
+                        const std::vector<double>& PSI, const NumericMatrix& logA, const std::vector<double>& lp) {
+  for (int t = 0; t < T; ++t) for (int k = 0; k < s; ++k) al[k + t * s] = R_NegInf;
+  for (int k = 1; k <= s; ++k) al[(k - 1) + (r - 1) * s] = logPI[k - 1] + PSI[(k - 1) + (r - 1) * s];
+  for (int t = r + 1; t <= 2 * r - 1; ++t) for (int k = 1; k <= s; ++k)
+    al[(k - 1) + (t - 1) * s] = lp[(k - 1) + (t - 1) * s] + logA(k - 1, k - 1) + al[(k - 1) + (t - 2) * s];
+  for (int t = 2 * r; t <= T - r + 1; ++t) for (int k = 1; k <= s; ++k) {
+    const double stay = lp[(k - 1) + (t - 1) * s] + logA(k - 1, k - 1) + al[(k - 1) + (t - 2) * s];
+    double maxv = R_NegInf; int amax = 0;
+    for (int i = 1; i <= s; ++i) if (i != k) { double x = logA(i - 1, k - 1) + al[(i - 1) + (t - r - 1) * s]; if (x > maxv) { maxv = x; amax = i; } }
+    double enter = R_NegInf;
+    if (maxv != R_NegInf) {
+      double acc = 0.0;
+      for (int i = 1; i <= s; ++i) if (i != k && i != amax) acc += std::exp(logA(i - 1, k - 1) + al[(i - 1) + (t - r - 1) * s] - maxv);
+      enter = PSI[(k - 1) + (t - 1) * s] + maxv + std::log1p(acc);
+    }
+    al[(k - 1) + (t - 1) * s] = logaddexp2(stay, enter);
+  }
+}
+
+static void backward_buf(std::vector<double>& be, int T, int r, int s, const std::vector<double>& PSI,
+                         const NumericMatrix& logA, const std::vector<double>& lp) {
+  for (int t = 0; t < T; ++t) for (int j = 0; j < s; ++j) be[j + t * s] = R_NegInf;
+  for (int c = T - r + 1; c <= T; ++c) for (int j = 1; j <= s; ++j) be[(j - 1) + (c - 1) * s] = PSI[(j - 1) + (c + r - 1) * s];
+  for (int i = 0; i <= T - 2 * r; ++i) {
+    const int t = T - r - i;
+    for (int j = 1; j <= s; ++j) {
+      const double stay = lp[(j - 1) + t * s] + logA(j - 1, j - 1) + be[(j - 1) + t * s];
+      double maxv = R_NegInf; int amax = 0;
+      for (int k = 1; k <= s; ++k) if (k != j) { double x = logA(j - 1, k - 1) + PSI[(k - 1) + (t + r - 1) * s] + be[(k - 1) + (t + r - 1) * s]; if (x > maxv) { maxv = x; amax = k; } }
+      double leave = R_NegInf;
+      if (maxv != R_NegInf) {
+        double acc = 0.0;
+        for (int k = 1; k <= s; ++k) if (k != j && k != amax) acc += std::exp(logA(j - 1, k - 1) + PSI[(k - 1) + (t + r - 1) * s] + be[(k - 1) + (t + r - 1) * s] - maxv);
+        leave = maxv + std::log1p(acc);
+      }
+      be[(j - 1) + (t - 1) * s] = logaddexp2(stay, leave);
+    }
+  }
+}
+
+static void zeta_buf(std::vector<double>& z, const std::vector<double>& al, const std::vector<double>& be,
+                     const NumericMatrix& logA, const std::vector<double>& PSI, const std::vector<double>& lp,
+                     int r, int T, int s, int Tmax) {
+  const long long sT = (long long)Tmax * s;
+  for (int k = 0; k < s; ++k) for (int j = 0; j < s; ++j) for (int t = 0; t < T; ++t) z[t + j * Tmax + k * sT] = R_NegInf;
+  for (int k = 1; k <= s; ++k) for (int j = 1; j <= s; ++j) {
+    if (j != k) {
+      for (int t = r + 1; t <= T - r + 1; ++t)
+        z[(t - 1) + (j - 1) * Tmax + (k - 1) * sT] = al[(j - 1) + (t - 2) * s] + logA(j - 1, k - 1) + be[(k - 1) + (t + r - 2) * s] + PSI[(k - 1) + (t + r - 2) * s];
+    } else {
+      for (int t = r + 1; t <= T - r + 1; ++t)
+        z[(t - 1) + (k - 1) * Tmax + (k - 1) * sT] = al[(k - 1) + (t - 2) * s] + logA(k - 1, k - 1) + lp[(k - 1) + (t - 1) * s] + be[(k - 1) + (t - 1) * s];
+    }
+  }
+  double PO = R_NegInf;
+  for (int k = 0; k < s; ++k) for (int j = 0; j < s; ++j) for (int t = 0; t < T; ++t) { double v = z[t + j * Tmax + k * sT]; if (v > PO) PO = v; }
+  for (int k = 0; k < s; ++k) for (int j = 0; j < s; ++j) for (int t = 0; t < T; ++t) { long long ix = t + j * Tmax + k * sT; z[ix] = std::exp(z[ix] - PO); }
+}
+
+static void gamma_buf(std::vector<double>& gam, const std::vector<double>& z, const std::vector<double>& al,
+                      const std::vector<double>& be, int r, int T, int s, int Tmax,
+                      std::vector<double>& L, std::vector<double>& M) {
+  const long long sT = (long long)Tmax * s;
+  std::vector<double> gammar(s); double mx = R_NegInf;
+  for (int k = 0; k < s; ++k) { gammar[k] = al[k + (r - 1) * s] + be[k + (r - 1) * s]; if (gammar[k] > mx) mx = gammar[k]; }
+  double gsum = 0.0; for (int k = 0; k < s; ++k) { gammar[k] = std::exp(gammar[k] - mx); gsum += gammar[k]; }
+  for (int k = 0; k < s; ++k) gammar[k] /= gsum;
+  for (int t = 1; t <= r; ++t) for (int k = 0; k < s; ++k) gam[k + (t - 1) * s] = gammar[k];
+  for (int k = 1; k <= s; ++k) {
+    for (int t = 1; t <= T; ++t) { double acc = 0.0; for (int j = 1; j <= s; ++j) if (j != k) acc += z[(t - 1) + (j - 1) * Tmax + (k - 1) * sT]; L[t - 1] = acc; }
+    double run = 0.0; for (int t = 1; t <= T; ++t) { run += L[t - 1]; M[t - 1] = run; }
+    for (int t = r + 1; t <= T - r + 1; ++t) { double Mm = (t <= 2 * r) ? M[r - 1] : M[t - r - 1]; gam[(k - 1) + (t - 1) * s] = z[(t - 1) + (k - 1) * Tmax + (k - 1) * sT] + M[t - 1] - Mm; }
+  }
+  for (int t = T - r + 2; t <= T; ++t) for (int k = 0; k < s; ++k) gam[k + (t - 1) * s] = gam[k + (T - r) * s];
+  for (int t = 0; t < T; ++t) { double cs = 0.0; for (int k = 0; k < s; ++k) cs += gam[k + t * s]; for (int k = 0; k < s; ++k) gam[k + t * s] /= cs; }
+}
+
 //' RTIGER full EM fit (E-step + M-step + convergence loop, all in C++)
 //'
 //' The entire fit (port of the fork's `fit`/`EM`): per-chain rigidity E-step,
@@ -607,6 +724,15 @@ List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates,
   if (s == 3) { alpha[0]=20; alpha[1]=20; alpha[2]=1; beta[0]=1; beta[1]=20; beta[2]=20; }
   else { for (int i=0;i<s;++i){ alpha[i]=20; beta[i]=20; } }
 
+  // E-step buffers: allocated ONCE and reused across all chains and iterations
+  // (fork optimization #4/#5 — eliminates per-call allocation). Sized to the
+  // largest chain; the zeta buffer uses Tmax strides so one fits every chain.
+  int Tmax = 0;
+  for (int c = 0; c < nchains; ++c) { IntegerVector t = ks_list[c]; if (t.size() > Tmax) Tmax = t.size(); }
+  std::vector<double> bf_lp(s * Tmax), bf_PSI(s * (Tmax + r)), bf_al(s * Tmax),
+                      bf_be(s * Tmax), bf_gam(s * Tmax), bf_L(Tmax), bf_M(Tmax);
+  std::vector<double> bf_z((size_t)Tmax * s * s);
+
   int iter = 0;
   for (;;) {
     NumericVector logPI(s); for (int k=0;k<s;++k) logPI[k] = std::log(PI[k]);
@@ -617,27 +743,28 @@ List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates,
     std::vector<double> startAcc(s, 0.0), sumk(s, 0.0), sumn(s, 0.0);
     int nOb = 0;
     std::map<long long, std::vector<double> > W;
+    const size_t sT = (size_t)Tmax * s;
     for (int c = 0; c < nchains; ++c) {
       IntegerVector O_k = ks_list[c]; IntegerVector O_n = ns_list[c];
       const int Tc = O_k.size();
-      NumericMatrix lp  = rtiger_getlogpsi_cpp(O_k, O_n, alpha, beta);
-      NumericMatrix LP  = rtiger_productpsi_cpp(lp, r);
-      NumericMatrix al  = rtiger_forward_cpp(logPI, LP, logA, lp, r);
-      NumericMatrix be  = rtiger_backward_cpp(LP, logA, lp, r);
-      NumericVector z   = rtiger_zeta_cpp(al, be, logA, LP, lp, r);
-      NumericMatrix gam = rtiger_gamma_cpp(z, al, be, r);
+      getlogpsi_buf(bf_lp, O_k, O_n, alpha, beta, Tc, s);
+      productpsi_buf(bf_PSI, bf_lp, Tc, r, s);
+      forward_buf(bf_al, Tc, r, s, logPI, bf_PSI, logA, bf_lp);
+      backward_buf(bf_be, Tc, r, s, bf_PSI, logA, bf_lp);
+      zeta_buf(bf_z, bf_al, bf_be, logA, bf_PSI, bf_lp, r, Tc, s, Tmax);
+      gamma_buf(bf_gam, bf_z, bf_al, bf_be, r, Tc, s, Tmax, bf_L, bf_M);
       for (int i = 0; i < s; ++i) for (int j = 0; j < s; ++j) {
         double acc = 0.0;
-        for (int t = r + 1; t <= Tc - r + 1; ++t) acc += z[(t-1) + i*Tc + j*(Tc*s)];
+        for (int t = r + 1; t <= Tc - r + 1; ++t) acc += bf_z[(t - 1) + i * Tmax + j * sT];
         sumZeta(i, j) += acc;
       }
-      for (int st = 0; st < s; ++st) startAcc[st] += gam(st, 0);
+      for (int st = 0; st < s; ++st) startAcc[st] += bf_gam[st];
       nOb += 1;
       for (int t = 0; t < Tc; ++t) {
         const int kk = O_k[t], nn = O_n[t];
         std::vector<double>& w = W[(long long)nn * 2147483647LL + kk];
         if (w.empty()) w.assign(s, 0.0);
-        for (int st = 0; st < s; ++st) { double g = gam(st, t); w[st]+=g; sumk[st]+=kk*g; sumn[st]+=nn*g; }
+        for (int st = 0; st < s; ++st) { double g = bf_gam[st + t * s]; w[st]+=g; sumk[st]+=kk*g; sumn[st]+=nn*g; }
       }
     }
 
