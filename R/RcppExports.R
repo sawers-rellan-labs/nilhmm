@@ -36,6 +36,17 @@ rle_segments_cpp <- function(path, pos) {
     .Call(`_nilHMM_rle_segments_cpp`, path, pos)
 }
 
+#' Run-length-encode a batch of state paths (one per column) into segments
+#'
+#' @param paths T x S integer matrix of state paths (column = sample).
+#' @param pos Integer marker positions, length T (shared across samples).
+#' @return List of equal-length vectors: sample (1-based column), start_bp,
+#'   end_bp, state.
+#' @keywords internal
+rle_segments_batch_cpp <- function(paths, pos) {
+    .Call(`_nilHMM_rle_segments_batch_cpp`, paths, pos)
+}
+
 #' Generic log-space Viterbi decode (time-homogeneous transitions)
 #'
 #' @param log_init Length-K vector of log initial-state probabilities.
@@ -46,5 +57,18 @@ rle_segments_cpp <- function(path, pos) {
 #' @keywords internal
 viterbi_log_cpp <- function(log_init, log_trans, log_emit) {
     .Call(`_nilHMM_viterbi_log_cpp`, log_init, log_trans, log_emit)
+}
+
+#' Batched log-space Viterbi (shared transition, memoized emission)
+#'
+#' @param log_init Length-K log initial-state probabilities.
+#' @param log_trans K x K log transition matrix (row = from, col = to).
+#' @param em_uniq U x K log emission table, one row per distinct observation.
+#' @param inv T x S integer matrix; inv(t,s) is the 0-based row of `em_uniq`
+#'   giving the emission for sample s at marker t.
+#' @return T x S integer matrix of most-likely state paths (0-based states).
+#' @keywords internal
+viterbi_batch_cpp <- function(log_init, log_trans, em_uniq, inv) {
+    .Call(`_nilHMM_viterbi_batch_cpp`, log_init, log_trans, em_uniq, inv)
 }
 

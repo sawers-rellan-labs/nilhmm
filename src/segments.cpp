@@ -30,3 +30,28 @@ List rle_segments_cpp(IntegerVector path, IntegerVector pos) {
   }
   return List::create(_["start_bp"] = sbp, _["end_bp"] = ebp, _["state"] = st);
 }
+
+//' Run-length-encode a batch of state paths (one per column) into segments
+//'
+//' @param paths T x S integer matrix of state paths (column = sample).
+//' @param pos Integer marker positions, length T (shared across samples).
+//' @return List of equal-length vectors: sample (1-based column), start_bp,
+//'   end_bp, state.
+//' @keywords internal
+// [[Rcpp::export]]
+List rle_segments_batch_cpp(IntegerMatrix paths, IntegerVector pos) {
+  const int T = paths.nrow(), S = paths.ncol();
+  std::vector<int> col, sbp, ebp, st;
+  for (int s = 0; s < S; ++s) {
+    if (T == 0) continue;
+    int run = 0;
+    for (int t = 1; t < T; ++t) {
+      if (paths(t, s) != paths(t - 1, s)) {
+        col.push_back(s + 1); sbp.push_back(pos[run]); ebp.push_back(pos[t - 1]); st.push_back(paths(run, s));
+        run = t;
+      }
+    }
+    col.push_back(s + 1); sbp.push_back(pos[run]); ebp.push_back(pos[T - 1]); st.push_back(paths(run, s));
+  }
+  return List::create(_["sample"] = col, _["start_bp"] = sbp, _["end_bp"] = ebp, _["state"] = st);
+}

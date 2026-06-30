@@ -70,6 +70,43 @@
   )
 }
 
+# Batched fixed-means count calls: per chromosome, pivot the (rectangular)
+# cohort to T x S count matrices, memoize the emission over distinct (n,a)
+# pairs, and run one C++ viterbi_batch over all samples. Returns NULL if the
+# data is not a clean rectangular grid (every sample x every position once),
+# so call_ancestry can fall back to the safe per-sample loop.
+.batched_calls <- function(data, emission, td, theta, source, donor, has_donor) {
+  by_chr <- split(seq_len(nrow(data)), data$chr)   # row indices per chr, O(n)
+  out <- vector("list", length(by_chr))
+  for (i in seq_along(by_chr)) {
+    ri    <- by_chr[[i]]
+    nm_v  <- data$name[ri]; pos_v <- data$pos[ri]
+    samples <- unique(nm_v); pos_lv <- sort(unique(pos_v))
+    Tn <- length(pos_lv); S <- length(samples)
+    si <- match(nm_v, samples); pii <- match(pos_v, pos_lv)
+    lin <- (si - 1L) * Tn + pii                    # column-major cell id
+    if (length(ri) != Tn * S || anyDuplicated(lin)) return(NULL)   # not a rectangular grid
+    n_mat <- integer(Tn * S); n_mat[lin] <- as.integer(data$n_ref[ri] + data$n_alt[ri]); dim(n_mat) <- c(Tn, S)
+    a_mat <- integer(Tn * S); a_mat[lin] <- as.integer(data$n_alt[ri]);                   dim(a_mat) <- c(Tn, S)
+    base  <- max(n_mat) + 1
+    key   <- as.double(n_mat) * base + as.double(a_mat)
+    u     <- unique(key)
+    em_u  <- count_emission_loglik_cpp(as.integer(u %/% base), as.integer(u %% base),
+                                       theta, emission$conc)
+    inv   <- matrix(match(key, u) - 1L, Tn, S)
+    paths <- viterbi_batch_cpp(td$log_start, td$log_trans, em_u, inv)   # Tn x S
+    seg   <- rle_segments_batch_cpp(paths, pos_lv)                      # all samples at once
+    dn_by <- if (has_donor) data$donor[ri][match(samples, nm_v)] else rep(donor, S)
+    out[[i]] <- data.frame(
+      source = source, donor = dn_by[seg$sample], name = samples[seg$sample],
+      chr = as.integer(names(by_chr)[i]),
+      start_bp = seg$start_bp, end_bp = seg$end_bp, state = seg$state,
+      stringsAsFactors = FALSE)
+  }
+  calls <- do.call(rbind, out)
+  calls[order(calls$donor, calls$name, calls$chr, calls$start_bp), , drop = FALSE]
+}
+
 #' Fit HMM emission/transition parameters
 #'
 #' For a fixed-mean emission (the default, reproducing the Python count caller)
@@ -161,6 +198,16 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
 
   td     <- .duration_transition(spec$duration, priors)   # same for all samples
   theta0 <- .emission_theta(spec$emission)
+
+  # Fast path: fixed-means count caller on a rectangular cohort -> one batched
+  # Viterbi per chromosome across all samples in C++ (mirrors the numpy-batched
+  # Python). Falls back to the per-sample loop when fit_means / rigidity / a
+  # non-rectangular grid make batching unsafe.
+  if (!isTRUE(spec$emission$fit_means) && td$n_sub == 1L &&
+      inherits(spec$emission, "nilHMM_emission_count")) {
+    batched <- .batched_calls(data, spec$emission, td, theta0, source, donor, has_donor)
+    if (!is.null(batched)) return(batched)
+  }
 
   # Split by sample ONCE (O(n)) rather than re-scanning the frame per sample
   # (which is O(samples * rows) and dominates wall-clock on large cohorts).

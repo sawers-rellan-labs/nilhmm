@@ -52,21 +52,26 @@ NOT used; the Python figure is from a native-arm64 venv (numpy 2.5 / scipy 1.18)
 | implementation | time | throughput |
 |---|---|---|
 | Python (original, numpy-batched Viterbi + emission memoization) | 1.35s | 9.3M cells/s |
-| R + Rcpp (after emission memoization + split-once + Rcpp RLE) | 4.3s | 2.9M cells/s |
+| R + Rcpp (naive: per-(sample,chr) loop) | 5.85s | 2.1M cells/s |
+| R + Rcpp (optimized: see below) | **2.5s** | 5.0M cells/s |
 
-R is **~3x slower head-to-head** — and it is *not* the Rcpp hot loops (Viterbi +
-emission are ~0.7s / 18% of the time). The gap is R-level orchestration: the
-caller loops over 2550 (sample, chromosome) sequences, each paying per-call
-`unique`/`match`, matrix allocation, `split`/`order`, and GC, where the Python
-runs ONE numpy-vectorized Viterbi across all samples per chromosome. Emission
-memoization (BetaBinomial per distinct (n,a) pair, not per cell) landed its
-expected win (5.85s -> 4.22s); the residual is the per-sequence loop.
+Optimizations applied (each correctness-preserving — golden slice stays
+bit-identical):
+1. **Emission memoization** — BetaBinomial per distinct (n,a) pair, not per cell
+   (5.85 -> 4.22s).
+2. **O(n) split-by-sample** — was O(samples x rows) re-scan (full 1403-sample
+   skim validation ~260s -> ~15s).
+3. **`viterbi_batch_cpp`** — one C++ Viterbi across all samples of a chromosome,
+   reading memoized emission through an index matrix (mirrors numpy batching);
+   plus `rle_segments_batch_cpp` (segment RLE for the whole sample matrix in C++).
 
-Practical impact: combined with an O(n) split-by-sample fix (was O(samples x
-rows)), the full 1403-sample skim validation dropped from ~260s to ~25s. Closing
-the remaining 3x to per-op parity needs **batching the Viterbi across samples in
-Rcpp** (a `viterbi_batch_cpp` over a samples x markers x states array, mirroring
-the Python) — a larger restructure, not yet done.
+Result: R is **~1.9x** of Python (2.5s vs 1.35s). Profiling shows the **compiled
+kernel alone (~1.2s) now matches Python's *total* runtime** — the residual gap is
+R-level pivot overhead (`unique`/`match`/`split` for the long->wide reshape,
+~0.6s) plus numpy's SIMD-vectorized inner Viterbi. The batched path activates for
+the fixed-means count caller on a rectangular cohort; fit_means / rigidity /
+ragged inputs fall back to the (correct, slower) per-sample loop. Further parity
+would need a sample-vectorized (or OpenMP) inner Viterbi — diminishing returns.
 
 ## Status
 

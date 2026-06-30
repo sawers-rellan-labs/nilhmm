@@ -49,6 +49,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rle_segments_batch_cpp
+List rle_segments_batch_cpp(IntegerMatrix paths, IntegerVector pos);
+RcppExport SEXP _nilHMM_rle_segments_batch_cpp(SEXP pathsSEXP, SEXP posSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type paths(pathsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type pos(posSEXP);
+    rcpp_result_gen = Rcpp::wrap(rle_segments_batch_cpp(paths, pos));
+    return rcpp_result_gen;
+END_RCPP
+}
 // viterbi_log_cpp
 IntegerVector viterbi_log_cpp(NumericVector log_init, NumericMatrix log_trans, NumericMatrix log_emit);
 RcppExport SEXP _nilHMM_viterbi_log_cpp(SEXP log_initSEXP, SEXP log_transSEXP, SEXP log_emitSEXP) {
@@ -62,12 +74,28 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// viterbi_batch_cpp
+IntegerMatrix viterbi_batch_cpp(NumericVector log_init, NumericMatrix log_trans, NumericMatrix em_uniq, IntegerMatrix inv);
+RcppExport SEXP _nilHMM_viterbi_batch_cpp(SEXP log_initSEXP, SEXP log_transSEXP, SEXP em_uniqSEXP, SEXP invSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type log_init(log_initSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type log_trans(log_transSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type em_uniq(em_uniqSEXP);
+    Rcpp::traits::input_parameter< IntegerMatrix >::type inv(invSEXP);
+    rcpp_result_gen = Rcpp::wrap(viterbi_batch_cpp(log_init, log_trans, em_uniq, inv));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_count_emission_loglik_cpp", (DL_FUNC) &_nilHMM_count_emission_loglik_cpp, 4},
     {"_nilHMM_forward_backward_cpp", (DL_FUNC) &_nilHMM_forward_backward_cpp, 3},
     {"_nilHMM_rle_segments_cpp", (DL_FUNC) &_nilHMM_rle_segments_cpp, 2},
+    {"_nilHMM_rle_segments_batch_cpp", (DL_FUNC) &_nilHMM_rle_segments_batch_cpp, 2},
     {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 3},
+    {"_nilHMM_viterbi_batch_cpp", (DL_FUNC) &_nilHMM_viterbi_batch_cpp, 4},
     {NULL, NULL, 0}
 };
 
