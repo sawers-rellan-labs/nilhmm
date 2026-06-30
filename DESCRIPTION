@@ -1,0 +1,28 @@
+Package: nilHMM
+Title: Duration-Aware HMM Ancestry Caller for NIL Sequencing Data
+Version: 0.0.0.9000
+Authors@R:
+    person("Fausto", "Rodriguez Zapata", role = c("aut", "cre"),
+           email = "thegemmalab@ncsu.edu")
+Description: A unified R + Rcpp reimplementation of the nilHMM ancestry-calling
+    family for Near-Isogenic Lines from sequencing data. A single
+    duration-aware 3-state (REF/HET/ALT) HMM engine with swappable emission
+    models (count / gt / dosage) and duration layers (geometric / rigidity /
+    hsmm) expresses the nnil, rtiger and skimbin callers. The package is
+    data-agnostic: functions take (data, params) and return calls; pipeline
+    scripts own paths and sample lists. See REFACTOR_R_PACKAGE.md.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends:
+    R (>= 4.1)
+LinkingTo:
+    Rcpp
+Imports:
+    Rcpp
+Suggests:
+    testthat (>= 3.0.0),
+    GenomicRanges
+LazyData: true
+Roxygen: list(markdown = TRUE)
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
