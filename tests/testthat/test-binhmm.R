@@ -38,6 +38,29 @@ test_that("call_ancestry(caller='binhmm') recovers a donor block in the common s
   expect_true(any(alt$start_bp <= 70e6 & alt$end_bp >= 40e6))
 })
 
+test_that("the rebmix backend runs and returns valid calls (when rebmix is installed)", {
+  skip_if_not_installed("rebmix")
+  set.seed(11)
+  pos <- seq(5000L, 200e6, by = 5000L)
+  inblock <- pos >= 40e6 & pos <= 70e6
+  n_alt <- ifelse(inblock, rbinom(length(pos), 12, 0.45), rbinom(length(pos), 12, 0.01))
+  data <- data.frame(name = "S1", chr = 1L, pos = as.integer(pos),
+                     n_ref = 12L - n_alt, n_alt = as.integer(n_alt))
+  calls <- call_ancestry(data, caller = "binhmm", design = "BC2S3",
+                         cluster_method = "rebmix", donor = "Zx")
+  expect_named(calls, c("source", "donor", "name", "chr", "start_bp", "end_bp", "state"))
+  expect_true(all(calls$state %in% 0:2))
+  expect_true(any(calls$state[calls$start_bp <= 70e6 & calls$end_bp >= 40e6] == 2L))
+})
+
+test_that("the rebmix backend errors clearly when rebmix is absent", {
+  skip_if(requireNamespace("rebmix", quietly = TRUE), "rebmix is installed")
+  d <- data.frame(name = "s", chr = 1L, pos = as.integer(seq(5000L, 50e6, 5000L)),
+                  n_ref = 5L, n_alt = 0L)
+  expect_error(call_ancestry(d, caller = "binhmm", design = "BC2S3", cluster_method = "rebmix"),
+               "rebmix")
+})
+
 test_that("binhmm is deterministic for the kmeans backend", {
   set.seed(2)
   pos <- seq(5000L, 100e6, by = 5000L)

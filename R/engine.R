@@ -188,7 +188,9 @@ decode <- function(model, obs) {
 #' @param emission Optional emission override (`"count"`, `"gt"`) for the `nnil`
 #'   caller; `NULL` uses the caller's default.
 #' @param bin_size,cluster_method `binhmm` caller only: genomic bin width in bp
-#'   (default 1 Mb) and the per-bin clustering backend (`"gmm"` or `"kmeans"`).
+#'   (default 1 Mb) and the per-bin clustering backend --- `"gmm"` (base-R,
+#'   default), `"kmeans"`, or `"rebmix"` (the rpubs GMM; needs the suggested
+#'   \pkg{rebmix} package, for bit-exact rpubs reproduction).
 #' @return data.frame in the common schema
 #'   (`source, donor, name, chr, start_bp, end_bp, state`).
 #' @export
@@ -199,7 +201,7 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm"),
                           source = "nilHMM", donor = NA_character_,
                           parallel = FALSE, threads = 1L, seed = 1L,
                           postprocess = TRUE, emission = NULL,
-                          bin_size = 1e6, cluster_method = c("gmm", "kmeans")) {
+                          bin_size = 1e6, cluster_method = c("gmm", "kmeans", "rebmix")) {
   caller <- match.arg(caller)
   req <- c("name", "chr", "pos", "n_ref", "n_alt")
   if (!all(req %in% names(data))) stop("call_ancestry(): data needs columns ", paste(req, collapse = ", "))

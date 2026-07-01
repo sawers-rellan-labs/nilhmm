@@ -23,7 +23,7 @@ call_ancestry(
   postprocess = TRUE,
   emission = NULL,
   bin_size = 1e+06,
-  cluster_method = c("gmm", "kmeans")
+  cluster_method = c("gmm", "kmeans", "rebmix")
 )
 }
 \arguments{
@@ -57,7 +57,9 @@ randomized init.}
 caller; \code{NULL} uses the caller's default.}
 
 \item{bin_size, cluster_method}{\code{binhmm} caller only: genomic bin width in bp
-(default 1 Mb) and the per-bin clustering backend (\code{"gmm"} or \code{"kmeans"}).}
+(default 1 Mb) and the per-bin clustering backend --- \code{"gmm"} (base-R,
+default), \code{"kmeans"}, or \code{"rebmix"} (the rpubs GMM; needs the suggested
+\pkg{rebmix} package, for bit-exact rpubs reproduction).}
 }
 \value{
 data.frame in the common schema

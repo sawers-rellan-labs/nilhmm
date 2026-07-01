@@ -41,22 +41,46 @@
   max.col(dens_mat(), ties.method = "first")   # cluster per point
 }
 
+# --- optional rebmix GMM backend (Suggests) -----------------------------------
+# The rpubs Kgmm used rebmix REBMIX/RCLRMIX. It is NOT a hard dependency (the
+# base-R .gmm1d reproduces the rpubs Kgmm_HMM calls to ~99% after smoothing, and
+# a 1-D 3-component mixture does not warrant rebmix's weight). This backend is
+# offered only for users who want bit-exact rpubs reproduction; it is gated on
+# rebmix being installed and falls back to .gmm1d when <3 distinct values make
+# REBMIX's forced 3 components infeasible.
+.binhmm_rebmix <- function(x, k) {
+  if (!requireNamespace("rebmix", quietly = TRUE))
+    stop("cluster_method='rebmix' needs the 'rebmix' package (Suggests); ",
+         "install.packages('rebmix') or use 'gmm'/'kmeans'.")
+  if (k < 3L) return(.gmm1d(x, k))                # REBMIX forces cmin=cmax=3
+  quiet <- function(e) utils::capture.output(suppressMessages(suppressWarnings(v <- e)))
+  quiet(est <- rebmix::REBMIX(
+    Dataset = list(data.frame(Value = x)), Preprocessing = "histogram",
+    cmin = 3, cmax = 3, Criterion = "BIC", pdf = "normal"))
+  quiet(cl <- rebmix::RCLRMIX(x = est))
+  as.integer(cl@Zp)
+}
+
 # --- cluster a sample's bins into 0/1/2 (REF/HET/ALT) --------------------------
 # zero-ALT -> REF; non-zero -> K=3 cluster on alt_freq, relabel by ascending mean.
-# Degenerate clusterings are handled explicitly: K is capped at the number of
-# DISTINCT non-zero values (so K-means never asks for more centres than distinct
-# points), and if fewer than 3 clusters actually emerge (e.g. a clean bimodal
-# sample where a GMM component wins nothing), the survivors are spread across the
-# extremes -- 2 clusters -> {REF, ALT}, 1 -> {REF} -- so a clearly-ALT group is
-# never silently collapsed into REF.
+# Backend: "gmm" (base-R .gmm1d, default), "kmeans" (stats::kmeans), or "rebmix"
+# (the rpubs GMM, optional Suggests). Degenerate clusterings are handled
+# explicitly: K is capped at the number of DISTINCT non-zero values (so K-means
+# never asks for more centres than distinct points), and if fewer than 3 clusters
+# actually emerge (e.g. a clean bimodal sample where a GMM component wins
+# nothing), the survivors are spread across the extremes -- 2 clusters ->
+# {REF, ALT}, 1 -> {REF} -- so a clearly-ALT group is never silently collapsed
+# into REF.
 .binhmm_cluster <- function(alt_freq, method = "gmm") {
   st <- integer(length(alt_freq))                 # all REF (0) by default
   nz <- which(alt_freq > 0)
   x  <- alt_freq[nz]
   if (length(nz) >= 3L && length(unique(x)) >= 2L) {
     k  <- min(3L, length(unique(x)))
-    cl <- if (method == "kmeans") stats::kmeans(x, centers = k, nstart = 10L)$cluster
-          else                    .gmm1d(x, k)
+    cl <- switch(method,
+                 kmeans = stats::kmeans(x, centers = k, nstart = 10L)$cluster,
+                 rebmix = .binhmm_rebmix(x, k),
+                 .gmm1d(x, k))                     # "gmm" default
     m       <- tapply(x, cl, mean)                # emergent cluster means
     present <- as.integer(names(m))
     lab_by  <- switch(as.character(length(present)),

@@ -7,10 +7,11 @@ Authors@R:
 Description: A unified R + Rcpp reimplementation of the nilHMM ancestry-calling
     family for Near-Isogenic Lines from sequencing data. A single
     duration-aware 3-state (REF/HET/ALT) HMM engine with swappable emission
-    models (count / gt / dosage) and duration layers (geometric / rigidity /
-    hsmm) expresses the nnil, rtiger and skimbin callers. The package is
-    data-agnostic: functions take (data, params) and return calls; pipeline
-    scripts own paths and sample lists. See REFACTOR_R_PACKAGE.md.
+    models (count / gt) and duration layers (geometric / rigidity / hsmm)
+    expresses the nnil and rtiger callers, alongside the binhmm bin/cluster
+    caller. The package is data-agnostic: functions take (data, params) and
+    return calls; pipeline scripts own paths and sample lists. See
+    REFACTOR_R_PACKAGE.md.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends:
@@ -27,7 +28,8 @@ Imports:
 SystemRequirements: GNU make
 Suggests:
     testthat (>= 3.0.0),
-    GenomicRanges
+    GenomicRanges,
+    rebmix
 LazyData: true
 Roxygen: list(markdown = TRUE)
 Config/testthat/edition: 3
