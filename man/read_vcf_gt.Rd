@@ -18,7 +18,7 @@ A long observation table: \verb{name, chr, pos, g}.
 \description{
 Extracts the per-sample \code{GT} field of a \strong{biallelic diploid} VCF into a
 \verb{(name, chr, pos, g)} table for the categorical \code{gt} emission -- Holland's
-nNIL genotype path, for the saturated-depth regime (e.g. MolBreeding GBTS at
+nNIL genotype path, for the saturated-depth regime (e.g. MolBreeding target sequencing at
 ~20x or more) where the caller's \emph{called} genotype is trustworthy. \code{g} is the
 alt-allele dosage: \code{0} REF-hom, \code{1} het, \code{2} ALT-hom, \code{3} missing. Unlike
 \code{\link[=read_counts]{read_counts()}} (which feeds the count/BetaBinomial emission from \code{AD} read

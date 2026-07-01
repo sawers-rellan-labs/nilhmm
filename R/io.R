@@ -43,7 +43,7 @@ read_counts <- function(path, format = c("tsv", "gatk_table", "vcf_ad"), name = 
 #'
 #' Extracts the per-sample `GT` field of a **biallelic diploid** VCF into a
 #' `(name, chr, pos, g)` table for the categorical `gt` emission -- Holland's
-#' nNIL genotype path, for the saturated-depth regime (e.g. MolBreeding GBTS at
+#' nNIL genotype path, for the saturated-depth regime (e.g. MolBreeding target sequencing at
 #' ~20x or more) where the caller's *called* genotype is trustworthy. `g` is the
 #' alt-allele dosage: `0` REF-hom, `1` het, `2` ALT-hom, `3` missing. Unlike
 #' [read_counts()] (which feeds the count/BetaBinomial emission from `AD` read

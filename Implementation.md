@@ -264,7 +264,7 @@ pairs:
 
 The difference is which end of the same `cost ∝ distinct pairs ∝ coverage` curve each sits on:
 
-| | RTIGER runs (seqcapture/GBTS) | nilHMM-counts (skim) |
+| | RTIGER runs (seqcapture/target sequencing) | nilHMM-counts (skim) |
 |---|---|---|
 | coverage | ~110× | ~1× (mean 1.25) |
 | distinct `(n,k)` pairs | 7,555 @110× → 817 @30× → 66 @3× | **77** (Zh) |

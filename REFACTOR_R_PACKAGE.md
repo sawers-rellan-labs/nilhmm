@@ -117,7 +117,7 @@ Emission choice is **depth-driven** (see zealtiger `docs/emission_by_depth_regim
 |---|---|---|---|
 | Skim (SNP50K) | ~0.4× | degenerate (HET invisible at depth 1) | `count` (best available; still degenerate) |
 | BRB-seq | ~2.8× | intermediate — counts pay off, `conc` matters | `count` |
-| MolBreeding (GBTS) | ≥~20× | **saturated** — BetaBinomial → delta = hard call | `gt` (equivalent + cheaper) |
+| MolBreeding (target sequencing) | ≥~20× | **saturated** — BetaBinomial → delta = hard call | `gt` (equivalent + cheaper) |
 
 Selector rule (`select_emission`): `depth-saturated (≥~20×) → gt; intermediate (~1–20×) → count`
 (the `imputed → dosage` arm was removed with the dosage emission, §0). Cost basis: BetaBinomial cost
