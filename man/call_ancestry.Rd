@@ -32,7 +32,11 @@ call_ancestry(
 )
 }
 \arguments{
-\item{data}{Long observation table with columns \verb{name, chr, pos, n_ref, n_alt} (and optionally \code{donor}). From \code{\link[=read_counts]{read_counts()}}.}
+\item{data}{Long observation table with columns \verb{name, chr, pos} and either
+\verb{n_ref, n_alt} read counts (from \code{\link[=read_counts]{read_counts()}}; for the count/rtiger/binhmm/
+atlas paths) or a pre-called hard-genotype column \code{g} in \verb{\{0,1,2,3\}} (from
+\code{\link[=read_vcf_gt]{read_vcf_gt()}}; auto-selects \code{caller = "nnil"}, \code{emission = "gt"}).
+Optionally \code{donor}.}
 
 \item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}, \code{"atlas"}.}
 

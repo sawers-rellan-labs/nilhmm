@@ -39,6 +39,53 @@ read_counts <- function(path, format = c("tsv", "gatk_table", "vcf_ad"), name = 
   )
 }
 
+#' Read hard genotype calls (VCF GT) into the engine's observation table
+#'
+#' Extracts the per-sample `GT` field of a **biallelic diploid** VCF into a
+#' `(name, chr, pos, g)` table for the categorical `gt` emission -- Holland's
+#' nNIL genotype path, for the saturated-depth regime (e.g. MolBreeding GBTS at
+#' ~20x or more) where the caller's *called* genotype is trustworthy. `g` is the
+#' alt-allele dosage: `0` REF-hom, `1` het, `2` ALT-hom, `3` missing. Unlike
+#' [read_counts()] (which feeds the count/BetaBinomial emission from `AD` read
+#' depths), this reads the called genotype directly, so it never touches `AD`.
+#'
+#' Run with `call_ancestry(read_vcf_gt(path), caller = "nnil", emission = "gt",
+#' design = ...)` (a `g`-only input auto-selects the gt emission).
+#'
+#' @param path A `.vcf` or `.vcf.gz` file. `GT` must be the first FORMAT field
+#'   (the VCF spec requirement when GT is present).
+#' @param samples Optional character vector to restrict to a subset of samples.
+#' @return A long observation table: `name, chr, pos, g`.
+#' @export
+read_vcf_gt <- function(path, samples = NULL) {
+  con <- if (grepl("\\.gz$", path)) gzfile(path, "rt") else file(path, "rt")
+  on.exit(close(con))
+  repeat {                                          # skip ## meta lines to the #CHROM header
+    ln <- readLines(con, n = 1L)
+    if (!length(ln)) stop("read_vcf_gt(): no #CHROM header found in ", path)
+    if (startsWith(ln, "#CHROM")) break
+  }
+  hdr <- strsplit(sub("^#", "", ln), "\t", fixed = TRUE)[[1]]
+  if (length(hdr) < 10L) stop("read_vcf_gt(): VCF has no sample (FORMAT) columns")
+  snames <- hdr[10:length(hdr)]
+  keep <- if (is.null(samples)) seq_along(snames) else which(snames %in% samples)
+  if (!length(keep)) stop("read_vcf_gt(): none of `samples` present in the VCF")
+  body <- utils::read.table(con, sep = "\t", header = FALSE, quote = "",
+                            comment.char = "", stringsAsFactors = FALSE, colClasses = "character")
+  chr <- as.integer(sub("^chr", "", body[[1]])); pos <- as.integer(body[[2]])
+  # GT is the first ':'-subfield (VCF spec); alt-allele dosage over "a/b"|"a|b".
+  to_g <- function(col) {
+    gt <- sub(":.*", "", col)
+    a1 <- sub("[/|].*", "", gt); a2 <- sub(".*[/|]", "", gt)
+    miss <- a1 == "." | a2 == "."
+    g <- (a1 != "0" & a1 != ".") + (a2 != "0" & a2 != ".")   # 0 / 1 / 2 alt alleles
+    g <- as.integer(g); g[miss] <- 3L; g
+  }
+  do.call(rbind, lapply(keep, function(j)
+    data.frame(name = snames[j], chr = chr, pos = pos, g = to_g(body[[9 + j]]),
+               stringsAsFactors = FALSE)))
+}
+
 #' Write segment calls in the common schema
 #'
 #' Columns: `source, donor, name, chr, start_bp, end_bp, state` (0/1/2). `name`

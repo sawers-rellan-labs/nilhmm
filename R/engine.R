@@ -168,8 +168,11 @@ decode <- function(model, obs) {
 #' common-schema segment calls. Data-agnostic: pass the observations in; this
 #' function never reads paths.
 #'
-#' @param data Long observation table with columns `name, chr, pos, n_ref,
-#'   n_alt` (and optionally `donor`). From [read_counts()].
+#' @param data Long observation table with columns `name, chr, pos` and either
+#'   `n_ref, n_alt` read counts (from [read_counts()]; for the count/rtiger/binhmm/
+#'   atlas paths) or a pre-called hard-genotype column `g` in `{0,1,2,3}` (from
+#'   [read_vcf_gt()]; auto-selects `caller = "nnil"`, `emission = "gt"`).
+#'   Optionally `donor`.
 #' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`.
 #' @param design Breeding-design key for priors (e.g. `"BC2S2"`, `"BC2S3"`).
 #'   Required unless `f_1`/`f_2` are supplied.
@@ -222,9 +225,22 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
                           joint_clust = FALSE, obs_weights = FALSE,
                           atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L) {
   caller <- match.arg(caller)
-  req <- c("name", "chr", "pos", "n_ref", "n_alt")
-  if (!all(req %in% names(data))) stop("call_ancestry(): data needs columns ", paste(req, collapse = ", "))
+  has_counts <- all(c("n_ref", "n_alt") %in% names(data))
+  has_gt     <- "g" %in% names(data)          # pre-called hard genotype (0/1/2/3), e.g. from read_vcf_gt()
+  if (!all(c("name", "chr", "pos") %in% names(data)) || !(has_counts || has_gt))
+    stop("call_ancestry(): data needs columns name, chr, pos and either (n_ref, n_alt) read counts or a `g` genotype column")
   has_donor <- "donor" %in% names(data)
+
+  # A hard-genotype (`g`-only, no counts) input is the categorical GT path
+  # (Holland's nNIL genotype model on called genotypes; the saturated-depth /
+  # MolBreeding regime). It only makes sense for caller = "nnil" + the gt emission
+  # (the count/rtiger/binhmm/atlas paths all need read counts).
+  if (has_gt && !has_counts) {
+    if (caller != "nnil")
+      stop("call_ancestry(): a `g` genotype input (no read counts) requires caller = 'nnil'; ",
+           "'", caller, "' needs n_ref/n_alt read counts")
+    emission <- "gt"
+  }
 
   # RTIGER caller: its own EM/Viterbi (src/rtiger.cpp, R/rtiger.R) — a faithful
   # port of the RTIGER fork, not the count engine. `r` is the integer rigidity;
@@ -289,12 +305,16 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
     # independently; emission params are shared and fit pooled across them).
     obs_list <- lapply(split(dn, dn$chr, drop = TRUE), function(dc) {
       dc <- dc[order(dc$pos), , drop = FALSE]
-      n <- dc$n_ref + dc$n_alt; a <- dc$n_alt; f <- ifelse(n == 0, NA_real_, a / n)
-      list(chr = dc$chr[1], pos = dc$pos, n = n, a = a,
-           # derived hard genotype call for the gt emission: ATLAS uses GOOGA's
-           # fraction thresholds + min-read gate; otherwise the 1/3-2/3 cutoffs.
-           g = if (googa) .googa_gt_call(a, n, atlas_thresh, atlas_het, atlas_min_reads)
-               else ifelse(is.na(f), 3L, ifelse(f < 1/3, 0L, ifelse(f > 2/3, 2L, 1L))))
+      if (has_gt && !has_counts) {                 # pre-called genotypes (read_vcf_gt): use g directly
+        n <- rep(NA_integer_, nrow(dc)); a <- n; g <- as.integer(dc$g)
+      } else {
+        n <- dc$n_ref + dc$n_alt; a <- dc$n_alt; f <- ifelse(n == 0, NA_real_, a / n)
+        # derived hard genotype call for the gt emission: ATLAS uses GOOGA's
+        # fraction thresholds + min-read gate; otherwise the 1/3-2/3 cutoffs.
+        g <- if (googa) .googa_gt_call(a, n, atlas_thresh, atlas_het, atlas_min_reads)
+             else ifelse(is.na(f), 3L, ifelse(f < 1/3, 0L, ifelse(f > 2/3, 2L, 1L)))
+      }
+      list(chr = dc$chr[1], pos = dc$pos, n = n, a = a, g = g)
     })
     # Emission means are fit on the COLLAPSED 3-state model (means are
     # ~duration-independent; the expanded rigidity FB is K^2 = (3r)^2 and far
