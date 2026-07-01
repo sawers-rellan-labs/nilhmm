@@ -124,29 +124,30 @@
 
 # --- caller backend: bin -> cluster -> smooth -> common schema -----------------
 # Two clustering routes:
-#   joint = FALSE (default): each sample is clustered on its OWN informative-count
-#     value-weighted alt-freq (the validated per-sample behaviour).
-#   joint = TRUE: all samples' bins are pooled and clustered ONCE on RAW alt-freq
-#     (a la get_joint_ancestry_calls.R) so REF/HET/ALT thresholds are shared
-#     cohort-wide -- borrows strength across samples. NOT value-weighted: that
-#     would rescale the alt-freq coordinate per sample and break the cross-sample
-#     comparability joint clustering relies on. `obs_weights = TRUE` instead folds
-#     the informative-variant count into the GMM fit (weights the influence, not
-#     the value); it applies only to joint mode and only the "gmm" backend.
+#   joint_clust = FALSE (default): each sample is clustered on its OWN
+#     informative-count value-weighted alt-freq (the validated per-sample route).
+#   joint_clust = TRUE: all samples' bins are pooled and clustered ONCE on RAW
+#     alt-freq (a la get_joint_ancestry_calls.R) so REF/HET/ALT thresholds are
+#     shared cohort-wide -- borrows strength across samples. NOT value-weighted:
+#     that would rescale the alt-freq coordinate per sample and break the
+#     cross-sample comparability joint clustering relies on. `obs_weights = TRUE`
+#     instead folds the informative-variant count into the GMM fit (weights the
+#     influence, not the value); it applies only to joint clustering and only the
+#     "gmm" backend. It is joint *clustering* only -- the HMM stays per-sample.
 # HMM smoothing is always per (sample, chromosome).
 .call_ancestry_binhmm <- function(data, bin_size, cluster_method, priors,
                                   source, donor, has_donor, stay = 0.995,
-                                  joint = FALSE, obs_weights = FALSE) {
+                                  joint_clust = FALSE, obs_weights = FALSE) {
   bins <- .binhmm_bin(data, bin_size)
   start <- c(1 - priors$f_1 - priors$f_2, priors$f_1, priors$f_2)   # REF/HET/ALT (Mendelian)
   donor_of <- if (has_donor) tapply(as.character(data$donor), data$name, `[`, 1L) else NULL
 
   # per-bin cluster state 0/1/2 for the whole bins table
-  if (joint) {
+  if (joint_clust) {
     ow <- if (obs_weights) as.numeric(bins$ninf) else NULL   # influence weights, never a value rescale
     bins$state <- .binhmm_cluster(bins$alt_freq, cluster_method, weights = ow)  # ONE pooled fit
   } else {
-    if (obs_weights) warning("binhmm: obs_weights applies only to joint = TRUE; ignored")
+    if (obs_weights) warning("binhmm: obs_weights applies only to joint_clust = TRUE; ignored")
     st <- integer(nrow(bins))
     for (nm in unique(bins$name)) {                          # each sample clustered independently
       j <- which(bins$name == nm)

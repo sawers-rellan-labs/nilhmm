@@ -24,7 +24,7 @@ call_ancestry(
   emission = NULL,
   bin_size = 1e+06,
   cluster_method = c("gmm", "kmeans", "rebmix"),
-  joint = FALSE,
+  joint_clust = FALSE,
   obs_weights = FALSE
 )
 }
@@ -63,14 +63,15 @@ caller; \code{NULL} uses the caller's default.}
 default), \code{"kmeans"}, or \code{"rebmix"} (the rpubs GMM; needs the suggested
 \pkg{rebmix} package, for bit-exact rpubs reproduction).}
 
-\item{joint}{\code{binhmm} caller only: if \code{TRUE}, pool all samples' bins and learn
-one shared set of REF/HET/ALT clusters on raw alt-freq (borrows strength
-across the cohort; cf. \code{get_joint_ancestry_calls.R}); if \code{FALSE} (default),
-cluster each sample independently on its informative-count-weighted alt-freq.}
+\item{joint_clust}{\code{binhmm} caller only: if \code{TRUE}, pool all samples' bins and
+learn one shared set of REF/HET/ALT clusters on raw alt-freq (borrows
+strength across the cohort; cf. \code{get_joint_ancestry_calls.R}); if \code{FALSE}
+(default), cluster each sample independently on its informative-count-weighted
+alt-freq. This is joint \emph{clustering} only; the HMM stays per-sample.}
 
-\item{obs_weights}{\code{binhmm} caller only, \code{joint = TRUE} only: if \code{TRUE}, weight
-the (gmm) clustering fit by each bin's informative-variant count (weights the
-influence, not the alt-freq value).}
+\item{obs_weights}{\code{binhmm} caller only, \code{joint_clust = TRUE} only: if \code{TRUE},
+weight the (gmm) clustering fit by each bin's informative-variant count
+(weights the influence, not the alt-freq value).}
 }
 \value{
 data.frame in the common schema

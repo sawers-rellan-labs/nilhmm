@@ -52,7 +52,7 @@ test_that("joint mode pools samples and recovers a shared donor block in each", 
   pos <- seq(5000L, 200e6, by = 5000L); inblock <- pos >= 40e6 & pos <= 70e6
   data <- do.call(rbind, lapply(c("S1", "S2", "S3"), .binhmm_block_sample,
                                 pos = pos, inblock = inblock))
-  calls <- call_ancestry(data, caller = "binhmm", design = "BC2S3", joint = TRUE)
+  calls <- call_ancestry(data, caller = "binhmm", design = "BC2S3", joint_clust = TRUE)
   expect_named(calls, c("source", "donor", "name", "chr", "start_bp", "end_bp", "state"))
   expect_setequal(unique(calls$name), c("S1", "S2", "S3"))
   nonref <- calls[calls$state > 0L, ]
@@ -66,20 +66,20 @@ test_that("joint mode accepts informative-count observation weights (gmm)", {
   data <- do.call(rbind, lapply(c("A", "B"), .binhmm_block_sample,
                                 pos = pos, inblock = inblock))
   calls <- call_ancestry(data, caller = "binhmm", design = "BC2S3",
-                         joint = TRUE, obs_weights = TRUE)
+                         joint_clust = TRUE, obs_weights = TRUE)
   expect_true(all(calls$state %in% 0:2))
   nonref <- calls[calls$state > 0L, ]
   expect_true(any(nonref$start_bp <= 55e6 & nonref$end_bp >= 30e6))
 })
 
-test_that("obs_weights errors with a non-gmm backend and warns without joint", {
+test_that("obs_weights errors with a non-gmm backend and warns without joint_clust", {
   d <- data.frame(name = "s", chr = 1L, pos = as.integer(seq(5000L, 80e6, 5000L)),
                   n_ref = 5L, n_alt = as.integer(rbinom(16000, 5, 0.05)))
-  expect_error(call_ancestry(d, caller = "binhmm", design = "BC2S3", joint = TRUE,
+  expect_error(call_ancestry(d, caller = "binhmm", design = "BC2S3", joint_clust = TRUE,
                              obs_weights = TRUE, cluster_method = "kmeans"),
                "observation-weight")
   expect_warning(call_ancestry(d, caller = "binhmm", design = "BC2S3", obs_weights = TRUE),
-                 "joint")
+                 "joint_clust")
 })
 
 test_that("the rebmix backend runs and returns valid calls (when rebmix is installed)", {

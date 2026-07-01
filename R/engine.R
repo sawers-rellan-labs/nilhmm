@@ -191,13 +191,14 @@ decode <- function(model, obs) {
 #'   (default 1 Mb) and the per-bin clustering backend --- `"gmm"` (base-R,
 #'   default), `"kmeans"`, or `"rebmix"` (the rpubs GMM; needs the suggested
 #'   \pkg{rebmix} package, for bit-exact rpubs reproduction).
-#' @param joint `binhmm` caller only: if `TRUE`, pool all samples' bins and learn
-#'   one shared set of REF/HET/ALT clusters on raw alt-freq (borrows strength
-#'   across the cohort; cf. `get_joint_ancestry_calls.R`); if `FALSE` (default),
-#'   cluster each sample independently on its informative-count-weighted alt-freq.
-#' @param obs_weights `binhmm` caller only, `joint = TRUE` only: if `TRUE`, weight
-#'   the (gmm) clustering fit by each bin's informative-variant count (weights the
-#'   influence, not the alt-freq value).
+#' @param joint_clust `binhmm` caller only: if `TRUE`, pool all samples' bins and
+#'   learn one shared set of REF/HET/ALT clusters on raw alt-freq (borrows
+#'   strength across the cohort; cf. `get_joint_ancestry_calls.R`); if `FALSE`
+#'   (default), cluster each sample independently on its informative-count-weighted
+#'   alt-freq. This is joint *clustering* only; the HMM stays per-sample.
+#' @param obs_weights `binhmm` caller only, `joint_clust = TRUE` only: if `TRUE`,
+#'   weight the (gmm) clustering fit by each bin's informative-variant count
+#'   (weights the influence, not the alt-freq value).
 #' @return data.frame in the common schema
 #'   (`source, donor, name, chr, start_bp, end_bp, state`).
 #' @export
@@ -209,7 +210,7 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm"),
                           parallel = FALSE, threads = 1L, seed = 1L,
                           postprocess = TRUE, emission = NULL,
                           bin_size = 1e6, cluster_method = c("gmm", "kmeans", "rebmix"),
-                          joint = FALSE, obs_weights = FALSE) {
+                          joint_clust = FALSE, obs_weights = FALSE) {
   caller <- match.arg(caller)
   req <- c("name", "chr", "pos", "n_ref", "n_alt")
   if (!all(req %in% names(data))) stop("call_ancestry(): data needs columns ", paste(req, collapse = ", "))
@@ -233,7 +234,7 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm"),
               else stop("call_ancestry(): supply `design` or both `f_1` and `f_2`")
     return(.call_ancestry_binhmm(data, bin_size, cluster_method, priors,
                                  source, donor, has_donor,
-                                 joint = joint, obs_weights = obs_weights))
+                                 joint_clust = joint_clust, obs_weights = obs_weights))
   }
 
   spec <- caller_spec(caller, r = r, err = err, conc = conc,
