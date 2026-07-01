@@ -2,9 +2,9 @@
 #'
 #' A unified R + Rcpp engine for calling REF/HET/ALT ancestry in NILs from
 #' sequencing data. One 3-state HMM with swappable emission ([emission_count()],
-#' [emission_gt()], [emission_dosage()]) and duration ([duration_geometric()],
-#' [duration_rigidity()], [duration_hsmm()]) layers expresses the `nnil`,
-#' `rtiger` and `skimbin` callers. See `REFACTOR_R_PACKAGE.md` for the design.
+#' [emission_gt()]) and duration ([duration_geometric()], [duration_rigidity()],
+#' [duration_hsmm()]) layers expresses the `nnil` and `rtiger` callers (plus the
+#' `binhmm` bin/cluster caller). See `REFACTOR_R_PACKAGE.md` for the design.
 #'
 #' The package is **data-agnostic**: no hardcoded paths, sample lists, or mount
 #' locations. Functions take `(data, params)` and return calls; pipeline scripts

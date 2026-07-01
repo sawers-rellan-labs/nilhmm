@@ -4,7 +4,7 @@
 
 test_that("public API functions are exported", {
   for (fn in c("call_ancestry", "fit", "decode", "caller_spec",
-               "emission_count", "emission_gt", "emission_dosage",
+               "emission_count", "emission_gt",
                "duration_geometric", "duration_rigidity", "duration_hsmm",
                "calibrate_r", "read_counts", "write_common_schema")) {
     expect_true(is.function(get(fn, envir = asNamespace("nilHMM"))), info = fn)
@@ -14,17 +14,15 @@ test_that("public API functions are exported", {
 test_that("emission/duration constructors return tagged specs", {
   expect_s3_class(emission_count(), "nilHMM_emission")
   expect_s3_class(emission_gt(), "nilHMM_emission")
-  expect_s3_class(emission_dosage(), "nilHMM_emission")
   expect_s3_class(duration_geometric(), "nilHMM_duration")
   expect_s3_class(duration_rigidity(5L), "nilHMM_duration")
   expect_identical(duration_rigidity(5)$r, 5L)  # coerced to integer
 })
 
-test_that("all three emissions are implemented and run via call_ancestry", {
+test_that("the count and gt emissions run via call_ancestry", {
   d <- data.frame(name = "s", chr = 1L, pos = 1:6, n_ref = c(2L,0L,1L,2L,0L,1L),
                   n_alt = c(0L,2L,1L,0L,2L,0L), donor = "Zx")
-  for (cc in list(list(caller="nnil"), list(caller="nnil", emission="gt"),
-                  list(caller="skimbin"))) {                       # count, gt, dosage
+  for (cc in list(list(caller="nnil"), list(caller="nnil", emission="gt"))) {  # count, gt
     g <- do.call(call_ancestry, c(list(d, design = "BC2S2", r = 0.01), cc))
     expect_true(all(g$state %in% 0:2))
   }

@@ -6,7 +6,7 @@
 \usage{
 call_ancestry(
   data,
-  caller = c("nnil", "rtiger", "skimbin"),
+  caller = c("nnil", "rtiger", "binhmm"),
   design = NULL,
   r = 0.01,
   err = 0.01,
@@ -21,13 +21,15 @@ call_ancestry(
   threads = 1L,
   seed = 1L,
   postprocess = TRUE,
-  emission = NULL
+  emission = NULL,
+  bin_size = 1e+06,
+  cluster_method = c("gmm", "kmeans")
 )
 }
 \arguments{
 \item{data}{Long observation table with columns \verb{name, chr, pos, n_ref, n_alt} (and optionally \code{donor}). From \code{\link[=read_counts]{read_counts()}}.}
 
-\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"skimbin"}.}
+\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}.}
 
 \item{design}{Breeding-design key for priors (e.g. \code{"BC2S2"}, \code{"BC2S3"}).
 Required unless \code{f_1}/\code{f_2} are supplied.}
@@ -51,8 +53,11 @@ randomized init.}
 
 \item{postprocess}{RTIGER caller only: apply the border re-placement (default TRUE).}
 
-\item{emission}{Optional emission override (\code{"count"}, \code{"gt"}, \code{"dosage"}) for
-the \code{nnil} caller; \code{NULL} uses the caller's default.}
+\item{emission}{Optional emission override (\code{"count"}, \code{"gt"}) for the \code{nnil}
+caller; \code{NULL} uses the caller's default.}
+
+\item{bin_size, cluster_method}{\code{binhmm} caller only: genomic bin width in bp
+(default 1 Mb) and the per-bin clustering backend (\code{"gmm"} or \code{"kmeans"}).}
 }
 \value{
 data.frame in the common schema

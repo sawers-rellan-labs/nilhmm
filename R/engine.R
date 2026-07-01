@@ -119,8 +119,7 @@
 #'
 #' @param obs A per-(sample, chromosome) observation table from an emission's
 #'   reader (for `count`: columns `n`, `a`).
-#' @param emission Emission spec ([emission_count()] / [emission_gt()] /
-#'   [emission_dosage()]).
+#' @param emission Emission spec ([emission_count()] / [emission_gt()]).
 #' @param duration Duration spec ([duration_geometric()] /
 #'   [duration_rigidity()] / [duration_hsmm()]).
 #' @param priors Single-locus genotype-frequency priors `list(f_1, f_2)`.
@@ -171,7 +170,7 @@ decode <- function(model, obs) {
 #'
 #' @param data Long observation table with columns `name, chr, pos, n_ref,
 #'   n_alt` (and optionally `donor`). From [read_counts()].
-#' @param caller One of `"nnil"`, `"rtiger"`, `"skimbin"`.
+#' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`.
 #' @param design Breeding-design key for priors (e.g. `"BC2S2"`, `"BC2S3"`).
 #'   Required unless `f_1`/`f_2` are supplied.
 #' @param r,err,conc,fit_means,p_switch Caller parameters forwarded to
@@ -186,18 +185,21 @@ decode <- function(model, obs) {
 #' @param threads,seed RTIGER caller only: E-step threads and the seed for its
 #'   randomized init.
 #' @param postprocess RTIGER caller only: apply the border re-placement (default TRUE).
-#' @param emission Optional emission override (`"count"`, `"gt"`, `"dosage"`) for
-#'   the `nnil` caller; `NULL` uses the caller's default.
+#' @param emission Optional emission override (`"count"`, `"gt"`) for the `nnil`
+#'   caller; `NULL` uses the caller's default.
+#' @param bin_size,cluster_method `binhmm` caller only: genomic bin width in bp
+#'   (default 1 Mb) and the per-bin clustering backend (`"gmm"` or `"kmeans"`).
 #' @return data.frame in the common schema
 #'   (`source, donor, name, chr, start_bp, end_bp, state`).
 #' @export
-call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
+call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm"),
                           design = NULL, r = 0.01, err = 0.01, conc = 20,
                           fit_means = FALSE, p_switch = 0.01,
                           f_1 = NULL, f_2 = NULL,
                           source = "nilHMM", donor = NA_character_,
                           parallel = FALSE, threads = 1L, seed = 1L,
-                          postprocess = TRUE, emission = NULL) {
+                          postprocess = TRUE, emission = NULL,
+                          bin_size = 1e6, cluster_method = c("gmm", "kmeans")) {
   caller <- match.arg(caller)
   req <- c("name", "chr", "pos", "n_ref", "n_alt")
   if (!all(req %in% names(data))) stop("call_ancestry(): data needs columns ", paste(req, collapse = ", "))
@@ -211,12 +213,23 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
     return(.call_ancestry_rtiger(data, rigidity, source, donor, has_donor, threads, seed, postprocess))
   }
 
+  # binhmm caller: the bin -> K=3 cluster -> HMM-smooth pipeline (R/binhmm.R),
+  # architecturally distinct from the count engine (it clusters per-bin ALT
+  # fraction rather than modelling reads). Only priors (start freqs) feed it.
+  if (caller == "binhmm") {
+    cluster_method <- match.arg(cluster_method)
+    priors <- if (!is.null(design)) design_priors(design)
+              else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
+              else stop("call_ancestry(): supply `design` or both `f_1` and `f_2`")
+    return(.call_ancestry_binhmm(data, bin_size, cluster_method, priors,
+                                 source, donor, has_donor))
+  }
+
   spec <- caller_spec(caller, r = r, err = err, conc = conc,
                       fit_means = fit_means, p_switch = p_switch)
-  if (!is.null(emission)) spec$emission <- switch(match.arg(emission, c("count","gt","dosage")),
+  if (!is.null(emission)) spec$emission <- switch(match.arg(emission, c("count","gt")),
     count  = emission_count(err, conc, fit_means),
-    gt     = emission_gt(),
-    dosage = emission_dosage())
+    gt     = emission_gt())
 
   priors <- if (!is.null(design)) design_priors(design)
             else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
@@ -248,9 +261,8 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "skimbin"),
       dc <- dc[order(dc$pos), , drop = FALSE]
       n <- dc$n_ref + dc$n_alt; a <- dc$n_alt; f <- ifelse(n == 0, NA_real_, a / n)
       list(chr = dc$chr[1], pos = dc$pos, n = n, a = a,
-           # derived for gt/dosage emissions: hard genotype call and alt dosage
-           g = ifelse(is.na(f), 3L, ifelse(f < 1/3, 0L, ifelse(f > 2/3, 2L, 1L))),
-           d = ifelse(is.na(f), NA_real_, 2 * f))
+           # derived for the gt emission: hard genotype call from the alt fraction
+           g = ifelse(is.na(f), 3L, ifelse(f < 1/3, 0L, ifelse(f > 2/3, 2L, 1L))))
     })
     # Emission means are fit on the COLLAPSED 3-state model (means are
     # ~duration-independent; the expanded rigidity FB is K^2 = (3r)^2 and far

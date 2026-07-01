@@ -1,7 +1,7 @@
 # Emission models -- the axis that distinguishes callers (S4, S5).
 # Each constructor returns a spec: state-conditional emission log-likelihoods
 # plus which parameters are EM-fittable. Depth drives the choice (S5):
-# saturated (>=~20x) -> gt; intermediate (~1-20x) -> count; imputed -> dosage.
+# saturated (>=~20x) -> gt; intermediate (~1-20x) -> count.
 
 #' Count (BetaBinomial) emission
 #'
@@ -41,27 +41,13 @@ emission_gt <- function(germ = 0.05, gert = 0.10, p = 0.5, mr = 0.10, nir = 0.01
             class = c("nilHMM_emission_gt", "nilHMM_emission"))
 }
 
-#' Dosage (Gaussian/Beta) emission
-#'
-#' Continuous emission centred at `0 / 1 / 2` with variance set by imputation
-#' uncertainty (Skim-BIN style; imputed-dosage sources).
-#'
-#' @param sd_dosage Per-state dosage standard deviation (imputation uncertainty).
-#' @return An emission spec for [fit()].
-#' @export
-emission_dosage <- function(sd_dosage = 0.25) {
-  structure(list(type = "dosage", sd_dosage = sd_dosage),
-            class = c("nilHMM_emission_dosage", "nilHMM_emission"))
-}
-
 # --- internal emission interface (consumed by fit()/decode()) ----------------
 
 # Initial / fixed REF/HET/ALT state parameter for an emission (only the count
-# emission EM-fits it; gt/dosage carry fixed parameters, so theta is a no-op).
+# emission EM-fits it; gt carries fixed parameters, so theta is a no-op).
 .emission_theta <- function(emission) {
   if (inherits(emission, "nilHMM_emission_count"))  return(c(emission$err, 0.5, 1 - emission$err))
   if (inherits(emission, "nilHMM_emission_gt"))     return(NA_real_)   # categorical; theta unused
-  if (inherits(emission, "nilHMM_emission_dosage")) return(c(0, 1, 2)) # state dosages; theta unused
   stop(".emission_theta(): unsupported emission")
 }
 
@@ -98,13 +84,6 @@ emission_dosage <- function(sd_dosage = 0.25) {
     # categorical: emission[t,s] = log(emimat[s, g_t]); g in {0,1,2,3=missing}
     g <- as.integer(obs$g)
     return(t(log(.gt_emimat(emission))[, g + 1L, drop = FALSE]))   # T x 3
-  }
-  if (inherits(emission, "nilHMM_emission_dosage")) {
-    # Gaussian centred at state dosages 0/1/2; missing dosage -> flat emission.
-    d <- obs$d; sd <- emission$sd_dosage
-    out <- vapply(0:2, function(s) stats::dnorm(d, mean = s, sd = sd, log = TRUE), numeric(length(d)))
-    out[is.na(d), ] <- 0
-    return(out)
   }
   stop(".emission_loglik(): unsupported emission")
 }

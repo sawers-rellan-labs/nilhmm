@@ -5,7 +5,7 @@
 \title{Resolve a named caller into emission + duration specs}
 \usage{
 caller_spec(
-  caller = c("nnil", "rtiger", "skimbin"),
+  caller = c("nnil", "rtiger"),
   r = 0.01,
   err = 0.01,
   conc = 20,
@@ -15,10 +15,10 @@ caller_spec(
 )
 }
 \arguments{
-\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"skimbin"}.}
+\item{caller}{One of \code{"nnil"}, \code{"rtiger"}.}
 
 \item{r}{Duration hyperparameter: geometric self-transition rate for
-\code{nnil}/\code{skimbin}; integer rigidity (minimum run length) for \code{rtiger}.}
+\code{nnil}; integer rigidity (minimum run length) for \code{rtiger}.}
 
 \item{err}{Count-emission baseline error.}
 
@@ -37,6 +37,5 @@ caller_spec(
 \itemize{
 \item \code{nnil}    : Holland's nNIL -- count/gt emission + geometric duration.
 \item \code{rtiger}  : rigidity mode -- count emission + rigidity duration (S7).
-\item \code{skimbin} : Skim-BIN -- dosage/count emission + geometric duration.
 }
 }

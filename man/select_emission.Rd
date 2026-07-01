@@ -4,21 +4,18 @@
 \alias{select_emission}
 \title{Select an emission model from sequencing depth}
 \usage{
-select_emission(depth, imputed = FALSE)
+select_emission(depth)
 }
 \arguments{
 \item{depth}{Mean per-marker sequencing depth.}
-
-\item{imputed}{Logical; \code{TRUE} for imputed-dosage sources.}
 }
 \value{
-An emission spec (\code{\link[=emission_count]{emission_count()}} / \code{\link[=emission_gt]{emission_gt()}} /
-\code{\link[=emission_dosage]{emission_dosage()}}).
+An emission spec (\code{\link[=emission_count]{emission_count()}} / \code{\link[=emission_gt]{emission_gt()}}).
 }
 \description{
 Selector rule (S5): saturated (>=~20x) -> \code{gt}; intermediate (~1-20x) ->
-\code{count}; imputed -> \code{dosage}. Cost basis: BetaBinomial cost is proportional
-to the number of distinct \verb{(n, k)} pairs, i.e. to coverage; above ~20-30x a
-count emission is effectively a hard call, so \code{gt} is equivalent and cheaper
-(memory \code{rtiger-betabinomial-cost}).
+\code{count}. Cost basis: BetaBinomial cost is proportional to the number of
+distinct \verb{(n, k)} pairs, i.e. to coverage; above ~20-30x a count emission is
+effectively a hard call, so \code{gt} is equivalent and cheaper (memory
+\code{rtiger-betabinomial-cost}).
 }

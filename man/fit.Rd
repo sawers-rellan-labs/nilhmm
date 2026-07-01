@@ -10,8 +10,7 @@ fit(obs, emission, duration, priors, control = list())
 \item{obs}{A per-(sample, chromosome) observation table from an emission's
 reader (for \code{count}: columns \code{n}, \code{a}).}
 
-\item{emission}{Emission spec (\code{\link[=emission_count]{emission_count()}} / \code{\link[=emission_gt]{emission_gt()}} /
-\code{\link[=emission_dosage]{emission_dosage()}}).}
+\item{emission}{Emission spec (\code{\link[=emission_count]{emission_count()}} / \code{\link[=emission_gt]{emission_gt()}}).}
 
 \item{duration}{Duration spec (\code{\link[=duration_geometric]{duration_geometric()}} /
 \code{\link[=duration_rigidity]{duration_rigidity()}} / \code{\link[=duration_hsmm]{duration_hsmm()}}).}

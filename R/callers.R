@@ -6,11 +6,10 @@
 #'
 #' - `nnil`    : Holland's nNIL -- count/gt emission + geometric duration.
 #' - `rtiger`  : rigidity mode -- count emission + rigidity duration (S7).
-#' - `skimbin` : Skim-BIN -- dosage/count emission + geometric duration.
 #'
-#' @param caller One of `"nnil"`, `"rtiger"`, `"skimbin"`.
+#' @param caller One of `"nnil"`, `"rtiger"`.
 #' @param r Duration hyperparameter: geometric self-transition rate for
-#'   `nnil`/`skimbin`; integer rigidity (minimum run length) for `rtiger`.
+#'   `nnil`; integer rigidity (minimum run length) for `rtiger`.
 #' @param err Count-emission baseline error.
 #' @param conc Count-emission BetaBinomial concentration.
 #' @param fit_means EM-fit emission means (count emission; S10).
@@ -18,7 +17,7 @@
 #' @param ... Ignored extra args (e.g. `f_1`/`f_2` consumed by [call_ancestry()]).
 #' @return `list(emission, duration)`.
 #' @export
-caller_spec <- function(caller = c("nnil", "rtiger", "skimbin"),
+caller_spec <- function(caller = c("nnil", "rtiger"),
                         r = 0.01, err = 0.01, conc = 20, fit_means = FALSE,
                         p_switch = 0.01, ...) {
   caller <- match.arg(caller)
@@ -26,8 +25,6 @@ caller_spec <- function(caller = c("nnil", "rtiger", "skimbin"),
     nnil    = list(emission = emission_count(err, conc, fit_means),
                    duration = duration_geometric(r)),
     rtiger  = list(emission = emission_count(err, conc, fit_means),
-                   duration = duration_rigidity(r, p_switch)),
-    skimbin = list(emission = emission_dosage(),
-                   duration = duration_geometric(r))
+                   duration = duration_rigidity(r, p_switch))
   )
 }

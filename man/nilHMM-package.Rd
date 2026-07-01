@@ -8,9 +8,9 @@
 \description{
 A unified R + Rcpp engine for calling REF/HET/ALT ancestry in NILs from
 sequencing data. One 3-state HMM with swappable emission (\code{\link[=emission_count]{emission_count()}},
-\code{\link[=emission_gt]{emission_gt()}}, \code{\link[=emission_dosage]{emission_dosage()}}) and duration (\code{\link[=duration_geometric]{duration_geometric()}},
-\code{\link[=duration_rigidity]{duration_rigidity()}}, \code{\link[=duration_hsmm]{duration_hsmm()}}) layers expresses the \code{nnil},
-\code{rtiger} and \code{skimbin} callers. See \code{REFACTOR_R_PACKAGE.md} for the design.
+\code{\link[=emission_gt]{emission_gt()}}) and duration (\code{\link[=duration_geometric]{duration_geometric()}}, \code{\link[=duration_rigidity]{duration_rigidity()}},
+\code{\link[=duration_hsmm]{duration_hsmm()}}) layers expresses the \code{nnil} and \code{rtiger} callers (plus the
+\code{binhmm} bin/cluster caller). See \code{REFACTOR_R_PACKAGE.md} for the design.
 }
 \details{
 The package is \strong{data-agnostic}: no hardcoded paths, sample lists, or mount
