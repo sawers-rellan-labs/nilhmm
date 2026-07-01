@@ -5,7 +5,7 @@
 \title{Resolve a named caller into emission + duration specs}
 \usage{
 caller_spec(
-  caller = c("nnil", "rtiger"),
+  caller = c("nnil", "rtiger", "atlas"),
   r = 0.01,
   err = 0.01,
   conc = 20,
@@ -15,10 +15,10 @@ caller_spec(
 )
 }
 \arguments{
-\item{caller}{One of \code{"nnil"}, \code{"rtiger"}.}
+\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"atlas"}.}
 
 \item{r}{Duration hyperparameter: geometric self-transition rate for
-\code{nnil}; integer rigidity (minimum run length) for \code{rtiger}.}
+\code{nnil}/\code{atlas}; integer rigidity (minimum run length) for \code{rtiger}.}
 
 \item{err}{Count-emission baseline error.}
 
@@ -37,5 +37,10 @@ caller_spec(
 \itemize{
 \item \code{nnil}    : Holland's nNIL -- count/gt emission + geometric duration.
 \item \code{rtiger}  : rigidity mode -- count emission + rigidity duration (S7).
+\item \code{atlas}   : GOOGA competitive-alignment caller -- gt (categorical) emission
+\itemize{
+\item geometric duration; the per-unit call uses GOOGA fraction thresholds
+(applied in \code{\link[=call_ancestry]{call_ancestry()}}).
+}
 }
 }

@@ -6,7 +6,7 @@
 \usage{
 call_ancestry(
   data,
-  caller = c("nnil", "rtiger", "binhmm"),
+  caller = c("nnil", "rtiger", "binhmm", "atlas"),
   design = NULL,
   r = 0.01,
   err = 0.01,
@@ -25,13 +25,16 @@ call_ancestry(
   bin_size = 1e+06,
   cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
   joint_clust = FALSE,
-  obs_weights = FALSE
+  obs_weights = FALSE,
+  atlas_thresh = 0.95,
+  atlas_het = 0.25,
+  atlas_min_reads = 5L
 )
 }
 \arguments{
 \item{data}{Long observation table with columns \verb{name, chr, pos, n_ref, n_alt} (and optionally \code{donor}). From \code{\link[=read_counts]{read_counts()}}.}
 
-\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}.}
+\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}, \code{"atlas"}.}
 
 \item{design}{Breeding-design key for priors (e.g. \code{"BC2S2"}, \code{"BC2S3"}).
 Required unless \code{f_1}/\code{f_2} are supplied.}
@@ -75,6 +78,13 @@ alt-freq. This is joint \emph{clustering} only; the HMM stays per-sample.}
 \item{obs_weights}{\code{binhmm} caller only, \code{joint_clust = TRUE} only: if \code{TRUE},
 weight the (gmm) clustering fit by each bin's informative-variant count
 (weights the influence, not the alt-freq value).}
+
+\item{atlas_thresh, atlas_het, atlas_min_reads}{\code{atlas} caller only: GOOGA
+genotype-call thresholds on the donor read fraction --- homozygous call when
+a parent's fraction >= \code{atlas_thresh} (0.95), HET when both parents >=
+\code{atlas_het} (0.25), and a minimum of \code{atlas_min_reads} (5) informative reads
+per gene (else missing). For \code{atlas}, \code{n_ref}/\code{n_alt} are the recurrent/donor
+competitive-alignment read counts (ambiguous excluded upstream).}
 }
 \value{
 data.frame in the common schema

@@ -170,7 +170,7 @@ decode <- function(model, obs) {
 #'
 #' @param data Long observation table with columns `name, chr, pos, n_ref,
 #'   n_alt` (and optionally `donor`). From [read_counts()].
-#' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`.
+#' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`.
 #' @param design Breeding-design key for priors (e.g. `"BC2S2"`, `"BC2S3"`).
 #'   Required unless `f_1`/`f_2` are supplied.
 #' @param r,err,conc,fit_means,p_switch Caller parameters forwarded to
@@ -202,10 +202,16 @@ decode <- function(model, obs) {
 #' @param obs_weights `binhmm` caller only, `joint_clust = TRUE` only: if `TRUE`,
 #'   weight the (gmm) clustering fit by each bin's informative-variant count
 #'   (weights the influence, not the alt-freq value).
+#' @param atlas_thresh,atlas_het,atlas_min_reads `atlas` caller only: GOOGA
+#'   genotype-call thresholds on the donor read fraction --- homozygous call when
+#'   a parent's fraction >= `atlas_thresh` (0.95), HET when both parents >=
+#'   `atlas_het` (0.25), and a minimum of `atlas_min_reads` (5) informative reads
+#'   per gene (else missing). For `atlas`, `n_ref`/`n_alt` are the recurrent/donor
+#'   competitive-alignment read counts (ambiguous excluded upstream).
 #' @return data.frame in the common schema
 #'   (`source, donor, name, chr, start_bp, end_bp, state`).
 #' @export
-call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm"),
+call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
                           design = NULL, r = 0.01, err = 0.01, conc = 20,
                           fit_means = FALSE, p_switch = 0.01,
                           f_1 = NULL, f_2 = NULL,
@@ -213,7 +219,8 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm"),
                           parallel = FALSE, threads = 1L, seed = 1L,
                           postprocess = TRUE, emission = NULL,
                           bin_size = 1e6, cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
-                          joint_clust = FALSE, obs_weights = FALSE) {
+                          joint_clust = FALSE, obs_weights = FALSE,
+                          atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L) {
   caller <- match.arg(caller)
   req <- c("name", "chr", "pos", "n_ref", "n_alt")
   if (!all(req %in% names(data))) stop("call_ancestry(): data needs columns ", paste(req, collapse = ", "))
@@ -239,6 +246,14 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm"),
                                  source, donor, has_donor,
                                  joint_clust = joint_clust, obs_weights = obs_weights))
   }
+
+  # ATLAS caller (R/atlas.R): GOOGA-style per-gene ancestry from competitive-
+  # alignment read counts (n_ref = recurrent, n_alt = donor; ambiguous excluded
+  # upstream by the cassini pipeline). Same engine as nnil+gt, but the per-unit
+  # genotype call uses GOOGA's hard fraction thresholds + a min-read gate rather
+  # than the 1/3-2/3 cutoffs. It is RNA/read-competition data, so the categorical
+  # gt (confusion) emission is used, NOT the count/BetaBinomial mean model.
+  googa <- caller == "atlas"
 
   spec <- caller_spec(caller, r = r, err = err, conc = conc,
                       fit_means = fit_means, p_switch = p_switch)
@@ -276,8 +291,10 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm"),
       dc <- dc[order(dc$pos), , drop = FALSE]
       n <- dc$n_ref + dc$n_alt; a <- dc$n_alt; f <- ifelse(n == 0, NA_real_, a / n)
       list(chr = dc$chr[1], pos = dc$pos, n = n, a = a,
-           # derived for the gt emission: hard genotype call from the alt fraction
-           g = ifelse(is.na(f), 3L, ifelse(f < 1/3, 0L, ifelse(f > 2/3, 2L, 1L))))
+           # derived hard genotype call for the gt emission: ATLAS uses GOOGA's
+           # fraction thresholds + min-read gate; otherwise the 1/3-2/3 cutoffs.
+           g = if (googa) .googa_gt_call(a, n, atlas_thresh, atlas_het, atlas_min_reads)
+               else ifelse(is.na(f), 3L, ifelse(f < 1/3, 0L, ifelse(f > 2/3, 2L, 1L))))
     })
     # Emission means are fit on the COLLAPSED 3-state model (means are
     # ~duration-independent; the expanded rigidity FB is K^2 = (3r)^2 and far
