@@ -12,6 +12,45 @@ single **R package, `nilHMM`**, housing all functions required for ancestry call
 
 ---
 
+## 0. Status (updated 2026-07-01)
+
+This section reflects the **current code**; the design sections below are the original plan and are
+partly superseded — deltas called out here win.
+
+**Built & validated (the core goal — kill Julia/RTIGER, unify in R+Rcpp — is met):**
+- **Engine**: 3-state HMM; `count` emission (fixed *and* EM-fit means), `gt` emission; `geometric`
+  + `rigidity` durations; Rcpp hot loops; batched + optional-parallel Viterbi. Count caller
+  bit-identical to the Python baseline; RTIGER a faithful port of the fork.
+- **Callers**: `nnil` (count / gt), `rtiger` (faithful port + border postprocess), **`binhmm`**
+  (the rpubs "Ancestry Analysis by bins" pipeline — bin → K=3 cluster → HMM-smooth; NEW, not in the
+  original plan). binhmm reproduces the rpubs `Kgmm_HMM` published numbers exactly and matches its
+  per-bin calls at 99.25% / 100% ALT-recall on the dense input.
+  - binhmm backends: `gmm` (dependency-free base-R EM, default), `kmeans`, `rebmix` (Suggests-gated,
+    for bit-exact rpubs GMM).
+  - binhmm `joint_clust=TRUE`: pooled cohort clustering (port of `get_joint_ancestry_calls.R`),
+    `obs_weights=TRUE` folds informative-count into the GMM fit. Joint *clustering* only, HMM stays
+    per-sample.
+- **Support**: `design_priors` (BC2S2/BC2S3), `select_emission` (regime), `read_counts` (tsv),
+  `write_common_schema`. Tests pass, R CMD check 0/0/0.
+
+**Scope changes vs the plan below:**
+- **REMOVED** the `dosage` emission and the `skimbin` caller — a scaffold/design extrapolation, never
+  used, unvalidated (fed a re-derived `2·alt_frac`, not a real imputed dosage). Wherever the sections
+  below say `dosage`/`skimbin`, read: dropped.
+- **ADDED** `binhmm` as the third caller (the actual bin method; note zealtiger's "SkimBIN" == binhmm,
+  a different thing from the removed `skimbin` dosage caller).
+
+**Not done (remaining work):**
+- **6 exported stubs** (`stop("... Task 4")`): `load_map`, `expected_fragment_dist`,
+  `fit_design_gamma`, `cm_to_mb` (§6), `calibrate_r` (§7/§10), `plot_fragment_sizes` (§8).
+- **No bundled `data/`** (§6 `maize_map_v5`, `breeding_designs`); `data-raw/` scripts are placeholders.
+- **`read_counts`**: only `tsv`; `gatk_table`/`vcf_ad` stubbed.
+- **No `vignettes/`** (§8).
+- Open science (§10): per-platform calibration objective, map-aware transitions, GT-path MolBreeding
+  consistency check. `duration_hsmm` is intentionally reserved (not implemented).
+
+---
+
 ## 1. Goal & motivation
 
 Make `nilHMM` an R package with all ancestry-calling functions, called from R **pipeline
@@ -32,8 +71,9 @@ scripts**. Drivers:
 - **Package = `nilHMM`** (keeps continuity with the nNIL-of-Holland origin; packages outgrow
   their origin name).
 - **Callers = explicit methods**, never "nilHMM": `caller = "nnil"` (Holland's nNIL),
-  `"rtiger"` (rigidity mode), `"skimbin"`. So "nilHMM" denotes the *package*; the callers are
-  named methods inside it. This kills the package-vs-caller ambiguity.
+  `"rtiger"` (rigidity mode), `"binhmm"` (the rpubs bin/cluster/smooth pipeline). So "nilHMM"
+  denotes the *package*; the callers are named methods inside it. This kills the package-vs-caller
+  ambiguity. (The `"skimbin"` caller in the original draft was removed — see §0.)
 
 ## 3. Architecture — three layers
 
@@ -55,8 +95,7 @@ where outputs go." This is what lets one package serve skim / BRB / MolBreeding 
     depth-0 = flat. (nilHMM counts path, RTIGER.)
   - `gt` — **categorical** over `{0,1,2,missing}` + genotype-error matrix. (Holland's native GT
     path; MolBreeding regime.)
-  - `dosage` — **Gaussian/Beta** centred at `0/1/2`, variance = imputation uncertainty. (Skim-BIN
-    style; imputed-dosage sources.)
+  - ~~`dosage`~~ — **REMOVED (§0)**; was Gaussian centred at `0/1/2`. Unused/unvalidated.
 - **Duration layer** (transition):
   - `geometric` — self-transition rate `r` (memoryless). (nilHMM.)
   - `rigidity` / phase-type — hard minimum run length of `r` markers via state expansion (a chain
@@ -80,9 +119,11 @@ Emission choice is **depth-driven** (see zealtiger `docs/emission_by_depth_regim
 | BRB-seq | ~2.8× | intermediate — counts pay off, `conc` matters | `count` |
 | MolBreeding (GBTS) | ≥~20× | **saturated** — BetaBinomial → delta = hard call | `gt` (equivalent + cheaper) |
 
-Selector rule: `depth-saturated (≥~20×) → gt; intermediate (~1–20×) → count; imputed → dosage`.
-Cost basis: BetaBinomial cost ∝ #distinct `(n,k)` ∝ coverage → cap ~20–30× → above the cap it's a
-hard call (memory `rtiger-betabinomial-cost`).
+Selector rule (`select_emission`): `depth-saturated (≥~20×) → gt; intermediate (~1–20×) → count`
+(the `imputed → dosage` arm was removed with the dosage emission, §0). Cost basis: BetaBinomial cost
+∝ #distinct `(n,k)` ∝ coverage → cap ~20–30× → above the cap it's a hard call (memory
+`rtiger-betabinomial-cost`). **binhmm** sits outside this table — it is not an engine
+emission but a separate bin-cluster-smooth caller (its own §, see §0).
 
 ## 6. Breeding-design presets (the generation axis) + bundled data
 
@@ -132,18 +173,20 @@ is for verification/extension. Same pattern for the map.
 
 ```
 nilHMM/
-  R/    engine (fit/decode), emissions {count|gt|dosage}, duration {geometric|rigidity|hsmm},
-        callers {nnil|rtiger|skimbin}, presets_regime (emission by depth),
-        presets_design (priors + expected Gamma), map utils, calibrate (KS-vs-sim), plot, io
-  src/  Rcpp: Viterbi + EM hot loops
-  data/        maize_map_v5, breeding_designs           (lazy-loaded, overridable)
-  data-raw/    make_maize_map.R, make_breeding_designs.R (seed + recipe; .Rbuildignore'd)
-  tests/       regression vs frozen baselines (§9); preset-value checks
-  vignettes/   the zealtiger regime notebooks → package docs
+  R/    engine (fit/decode), emissions {count|gt}, duration {geometric|rigidity|(hsmm reserved)},
+        callers {nnil|rtiger}, binhmm (bin→cluster→smooth, own path), presets_regime,
+        presets_design (priors done; Gamma/map STUBS), map utils (STUB),
+        calibrate (STUB), plot (STUB), io (tsv only)
+  src/  Rcpp: Viterbi + EM hot loops                     ✓
+  data/        maize_map_v5, breeding_designs            NOT YET (no data/; data-raw/ = placeholders)
+  data-raw/    make_maize_map.R, make_breeding_designs.R (placeholder headers only)
+  tests/       engine/caller regressions + binhmm        ✓ (no frozen-baseline preset checks yet)
+  vignettes/   the zealtiger regime notebooks → docs     NOT YET
 ```
 
-Top-level API: `call_ancestry(data, caller = c("nnil","rtiger","skimbin"), source/design presets, …)`
-wrapping the engine `fit()/decode()`; emission and duration as pluggable interfaces.
+Top-level API: `call_ancestry(data, caller = c("nnil","rtiger","binhmm"), source/design presets, …)`.
+`nnil`/`rtiger` wrap the engine `fit()/decode()` (emission × duration pluggable); `binhmm` is a
+separate branch (bin/cluster/smooth) with `bin_size`/`cluster_method`/`joint_clust`/`obs_weights`.
 
 ## 9. Sequencing & validation (decided)
 
