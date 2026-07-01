@@ -23,7 +23,7 @@ call_ancestry(
   postprocess = TRUE,
   emission = NULL,
   bin_size = 1e+06,
-  cluster_method = c("gmm", "kmeans", "rebmix"),
+  cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
   joint_clust = FALSE,
   obs_weights = FALSE
 )
@@ -59,9 +59,12 @@ randomized init.}
 caller; \code{NULL} uses the caller's default.}
 
 \item{bin_size, cluster_method}{\code{binhmm} caller only: genomic bin width in bp
-(default 1 Mb) and the per-bin clustering backend --- \code{"gmm"} (base-R,
-default), \code{"kmeans"}, or \code{"rebmix"} (the rpubs GMM; needs the suggested
-\pkg{rebmix} package, for bit-exact rpubs reproduction).}
+(default 1 Mb) and the per-bin genotyping backend --- \code{"gauss"} (default: the
+anchored 3-state Gaussian-emission HMM; fixes the HET over-call and
+high-coverage fragmentation of the K=3 clustering), or the original
+cluster-then-smooth route \code{"gmm"} / \code{"kmeans"} / \code{"rebmix"} (the last needs
+the suggested \pkg{rebmix} package, for bit-exact rpubs reproduction).
+\code{joint_clust}/\code{obs_weights} apply only to the cluster backends.}
 
 \item{joint_clust}{\code{binhmm} caller only: if \code{TRUE}, pool all samples' bins and
 learn one shared set of REF/HET/ALT clusters on raw alt-freq (borrows

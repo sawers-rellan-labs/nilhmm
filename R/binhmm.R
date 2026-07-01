@@ -1,13 +1,16 @@
-# binhmm: per-bin ancestry by clustering + HMM smoothing. Faithful to the rpubs
-# pipeline (rpubs.com/faustovrz/1306822, "...Ancestry Analysis by bins"):
-#   1. bin the genome (default 1 Mb); per bin, ALT_FREQ = alt reads / total reads,
-#      weighted by informative-variant count.
-#   2. zero-ALT bins -> REF; the rest get K=3 1-D clustering (GMM or K-means),
-#      relabeled REF/HET/ALT by ascending mean ALT_FREQ.
-#   3. per-chromosome HMM smoothing (Viterbi) with breeding-design (Mendelian)
-#      start probabilities, a fixed confusion emission, and a sticky transition.
-# Dependency-light: a small 1-D GMM-EM + base stats::kmeans (no rebmix / HMM pkg);
-# the HMM reuses the package's viterbi_log_cpp.
+# binhmm: per-bin ancestry from binned alt-freq. bin the genome (default 1 Mb;
+# per bin ALT_FREQ = alt reads / total reads), then genotype each bin by one of
+# two backends (cluster_method):
+#   "gauss" (DEFAULT): a 3-state Gaussian-emission HMM with REF anchored at the
+#     baseline floor, HET/ALT seeded + hard-EM, collapse guards, de-speckle
+#     (.binhmm_gauss_states). Fixes the HET over-call and high-coverage
+#     fragmentation of the forced K=3 clustering.
+#   "gmm"/"kmeans"/"rebmix": the original rpubs route
+#     (rpubs.com/faustovrz, "...Ancestry Analysis by bins") -- K=3 1-D cluster the
+#     non-zero bins, relabel REF/HET/ALT by ascending mean, then a per-chromosome
+#     fixed-confusion sticky Viterbi. Supports joint_clust / obs_weights.
+# Dependency-light: base-R GMM-EM + stats::kmeans (rebmix optional/Suggests, HMM
+# reuses the package's viterbi_log_cpp).
 
 # --- vectorized binning (the "genome walker", done as a base-R group-by) -------
 .binhmm_bin <- function(data, bin_size) {
@@ -114,6 +117,52 @@
   viterbi_log_cpp(log(start), log(trans), log_emit)                # 0-indexed 0/1/2
 }
 
+# --- corrected binhmm stage: 3-state GAUSSIAN-emission HMM on per-bin alt_freq --
+# The default backend (cluster_method = "gauss"). Replaces the K=3 GMM, whose
+# forced third component carves a spurious HET cluster out of REF-baseline noise
+# (HET over-call), and which fragments at high coverage. Instead:
+#   * REF is ANCHORED at the empirical baseline floor (the bulk-low mean), NOT 0
+#     -- the diluted read alt_freq REF floor is a small positive value;
+#   * the REF Gaussian width is FLOORED to the signal scale so a hyper-tight
+#     baseline (high coverage) can't reject mildly-elevated single bins into donor;
+#   * HET/ALT means are SEEDED from the data (ALT = upper quantile of clearly
+#     elevated bins, HET = midway) and refined by Viterbi hard-EM with REF fixed;
+#   * sticky transitions come from the design start priors;
+#   * collapse guards fold a state not separated from the floor back to REF, and
+#     donor runs shorter than `min_run` bins are dropped (de-speckle).
+# Ports the nilhifi chromosome_painting.R anchoring to the read-alt_freq scale.
+# `alt_freq`/`chr` must be ordered by (chr, bin). Returns final 0/1/2 states.
+.binhmm_gauss_states <- function(alt_freq, chr, start, stay = 0.995, min_run = 2L) {
+  n <- length(alt_freq); af <- alt_freq
+  base <- af[af <= stats::quantile(af, 0.6)]
+  ref_mean <- mean(base); sd_base <- max(1e-3, stats::sd(base))
+  hi <- af[af > ref_mean + 4 * sd_base]
+  if (length(hi) < 4L) return(integer(n))                # collapse guard: no donor -> all REF
+  alt_mean <- as.numeric(stats::quantile(hi, 0.75)); het_mean <- ref_mean + (alt_mean - ref_mean) / 2
+  sd_ref <- max(sd_base, (alt_mean - ref_mean) / 6)      # floor REF width to the signal scale
+  sd_hi  <- max(sd_ref, stats::sd(hi))
+  means <- c(ref_mean, het_mean, alt_mean); sds <- c(sd_ref, sd_hi, sd_hi)
+  sw <- (1 - stay) / 2; ltrans <- log({ tr <- matrix(sw, 3, 3); diag(tr) <- stay; tr }); lstart <- log(start)
+  chrs <- unique(chr)
+  emit <- function() vapply(1:3, function(k) stats::dnorm(af, means[k], max(sds[k], 1e-3), log = TRUE), numeric(n))
+  path <- integer(n)
+  for (it in 1:8) {                                      # hard-EM: Viterbi -> refit HET/ALT means (REF fixed)
+    le <- emit(); np <- integer(n)
+    for (cc in chrs) { i <- which(chr == cc); np[i] <- viterbi_log_cpp(lstart, ltrans, le[i, , drop = FALSE]) }
+    if (identical(np, path)) break
+    path <- np
+    for (k in 2:3) if (sum(path == k - 1L) > 0L) {
+      means[k] <- mean(af[path == k - 1L])
+      v <- stats::sd(af[path == k - 1L]); sds[k] <- max(sd_ref, if (is.na(v)) sd_ref else v)
+    }
+  }
+  if (means[2] < ref_mean + 4 * sd_ref) path[path == 1L] <- 0L   # HET indistinct from floor -> REF
+  if (means[3] < ref_mean + 4 * sd_ref) path[path == 2L] <- 0L   # ALT indistinct from floor -> REF
+  for (cc in chrs) { i <- which(chr == cc); rr <- rle(path[i])   # drop < min_run donor specks
+    rr$values[rr$values > 0L & rr$lengths < min_run] <- 0L; path[i] <- inverse.rle(rr) }
+  path
+}
+
 # --- RLE a chromosome's smoothed bin states into common-schema segments --------
 .binhmm_segments <- function(states, start_bp, end_bp) {
   n <- length(states); brk <- which(states[-1L] != states[-n])
@@ -122,50 +171,62 @@
              state = as.integer(states[s]))
 }
 
-# --- caller backend: bin -> cluster -> smooth -> common schema -----------------
-# Two clustering routes:
-#   joint_clust = FALSE (default): each sample is clustered on its OWN
-#     informative-count value-weighted alt-freq (the validated per-sample route).
-#   joint_clust = TRUE: all samples' bins are pooled and clustered ONCE on RAW
-#     alt-freq (a la get_joint_ancestry_calls.R) so REF/HET/ALT thresholds are
-#     shared cohort-wide -- borrows strength across samples. NOT value-weighted:
-#     that would rescale the alt-freq coordinate per sample and break the
-#     cross-sample comparability joint clustering relies on. `obs_weights = TRUE`
-#     instead folds the informative-variant count into the GMM fit (weights the
-#     influence, not the value); it applies only to joint clustering and only the
-#     "gmm" backend. It is joint *clustering* only -- the HMM stays per-sample.
-# HMM smoothing is always per (sample, chromosome).
+# --- caller backend: bin -> genotype bins -> common schema ---------------------
+# Two per-bin genotyping backends, selected by `cluster_method`:
+#   "gauss" (DEFAULT): the anchored 3-state Gaussian-emission HMM
+#     (.binhmm_gauss_states) -- REF pinned at the baseline floor, HET/ALT seeded +
+#     hard-EM, collapse guards, de-speckle. Fixes the K=3 HET over-call and the
+#     high-coverage fragmentation. Per-sample; `joint_clust`/`obs_weights` do not
+#     apply.
+#   "gmm"/"kmeans"/"rebmix": the older cluster-then-smooth route (the rpubs
+#     pipeline) -- K=3 cluster the per-bin alt-freq, then a fixed-confusion sticky
+#     Viterbi (.binhmm_smooth). Supports `joint_clust` (pool all samples, one
+#     shared fit on RAW alt-freq, a la get_joint_ancestry_calls.R) and, for "gmm",
+#     `obs_weights` (informative-count weights in the fit -- influence, not value).
+# HMM smoothing/decoding is always per (sample, chromosome).
 .call_ancestry_binhmm <- function(data, bin_size, cluster_method, priors,
                                   source, donor, has_donor, stay = 0.995,
                                   joint_clust = FALSE, obs_weights = FALSE) {
   bins <- .binhmm_bin(data, bin_size)
   start <- c(1 - priors$f_1 - priors$f_2, priors$f_1, priors$f_2)   # REF/HET/ALT (Mendelian)
   donor_of <- if (has_donor) tapply(as.character(data$donor), data$name, `[`, 1L) else NULL
+  gauss <- identical(cluster_method, "gauss")
 
-  # per-bin cluster state 0/1/2 for the whole bins table
-  if (joint_clust) {
-    ow <- if (obs_weights) as.numeric(bins$ninf) else NULL   # influence weights, never a value rescale
-    bins$state <- .binhmm_cluster(bins$alt_freq, cluster_method, weights = ow)  # ONE pooled fit
-  } else {
-    if (obs_weights) warning("binhmm: obs_weights applies only to joint_clust = TRUE; ignored")
-    st <- integer(nrow(bins))
-    for (nm in unique(bins$name)) {                          # each sample clustered independently
-      j <- which(bins$name == nm)
-      w <- bins$alt_freq[j] * (bins$ninf[j] / mean(bins$ninf[j])); w <- pmin(pmax(w, 0), 1)
-      st[j] <- .binhmm_cluster(w, cluster_method)
+  # cluster backends: set per-bin RAW cluster labels bins$state now (the gauss
+  # backend computes its FINAL states per-sample in the loop below).
+  if (!gauss) {
+    if (joint_clust) {
+      ow <- if (obs_weights) as.numeric(bins$ninf) else NULL   # influence weights, never a value rescale
+      bins$state <- .binhmm_cluster(bins$alt_freq, cluster_method, weights = ow)  # ONE pooled fit
+    } else {
+      if (obs_weights) warning("binhmm: obs_weights applies only to joint_clust = TRUE; ignored")
+      st <- integer(nrow(bins))
+      for (nm in unique(bins$name)) {                          # each sample clustered independently
+        j <- which(bins$name == nm)
+        w <- bins$alt_freq[j] * (bins$ninf[j] / mean(bins$ninf[j])); w <- pmin(pmax(w, 0), 1)
+        st[j] <- .binhmm_cluster(w, cluster_method)
+      }
+      bins$state <- st
     }
-    bins$state <- st
+  } else if (joint_clust || obs_weights) {
+    warning("binhmm: joint_clust/obs_weights apply only to the cluster backends (gmm/kmeans/rebmix); ignored for cluster_method = 'gauss'")
   }
 
-  # HMM-smooth per (sample, chromosome) and RLE into common-schema segments
   out <- list()
   for (nm in unique(bins$name)) {
     b <- bins[bins$name == nm, , drop = FALSE]
+    b <- b[order(b$chr, b$bin), , drop = FALSE]              # (chr, bin) order for per-chr decode
     dn <- if (has_donor) donor_of[[nm]] else donor
+    fstate <- if (gauss) {
+      .binhmm_gauss_states(b$alt_freq, b$chr, start, stay)   # final (Gaussian-HMM) states
+    } else {
+      fs <- integer(nrow(b))                                 # smooth the cluster labels per chr
+      for (cc in unique(b$chr)) { i <- which(b$chr == cc); fs[i] <- .binhmm_smooth(b$state[i], start, stay) }
+      fs
+    }
     for (cc in unique(b$chr)) {
-      i <- which(b$chr == cc); i <- i[order(b$bin[i])]
-      sm  <- .binhmm_smooth(b$state[i], start, stay)
-      seg <- .binhmm_segments(sm, b$start_bp[i], b$end_bp[i])
+      i <- which(b$chr == cc)                                # b is (chr, bin)-ordered -> i is bin-ordered
+      seg <- .binhmm_segments(fstate[i], b$start_bp[i], b$end_bp[i])
       out[[length(out) + 1L]] <- data.frame(source = source, donor = dn, name = nm,
                                             chr = cc, seg, stringsAsFactors = FALSE)
     }

@@ -1,6 +1,6 @@
-# binhmm caller (R/binhmm.R): bin -> K=3 cluster -> HMM-smooth, the rpubs
-# "Ancestry Analysis by bins" pipeline wired in as caller = "binhmm". Distinct
-# from the engine callers (it clusters per-bin ALT fraction, not reads).
+# binhmm caller (R/binhmm.R): bin -> genotype bins -> HMM. Default backend
+# cluster_method="gauss" (anchored Gaussian-emission HMM); the older K=3
+# cluster-then-smooth route is cluster_method="gmm"/"kmeans"/"rebmix".
 
 # (a) cluster relabeling — regressions for the two degenerate-clustering bugs ---
 test_that("bimodal signal never collapses a clear-ALT group into REF", {
@@ -52,7 +52,8 @@ test_that("joint mode pools samples and recovers a shared donor block in each", 
   pos <- seq(5000L, 200e6, by = 5000L); inblock <- pos >= 40e6 & pos <= 70e6
   data <- do.call(rbind, lapply(c("S1", "S2", "S3"), .binhmm_block_sample,
                                 pos = pos, inblock = inblock))
-  calls <- call_ancestry(data, caller = "binhmm", design = "BC2S3", joint_clust = TRUE)
+  calls <- call_ancestry(data, caller = "binhmm", design = "BC2S3",
+                         cluster_method = "gmm", joint_clust = TRUE)
   expect_named(calls, c("source", "donor", "name", "chr", "start_bp", "end_bp", "state"))
   expect_setequal(unique(calls$name), c("S1", "S2", "S3"))
   nonref <- calls[calls$state > 0L, ]
@@ -66,7 +67,7 @@ test_that("joint mode accepts informative-count observation weights (gmm)", {
   data <- do.call(rbind, lapply(c("A", "B"), .binhmm_block_sample,
                                 pos = pos, inblock = inblock))
   calls <- call_ancestry(data, caller = "binhmm", design = "BC2S3",
-                         joint_clust = TRUE, obs_weights = TRUE)
+                         cluster_method = "gmm", joint_clust = TRUE, obs_weights = TRUE)
   expect_true(all(calls$state %in% 0:2))
   nonref <- calls[calls$state > 0L, ]
   expect_true(any(nonref$start_bp <= 55e6 & nonref$end_bp >= 30e6))
@@ -78,8 +79,23 @@ test_that("obs_weights errors with a non-gmm backend and warns without joint_clu
   expect_error(call_ancestry(d, caller = "binhmm", design = "BC2S3", joint_clust = TRUE,
                              obs_weights = TRUE, cluster_method = "kmeans"),
                "observation-weight")
-  expect_warning(call_ancestry(d, caller = "binhmm", design = "BC2S3", obs_weights = TRUE),
+  expect_warning(call_ancestry(d, caller = "binhmm", design = "BC2S3",
+                               cluster_method = "gmm", obs_weights = TRUE),
                  "joint_clust")
+})
+
+test_that("binhmm gauss default: flat sample -> all REF; donor block -> non-REF", {
+  pos <- seq(5000L, 150e6, by = 5000L)
+  # perfectly flat REF sample -> collapse guard -> all REF
+  flat <- data.frame(name = "F", chr = 1L, pos = as.integer(pos), n_ref = 12L, n_alt = 0L)
+  cf <- call_ancestry(flat, caller = "binhmm", design = "BC2S3")   # default cluster_method = "gauss"
+  expect_true(all(cf$state == 0L))
+  # donor block -> detected as non-REF over 40-70 Mb
+  set.seed(7); inb <- pos >= 40e6 & pos <= 70e6
+  a <- ifelse(inb, rbinom(length(pos), 12, 0.5), rbinom(length(pos), 12, 0.01))
+  blk <- data.frame(name = "B", chr = 1L, pos = as.integer(pos), n_ref = 12L - a, n_alt = as.integer(a))
+  cb <- call_ancestry(blk, caller = "binhmm", design = "BC2S3")
+  expect_true(any(cb$state > 0L & cb$start_bp <= 70e6 & cb$end_bp >= 40e6))
 })
 
 test_that("the rebmix backend runs and returns valid calls (when rebmix is installed)", {
