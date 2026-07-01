@@ -38,6 +38,50 @@ test_that("call_ancestry(caller='binhmm') recovers a donor block in the common s
   expect_true(any(alt$start_bp <= 70e6 & alt$end_bp >= 40e6))
 })
 
+# donor block modelled as homozygous (high alt-freq); assert NON-REF detection --
+# with K=3 forced on a REF + single-block distribution the block's HET/ALT label
+# is data-dependent (a tight mode gets split), so the robust claim is "detected
+# as introgression", not a specific non-REF label.
+.binhmm_block_sample <- function(nm, pos, inblock, seed_alt = 0.9) {
+  a <- ifelse(inblock, rbinom(length(pos), 12, seed_alt), rbinom(length(pos), 12, 0.01))
+  data.frame(name = nm, chr = 1L, pos = as.integer(pos), n_ref = 12L - a, n_alt = as.integer(a))
+}
+
+test_that("joint mode pools samples and recovers a shared donor block in each", {
+  set.seed(3)
+  pos <- seq(5000L, 200e6, by = 5000L); inblock <- pos >= 40e6 & pos <= 70e6
+  data <- do.call(rbind, lapply(c("S1", "S2", "S3"), .binhmm_block_sample,
+                                pos = pos, inblock = inblock))
+  calls <- call_ancestry(data, caller = "binhmm", design = "BC2S3", joint = TRUE)
+  expect_named(calls, c("source", "donor", "name", "chr", "start_bp", "end_bp", "state"))
+  expect_setequal(unique(calls$name), c("S1", "S2", "S3"))
+  nonref <- calls[calls$state > 0L, ]
+  for (s in c("S1", "S2", "S3"))                                    # block found in every sample
+    expect_true(any(nonref$name == s & nonref$start_bp <= 70e6 & nonref$end_bp >= 40e6))
+})
+
+test_that("joint mode accepts informative-count observation weights (gmm)", {
+  set.seed(4)
+  pos <- seq(5000L, 120e6, by = 5000L); inblock <- pos >= 30e6 & pos <= 55e6
+  data <- do.call(rbind, lapply(c("A", "B"), .binhmm_block_sample,
+                                pos = pos, inblock = inblock))
+  calls <- call_ancestry(data, caller = "binhmm", design = "BC2S3",
+                         joint = TRUE, obs_weights = TRUE)
+  expect_true(all(calls$state %in% 0:2))
+  nonref <- calls[calls$state > 0L, ]
+  expect_true(any(nonref$start_bp <= 55e6 & nonref$end_bp >= 30e6))
+})
+
+test_that("obs_weights errors with a non-gmm backend and warns without joint", {
+  d <- data.frame(name = "s", chr = 1L, pos = as.integer(seq(5000L, 80e6, 5000L)),
+                  n_ref = 5L, n_alt = as.integer(rbinom(16000, 5, 0.05)))
+  expect_error(call_ancestry(d, caller = "binhmm", design = "BC2S3", joint = TRUE,
+                             obs_weights = TRUE, cluster_method = "kmeans"),
+               "observation-weight")
+  expect_warning(call_ancestry(d, caller = "binhmm", design = "BC2S3", obs_weights = TRUE),
+                 "joint")
+})
+
 test_that("the rebmix backend runs and returns valid calls (when rebmix is installed)", {
   skip_if_not_installed("rebmix")
   set.seed(11)

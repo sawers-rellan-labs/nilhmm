@@ -23,7 +23,9 @@ call_ancestry(
   postprocess = TRUE,
   emission = NULL,
   bin_size = 1e+06,
-  cluster_method = c("gmm", "kmeans", "rebmix")
+  cluster_method = c("gmm", "kmeans", "rebmix"),
+  joint = FALSE,
+  obs_weights = FALSE
 )
 }
 \arguments{
@@ -60,6 +62,15 @@ caller; \code{NULL} uses the caller's default.}
 (default 1 Mb) and the per-bin clustering backend --- \code{"gmm"} (base-R,
 default), \code{"kmeans"}, or \code{"rebmix"} (the rpubs GMM; needs the suggested
 \pkg{rebmix} package, for bit-exact rpubs reproduction).}
+
+\item{joint}{\code{binhmm} caller only: if \code{TRUE}, pool all samples' bins and learn
+one shared set of REF/HET/ALT clusters on raw alt-freq (borrows strength
+across the cohort; cf. \code{get_joint_ancestry_calls.R}); if \code{FALSE} (default),
+cluster each sample independently on its informative-count-weighted alt-freq.}
+
+\item{obs_weights}{\code{binhmm} caller only, \code{joint = TRUE} only: if \code{TRUE}, weight
+the (gmm) clustering fit by each bin's informative-variant count (weights the
+influence, not the alt-freq value).}
 }
 \value{
 data.frame in the common schema

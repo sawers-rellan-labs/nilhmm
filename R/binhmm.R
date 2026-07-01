@@ -25,16 +25,22 @@
 }
 
 # --- 1-D 3-component Gaussian mixture via EM (replaces rebmix) ------------------
-.gmm1d <- function(x, k = 3L, iter = 200L, tol = 1e-6) {
+# `weights` (optional): per-point observation weights, folded into the E-step
+# responsibilities so high-weight points pull the component means/vars harder.
+# It weights the FIT, not the x values (the alt-freq axis is untouched), and the
+# final assignment is the ordinary argmax posterior. weights = NULL reproduces
+# the unweighted EM exactly.
+.gmm1d <- function(x, k = 3L, iter = 200L, tol = 1e-6, weights = NULL) {
+  n <- length(x); ow <- if (is.null(weights)) rep(1, n) else weights; sw <- sum(ow)
   mu <- as.numeric(stats::quantile(x, seq(0, 1, length.out = k + 2L)[2:(k + 1L)]))
-  v  <- rep(stats::var(x) + 1e-8, k); w <- rep(1 / k, k); n <- length(x)
+  v  <- rep(stats::var(x) + 1e-8, k); w <- rep(1 / k, k)
   dens_mat <- function() vapply(1:k, function(j) w[j] * stats::dnorm(x, mu[j], sqrt(v[j])), numeric(n))
   for (it in 1:iter) {
     d <- dens_mat(); tot <- rowSums(d); tot[tot == 0] <- 1e-300
-    resp <- d / tot; Nk <- colSums(resp); Nk[Nk == 0] <- 1e-300
+    resp <- (d / tot) * ow; Nk <- colSums(resp); Nk[Nk == 0] <- 1e-300
     mu_new <- colSums(resp * x) / Nk
     v_new  <- vapply(1:k, function(j) sum(resp[, j] * (x - mu_new[j])^2) / Nk[j], numeric(1))
-    v_new[v_new < 1e-8] <- 1e-8; w <- Nk / n
+    v_new[v_new < 1e-8] <- 1e-8; w <- Nk / sw
     if (max(abs(mu_new - mu)) < tol) { mu <- mu_new; v <- v_new; break }
     mu <- mu_new; v <- v_new
   }
@@ -71,16 +77,19 @@
 # nothing), the survivors are spread across the extremes -- 2 clusters ->
 # {REF, ALT}, 1 -> {REF} -- so a clearly-ALT group is never silently collapsed
 # into REF.
-.binhmm_cluster <- function(alt_freq, method = "gmm") {
+.binhmm_cluster <- function(alt_freq, method = "gmm", weights = NULL) {
   st <- integer(length(alt_freq))                 # all REF (0) by default
   nz <- which(alt_freq > 0)
   x  <- alt_freq[nz]
   if (length(nz) >= 3L && length(unique(x)) >= 2L) {
     k  <- min(3L, length(unique(x)))
+    wz <- if (is.null(weights)) NULL else weights[nz]
     cl <- switch(method,
-                 kmeans = stats::kmeans(x, centers = k, nstart = 10L)$cluster,
-                 rebmix = .binhmm_rebmix(x, k),
-                 .gmm1d(x, k))                     # "gmm" default
+                 kmeans = { if (!is.null(weights)) stop("cluster_method='kmeans' has no observation-weight support; use 'gmm'")
+                            stats::kmeans(x, centers = k, nstart = 10L)$cluster },
+                 rebmix = { if (!is.null(weights)) stop("cluster_method='rebmix' has no observation-weight support; use 'gmm'")
+                            .binhmm_rebmix(x, k) },
+                 .gmm1d(x, k, weights = wz))       # "gmm" default
     m       <- tapply(x, cl, mean)                # emergent cluster means
     present <- as.integer(names(m))
     lab_by  <- switch(as.character(length(present)),
@@ -114,20 +123,47 @@
 }
 
 # --- caller backend: bin -> cluster -> smooth -> common schema -----------------
+# Two clustering routes:
+#   joint = FALSE (default): each sample is clustered on its OWN informative-count
+#     value-weighted alt-freq (the validated per-sample behaviour).
+#   joint = TRUE: all samples' bins are pooled and clustered ONCE on RAW alt-freq
+#     (a la get_joint_ancestry_calls.R) so REF/HET/ALT thresholds are shared
+#     cohort-wide -- borrows strength across samples. NOT value-weighted: that
+#     would rescale the alt-freq coordinate per sample and break the cross-sample
+#     comparability joint clustering relies on. `obs_weights = TRUE` instead folds
+#     the informative-variant count into the GMM fit (weights the influence, not
+#     the value); it applies only to joint mode and only the "gmm" backend.
+# HMM smoothing is always per (sample, chromosome).
 .call_ancestry_binhmm <- function(data, bin_size, cluster_method, priors,
-                                  source, donor, has_donor, stay = 0.995) {
+                                  source, donor, has_donor, stay = 0.995,
+                                  joint = FALSE, obs_weights = FALSE) {
   bins <- .binhmm_bin(data, bin_size)
   start <- c(1 - priors$f_1 - priors$f_2, priors$f_1, priors$f_2)   # REF/HET/ALT (Mendelian)
   donor_of <- if (has_donor) tapply(as.character(data$donor), data$name, `[`, 1L) else NULL
+
+  # per-bin cluster state 0/1/2 for the whole bins table
+  if (joint) {
+    ow <- if (obs_weights) as.numeric(bins$ninf) else NULL   # influence weights, never a value rescale
+    bins$state <- .binhmm_cluster(bins$alt_freq, cluster_method, weights = ow)  # ONE pooled fit
+  } else {
+    if (obs_weights) warning("binhmm: obs_weights applies only to joint = TRUE; ignored")
+    st <- integer(nrow(bins))
+    for (nm in unique(bins$name)) {                          # each sample clustered independently
+      j <- which(bins$name == nm)
+      w <- bins$alt_freq[j] * (bins$ninf[j] / mean(bins$ninf[j])); w <- pmin(pmax(w, 0), 1)
+      st[j] <- .binhmm_cluster(w, cluster_method)
+    }
+    bins$state <- st
+  }
+
+  # HMM-smooth per (sample, chromosome) and RLE into common-schema segments
   out <- list()
   for (nm in unique(bins$name)) {
     b <- bins[bins$name == nm, , drop = FALSE]
-    w <- b$alt_freq * (b$ninf / mean(b$ninf)); w <- pmin(pmax(w, 0), 1)  # informative-count weighting
-    st <- .binhmm_cluster(w, cluster_method)                            # per-sample K=3 cluster
     dn <- if (has_donor) donor_of[[nm]] else donor
     for (cc in unique(b$chr)) {
       i <- which(b$chr == cc); i <- i[order(b$bin[i])]
-      sm  <- .binhmm_smooth(st[i], start, stay)                        # HMM-smoothed bins
+      sm  <- .binhmm_smooth(b$state[i], start, stay)
       seg <- .binhmm_segments(sm, b$start_bp[i], b$end_bp[i])
       out[[length(out) + 1L]] <- data.frame(source = source, donor = dn, name = nm,
                                             chr = cc, seg, stringsAsFactors = FALSE)
