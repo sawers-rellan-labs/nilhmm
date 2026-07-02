@@ -11,6 +11,11 @@ caller_spec(
   conc = 20,
   fit_means = FALSE,
   p_switch = 0.01,
+  germ = 0.05,
+  gert = 0.1,
+  p = 0.5,
+  mr = 0.1,
+  nir = 0.01,
   ...
 )
 }
@@ -27,6 +32,10 @@ caller_spec(
 \item{fit_means}{EM-fit emission means (count emission; S10).}
 
 \item{p_switch}{Free-state switch probability for the \code{rtiger} rigidity tail.}
+
+\item{germ, gert, p, mr, nir}{Genotype-error rates for the gt emission (the \code{atlas}
+caller; Holland's nNIL error model): hom error, het error, hom-error->het
+fraction, missing rate, non-informative-marker rate.}
 
 \item{...}{Ignored extra args (e.g. \code{f_1}/\code{f_2} consumed by \code{\link[=call_ancestry]{call_ancestry()}}).}
 }

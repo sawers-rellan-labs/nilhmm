@@ -205,6 +205,14 @@ decode <- function(model, obs) {
 #' @param obs_weights `binhmm` caller only, `joint_clust = TRUE` only: if `TRUE`,
 #'   weight the (gmm) clustering fit by each bin's informative-variant count
 #'   (weights the influence, not the alt-freq value).
+#' @param germ,gert,p,mr,nir Genotype-error rates for the `gt` (categorical)
+#'   emission (Holland's nNIL model): `germ` error on true homozygotes, `gert` on
+#'   true heterozygotes, `p` fraction of hom errors called het, `mr` missing rate,
+#'   `nir` non-informative-marker rate. Raising `germ`/`gert` toward the platform's
+#'   real error rate is the native cure for over-fragmentation (isolated
+#'   miscalled markers are absorbed as errors rather than opening 1-marker
+#'   segments); calibrate to a clean control, don't crank blindly. Used by the gt
+#'   emission (`emission = "gt"`, a `g` genotype input, or the `atlas` caller).
 #' @param atlas_thresh,atlas_het,atlas_min_reads `atlas` caller only: GOOGA
 #'   genotype-call thresholds on the donor read fraction --- homozygous call when
 #'   a parent's fraction >= `atlas_thresh` (0.95), HET when both parents >=
@@ -223,7 +231,8 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
                           postprocess = TRUE, emission = NULL,
                           bin_size = 1e6, cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
                           joint_clust = FALSE, obs_weights = FALSE,
-                          atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L) {
+                          atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L,
+                          germ = 0.05, gert = 0.10, p = 0.5, mr = 0.10, nir = 0.01) {
   caller <- match.arg(caller)
   has_counts <- all(c("n_ref", "n_alt") %in% names(data))
   has_gt     <- "g" %in% names(data)          # pre-called hard genotype (0/1/2/3), e.g. from read_vcf_gt()
@@ -271,11 +280,11 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   # gt (confusion) emission is used, NOT the count/BetaBinomial mean model.
   googa <- caller == "atlas"
 
-  spec <- caller_spec(caller, r = r, err = err, conc = conc,
-                      fit_means = fit_means, p_switch = p_switch)
+  spec <- caller_spec(caller, r = r, err = err, conc = conc, fit_means = fit_means,
+                      p_switch = p_switch, germ = germ, gert = gert, p = p, mr = mr, nir = nir)
   if (!is.null(emission)) spec$emission <- switch(match.arg(emission, c("count","gt")),
     count  = emission_count(err, conc, fit_means),
-    gt     = emission_gt())
+    gt     = emission_gt(germ, gert, p, mr, nir))
 
   priors <- if (!is.null(design)) design_priors(design)
             else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)

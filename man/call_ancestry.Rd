@@ -28,7 +28,12 @@ call_ancestry(
   obs_weights = FALSE,
   atlas_thresh = 0.95,
   atlas_het = 0.25,
-  atlas_min_reads = 5L
+  atlas_min_reads = 5L,
+  germ = 0.05,
+  gert = 0.1,
+  p = 0.5,
+  mr = 0.1,
+  nir = 0.01
 )
 }
 \arguments{
@@ -89,6 +94,15 @@ a parent's fraction >= \code{atlas_thresh} (0.95), HET when both parents >=
 \code{atlas_het} (0.25), and a minimum of \code{atlas_min_reads} (5) informative reads
 per gene (else missing). For \code{atlas}, \code{n_ref}/\code{n_alt} are the recurrent/donor
 competitive-alignment read counts (ambiguous excluded upstream).}
+
+\item{germ, gert, p, mr, nir}{Genotype-error rates for the \code{gt} (categorical)
+emission (Holland's nNIL model): \code{germ} error on true homozygotes, \code{gert} on
+true heterozygotes, \code{p} fraction of hom errors called het, \code{mr} missing rate,
+\code{nir} non-informative-marker rate. Raising \code{germ}/\code{gert} toward the platform's
+real error rate is the native cure for over-fragmentation (isolated
+miscalled markers are absorbed as errors rather than opening 1-marker
+segments); calibrate to a clean control, don't crank blindly. Used by the gt
+emission (\code{emission = "gt"}, a \code{g} genotype input, or the \code{atlas} caller).}
 }
 \value{
 data.frame in the common schema

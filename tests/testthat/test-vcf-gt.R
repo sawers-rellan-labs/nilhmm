@@ -46,6 +46,17 @@ test_that("call_ancestry runs the gt genotype path on a read_vcf_gt table", {
   expect_true(all(calls$state[calls$name == "S2"] == 0L))
 })
 
+test_that("germ passthrough smooths isolated miscalls (higher germ -> fewer non-REF)", {
+  pos <- as.integer((1:200) * 1e6)                            # 200 markers on chr1
+  g <- rep(0L, 200); g[seq(10, 200, by = 13)] <- 1L           # scattered isolated het miscalls in REF
+  d <- data.frame(name = "S", chr = 1L, pos = pos, g = g)
+  lo <- call_ancestry(d, caller = "nnil", design = "BC2S3", germ = 0.001)   # trust calls -> fragments
+  hi <- call_ancestry(d, caller = "nnil", design = "BC2S3", germ = 0.30)    # absorb as error -> smooth
+  nonref <- function(x) sum(x$state > 0L)
+  expect_gte(nonref(lo), nonref(hi))                          # raising germ never increases donor calls
+  expect_true(all(hi$state == 0L))                            # high germ absorbs the isolated hets -> all REF
+})
+
 test_that("a g-only genotype input rejects callers that need read counts", {
   d <- data.frame(name = "S1", chr = 1L, pos = as.integer((1:50) * 1e6), g = 0L)
   expect_error(call_ancestry(d, caller = "rtiger"), "read counts")
