@@ -24,3 +24,6 @@ KS-calibrated \code{r}); \code{optimize_R} is intentionally NOT ported (it
 over-rigidifies, memory \code{optimize-R-overrigidifies-nil-sim}). Validate
 against \verb{tests/fixtures/baseline_pre_refactor/rtiger_rigidity_ref/}.
 }
+\examples{
+duration_rigidity(r = 5, p_switch = 2e-3)
+}

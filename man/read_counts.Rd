@@ -25,3 +25,12 @@ per-marker \verb{(n_ref, n_alt, chr, pos)} table for the \code{count} emission. 
 TSV->counts adapter covers the wideseq-thinned BRB inputs (cf. the Python
 \code{agent/brb_nilhmm_counts.py}).
 }
+\examples{
+# Headerless "chr pos ref n_ref alt n_alt" TSV, as produced upstream.
+f <- tempfile(fileext = ".tsv")
+write.table(
+  data.frame(chr = "chr1", pos = c(1e5, 2e5, 3e5),
+             ref = "A", n_ref = c(8, 5, 0), alt = "T", n_alt = c(0, 3, 7)),
+  f, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+read_counts(f, name = "NIL1")
+}

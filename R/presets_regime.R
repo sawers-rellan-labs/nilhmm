@@ -11,6 +11,9 @@
 #'
 #' @param depth Mean per-marker sequencing depth.
 #' @return An emission spec ([emission_count()] / [emission_gt()]).
+#' @examples
+#' class(select_emission(2))    # ~2x  -> count emission
+#' class(select_emission(30))   # ~30x -> gt (hard-call) emission
 #' @export
 select_emission <- function(depth) {
   if (depth >= 20) return(emission_gt())    # saturated -> hard genotype call

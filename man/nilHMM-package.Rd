@@ -17,6 +17,15 @@ The package is \strong{data-agnostic}: no hardcoded paths, sample lists, or moun
 locations. Functions take \verb{(data, params)} and return calls; pipeline scripts
 (not part of the package) own which files/samples and where outputs go.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/sawers-rellan-labs/nilhmm}
+  \item \url{https://sawers-rellan-labs.github.io/nilhmm/}
+  \item Report bugs at \url{https://github.com/sawers-rellan-labs/nilhmm/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: Fausto Rodriguez Zapata \email{thegemmalab@ncsu.edu}
 

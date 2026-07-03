@@ -1,0 +1,19 @@
+citHeader("If you use nilHMM, please cite both the software and the nNIL population paper it builds on.")
+
+bibentry(
+  bibtype  = "Manual",
+  title    = "nilHMM: Duration-Aware HMM Ancestry Caller for NIL Sequencing Data",
+  author   = person("Fausto", "Rodriguez Zapata"),
+  year     = "2025",
+  note     = "R package version 0.1.0",
+  url      = "https://github.com/sawers-rellan-labs/nilhmm"
+)
+
+bibentry(
+  bibtype  = "Article",
+  title    = "A maize near-isogenic line population designed for gene discovery and characterization of allelic effects",
+  author   = c(person("Tao", "Zhong"), person("James B.", "Holland")),
+  journal  = "bioRxiv",
+  year     = "2025",
+  doi      = "10.1101/2025.01.29.635337"
+)

@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use nilHMM, please cite both the software and the nNIL population paper it builds on."
+title: "nilHMM: Duration-Aware HMM Ancestry Caller for NIL Sequencing Data"
+abstract: >-
+  A unified R + Rcpp reimplementation of the nilHMM ancestry-calling family for
+  Near-Isogenic Lines from sequencing data. A single duration-aware 3-state
+  (REF/HET/ALT) HMM engine with swappable emission models (count / gt) and
+  duration layers (geometric / rigidity / hsmm) expresses the nnil, rtiger,
+  binhmm, and atlas callers.
+type: software
+authors:
+  - family-names: "Rodriguez Zapata"
+    given-names: "Fausto"
+    email: "thegemmalab@ncsu.edu"
+    affiliation: "North Carolina State University"
+license: MIT
+version: "0.1.0"
+repository-code: "https://github.com/sawers-rellan-labs/nilhmm"
+url: "https://sawers-rellan-labs.github.io/nilhmm/"
+keywords:
+  - hidden-markov-model
+  - ancestry-inference
+  - near-isogenic-lines
+  - maize
+  - introgression
+  - bioinformatics
+references:
+  - type: article
+    title: >-
+      A maize near-isogenic line population designed for gene discovery and
+      characterization of allelic effects
+    authors:
+      - family-names: Zhong
+        given-names: Tao
+      - family-names: Holland
+        given-names: James B.
+    year: 2025
+    journal: bioRxiv
+    doi: 10.1101/2025.01.29.635337

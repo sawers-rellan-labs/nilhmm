@@ -1,6 +1,6 @@
 Package: nilHMM
 Title: Duration-Aware HMM Ancestry Caller for NIL Sequencing Data
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R:
     person("Fausto", "Rodriguez Zapata", role = c("aut", "cre"),
            email = "thegemmalab@ncsu.edu")
@@ -10,9 +10,11 @@ Description: A unified R + Rcpp reimplementation of the nilHMM ancestry-calling
     models (count / gt) and duration layers (geometric / rigidity / hsmm)
     expresses the nnil and rtiger callers, alongside the binhmm bin/cluster
     caller. The package is data-agnostic: functions take (data, params) and
-    return calls; pipeline scripts own paths and sample lists. See
-    REFACTOR_R_PACKAGE.md.
+    return calls; pipeline scripts own paths and sample lists.
 License: MIT + file LICENSE
+URL: https://github.com/sawers-rellan-labs/nilhmm,
+    https://sawers-rellan-labs.github.io/nilhmm/
+BugReports: https://github.com/sawers-rellan-labs/nilhmm/issues
 Encoding: UTF-8
 Depends:
     R (>= 4.1)
@@ -28,6 +30,11 @@ Imports:
 SystemRequirements: GNU make
 Suggests:
     testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    data.table,
+    ggplot2,
+    ggpubr,
     GenomicRanges,
     rebmix
 LazyData: true

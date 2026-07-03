@@ -25,3 +25,7 @@ emit flat. \strong{Means are FITTABLE} (EM-fit / reference-bias-corrected), not 
 fixed \code{c(err, 0.5, 1 - err)} -- the BRB run showed fixed \code{theta_ALT = 1 - err}
 collapses ALT->HET under reference bias (S10, BRB_run_findings.md).
 }
+\examples{
+emission_count(err = 0.01, conc = 20)               # fixed means (Python baseline)
+emission_count(err = 0.01, fit_means = TRUE)         # EM-fit means (RNA / BRB)
+}

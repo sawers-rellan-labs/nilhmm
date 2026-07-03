@@ -16,6 +16,14 @@
 #' @param name Optional sample name for a single file; defaults to the file's
 #'   basename with extensions stripped.
 #' @return A long observation table: `name, chr, pos, n_ref, n_alt`.
+#' @examples
+#' # Headerless "chr pos ref n_ref alt n_alt" TSV, as produced upstream.
+#' f <- tempfile(fileext = ".tsv")
+#' write.table(
+#'   data.frame(chr = "chr1", pos = c(1e5, 2e5, 3e5),
+#'              ref = "A", n_ref = c(8, 5, 0), alt = "T", n_alt = c(0, 3, 7)),
+#'   f, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+#' read_counts(f, name = "NIL1")
 #' @export
 read_counts <- function(path, format = c("tsv", "gatk_table", "vcf_ad"), name = NULL) {
   format <- match.arg(format)
@@ -56,6 +64,16 @@ read_counts <- function(path, format = c("tsv", "gatk_table", "vcf_ad"), name = 
 #'   (the VCF spec requirement when GT is present).
 #' @param samples Optional character vector to restrict to a subset of samples.
 #' @return A long observation table: `name, chr, pos, g`.
+#' @examples
+#' # A minimal biallelic-diploid VCF with a GT field.
+#' f <- tempfile(fileext = ".vcf")
+#' writeLines(c(
+#'   "##fileformat=VCFv4.2",
+#'   "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNIL1",
+#'   "1\t100000\t.\tA\tT\t.\t.\t.\tGT\t0/0",
+#'   "1\t200000\t.\tA\tT\t.\t.\t.\tGT\t0/1",
+#'   "1\t300000\t.\tA\tT\t.\t.\t.\tGT\t1/1"), f)
+#' read_vcf_gt(f)   # g in {0 REF-hom, 1 het, 2 ALT-hom, 3 missing}
 #' @export
 read_vcf_gt <- function(path, samples = NULL) {
   con <- if (grepl("\\.gz$", path)) gzfile(path, "rt") else file(path, "rt")
@@ -94,6 +112,10 @@ read_vcf_gt <- function(path, samples = NULL) {
 #' @param calls A data.frame of segment calls.
 #' @param path Output CSV path.
 #' @return `path`, invisibly.
+#' @examples
+#' calls <- data.frame(source = "nilHMM", donor = NA, name = "NIL1", chr = 1L,
+#'                     start_bp = 1L, end_bp = 5e6L, state = 2L)
+#' write_common_schema(calls, tempfile(fileext = ".csv"))
 #' @export
 write_common_schema <- function(calls, path) {
   cols <- c("source", "donor", "name", "chr", "start_bp", "end_bp", "state")

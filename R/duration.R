@@ -12,6 +12,8 @@
 #'
 #' @param r Self-transition / recombination rate between adjacent markers.
 #' @return A duration spec for [fit()].
+#' @examples
+#' duration_geometric(r = 1e-4)
 #' @export
 duration_geometric <- function(r = 0.01) {
   structure(list(type = "geometric", r = r),
@@ -32,6 +34,8 @@ duration_geometric <- function(r = 0.01) {
 #'   state -- the geometric tail beyond the enforced minimum run. Rigidity of 1
 #'   reduces the expansion to a plain geometric transition with this switch rate.
 #' @return A duration spec for [fit()].
+#' @examples
+#' duration_rigidity(r = 5, p_switch = 2e-3)
 #' @export
 duration_rigidity <- function(r = 5L, p_switch = 0.01) {
   r <- as.integer(r)
@@ -47,6 +51,8 @@ duration_rigidity <- function(r = 5L, p_switch = 0.01) {
 #'
 #' @param sojourn Sojourn distribution spec (placeholder).
 #' @return A duration spec for [fit()].
+#' @examples
+#' duration_hsmm()   # reserved placeholder spec
 #' @export
 duration_hsmm <- function(sojourn = NULL) {
   structure(list(type = "hsmm", sojourn = sojourn),

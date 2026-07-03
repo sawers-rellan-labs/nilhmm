@@ -29,3 +29,9 @@ fittable-mean emission (\code{fit_means = TRUE}; required for RNA / reference-bi
 data per S10) it Baum-Welch EM-fits the emission means. Viterbi/EM hot loops
 are in Rcpp.
 }
+\examples{
+# Per-(sample, chromosome) count obs: n = depth, a = alt count.
+obs <- data.frame(n = c(10, 9, 11, 8, 12), a = c(0, 0, 1, 4, 6))
+model <- fit(obs, emission_count(), duration_geometric(1e-4),
+             priors = design_priors("BC2S2"))
+}

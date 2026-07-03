@@ -17,6 +17,9 @@
 #'   the fixed `c(err, 0.5, 1 - err)` that reproduces the Python baseline.
 #'   Reference-biased data (RNA / BRB) needs `TRUE` (S10).
 #' @return An emission spec for [fit()].
+#' @examples
+#' emission_count(err = 0.01, conc = 20)               # fixed means (Python baseline)
+#' emission_count(err = 0.01, fit_means = TRUE)         # EM-fit means (RNA / BRB)
 #' @export
 emission_count <- function(err = 0.01, conc = 20, fit_means = FALSE) {
   structure(list(type = "count", err = err, conc = conc, fit_means = fit_means),
@@ -35,6 +38,8 @@ emission_count <- function(err = 0.01, conc = 20, fit_means = FALSE) {
 #' @param mr Missing-genotype rate.
 #' @param nir Non-informative-marker rate.
 #' @return An emission spec for [fit()].
+#' @examples
+#' emission_gt(germ = 0.05, gert = 0.10)
 #' @export
 emission_gt <- function(germ = 0.05, gert = 0.10, p = 0.5, mr = 0.10, nir = 0.01) {
   structure(list(type = "gt", germ = germ, gert = gert, p = p, mr = mr, nir = nir),

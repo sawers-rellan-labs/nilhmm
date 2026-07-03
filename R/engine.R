@@ -125,6 +125,11 @@
 #' @param priors Single-locus genotype-frequency priors `list(f_1, f_2)`.
 #' @param control EM control (`max_iter`, `tol`).
 #' @return A fitted model: `list(theta, log_start, log_trans, emission, duration)`.
+#' @examples
+#' # Per-(sample, chromosome) count obs: n = depth, a = alt count.
+#' obs <- data.frame(n = c(10, 9, 11, 8, 12), a = c(0, 0, 1, 4, 6))
+#' model <- fit(obs, emission_count(), duration_geometric(1e-4),
+#'              priors = design_priors("BC2S2"))
 #' @export
 fit <- function(obs, emission, duration, priors, control = list()) {
   td <- .duration_transition(duration, priors)
@@ -154,6 +159,11 @@ fit <- function(obs, emission, duration, priors, control = list()) {
 #' @param obs A per-(sample, chromosome) observation table.
 #' @return Integer macro-state path over markers (0 = REF, 1 = HET, 2 = ALT);
 #'   for rigidity the expanded sub-states are mapped back to macro-states.
+#' @examples
+#' obs <- data.frame(n = c(10, 9, 11, 8, 12), a = c(0, 0, 1, 4, 6))
+#' model <- fit(obs, emission_count(), duration_geometric(1e-4),
+#'              priors = design_priors("BC2S2"))
+#' decode(model, obs)
 #' @export
 decode <- function(model, obs) {
   em <- .expand_emission(.emission_loglik(model$emission, obs, model$theta), model$n_sub)
@@ -221,6 +231,14 @@ decode <- function(model, obs) {
 #'   competitive-alignment read counts (ambiguous excluded upstream).
 #' @return data.frame in the common schema
 #'   (`source, donor, name, chr, start_bp, end_bp, state`).
+#' @examples
+#' # Toy single-NIL count table: a REF stretch then a donor (ALT) block.
+#' set.seed(1)
+#' toy <- data.frame(
+#'   name  = "NIL1", chr = 1L, pos = seq_len(40L) * 1e5L,
+#'   n_ref = c(rpois(20, 8), rpois(20, 4)),
+#'   n_alt = c(rpois(20, 0), rpois(20, 4)))
+#' call_ancestry(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
 #' @export
 call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
                           design = NULL, r = 0.01, err = 0.01, conc = 20,

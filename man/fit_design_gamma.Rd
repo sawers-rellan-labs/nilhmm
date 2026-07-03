@@ -16,3 +16,9 @@ fit_design_gamma(sim_segments)
 Extensible entry point used by \code{data-raw/make_breeding_designs.R} to derive
 the bundled \verb{(k, lambda)} from simcross output.
 }
+\examples{
+\dontrun{
+# Planned (Task 4): fit the design Gamma from simcross segment sizes.
+fit_design_gamma(sim_segments)
+}
+}

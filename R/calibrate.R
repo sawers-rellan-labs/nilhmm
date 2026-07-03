@@ -18,6 +18,13 @@
 #' @param r_grid Candidate `r` values to sweep.
 #' @param ... Forwarded to [call_ancestry()].
 #' @return data.frame of `(r, D, ...)` plus the argmin; warns if `at_grid_edge`.
+#' @examples
+#' \dontrun{
+#' # Planned (Task 4): pick r by KS-vs-sim minimum distance (rigidity-not-mle).
+#' sweep <- calibrate_r(data, sim_segments,
+#'                      r_grid = c(1e-6, 1e-5, 1e-4),
+#'                      caller = "nnil", design = "BC2S2")
+#' }
 #' @export
 calibrate_r <- function(data, sim_segments, r_grid, ...) {
   stop("nilHMM::calibrate_r() not yet implemented (Task 4)")

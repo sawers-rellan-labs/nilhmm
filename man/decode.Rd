@@ -18,3 +18,9 @@ for rigidity the expanded sub-states are mapped back to macro-states.
 \description{
 Decode the most-likely state path (Viterbi)
 }
+\examples{
+obs <- data.frame(n = c(10, 9, 11, 8, 12), a = c(0, 0, 1, 4, 6))
+model <- fit(obs, emission_count(), duration_geometric(1e-4),
+             priors = design_priors("BC2S2"))
+decode(model, obs)
+}

@@ -17,3 +17,6 @@ Self-transition rate \code{r}; the nilHMM transition. \code{r} is a resolution
 hyperparameter, \strong{not} an MLE -- calibrate by KS-vs-sim (memory
 \code{rigidity-not-mle}, \code{\link[=calibrate_r]{calibrate_r()}}).
 }
+\examples{
+duration_geometric(r = 1e-4)
+}

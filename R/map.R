@@ -7,6 +7,11 @@
 #' @param version Map version key (default `"v5"`); version-namespaced and
 #'   overridable.
 #' @return A map data.frame (marker -> chr, cM, bp).
+#' @examples
+#' \dontrun{
+#' # Planned (Task 4): the bundled B73 v5 consensus map.
+#' map <- load_map("v5")
+#' }
 #' @export
 load_map <- function(version = "v5") {
   stop("nilHMM::load_map() not yet implemented (Task 4)")

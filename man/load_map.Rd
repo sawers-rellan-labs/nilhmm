@@ -16,3 +16,9 @@ A map data.frame (marker -> chr, cM, bp).
 \description{
 Load the bundled consensus map
 }
+\examples{
+\dontrun{
+# Planned (Task 4): the bundled B73 v5 consensus map.
+map <- load_map("v5")
+}
+}

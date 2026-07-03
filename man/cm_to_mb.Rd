@@ -17,3 +17,9 @@ cm_to_mb(seg, map)
 \description{
 cM-space Gammas are assembly-robust; anything bp/Mb is tied to B73 v5.
 }
+\examples{
+\dontrun{
+# Planned (Task 4): project cM segment coordinates to Mb via a consensus map.
+cm_to_mb(seg, load_map("v5"))
+}
+}

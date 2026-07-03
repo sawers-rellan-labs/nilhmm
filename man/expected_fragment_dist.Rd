@@ -17,3 +17,9 @@ Returns the fitted Gamma \verb{(k, lambda)} for a design plus density/CDF
 closures, for plotting the grey Null and as the KS-vs-sim calibration target.
 Never feeds the engine transition.
 }
+\examples{
+\dontrun{
+# Planned (Task 4): the grey Null / KS target for a design.
+nd <- expected_fragment_dist("BC2S3")
+}
+}

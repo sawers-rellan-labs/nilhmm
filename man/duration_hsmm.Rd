@@ -16,3 +16,6 @@ A duration spec for \code{\link[=fit]{fit()}}.
 Explicit sojourn distribution. Reserved for a genuine duration model; \strong{must
 not} be used to bake in the design's fitted Gamma (S7 circularity trap).
 }
+\examples{
+duration_hsmm()   # reserved placeholder spec
+}

@@ -17,3 +17,7 @@ values; S6 will move these into the bundled \code{breeding_designs} dataset
 \description{
 Single-locus genotype-frequency priors for a breeding design
 }
+\examples{
+design_priors("BC2S2")   # bulked skim
+design_priors("BC2S3")   # BRB
+}

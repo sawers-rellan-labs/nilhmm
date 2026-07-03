@@ -19,3 +19,7 @@ distinct \verb{(n, k)} pairs, i.e. to coverage; above ~20-30x a count emission i
 effectively a hard call, so \code{gt} is equivalent and cheaper (memory
 \code{rtiger-betabinomial-cost}).
 }
+\examples{
+class(select_emission(2))    # ~2x  -> count emission
+class(select_emission(30))   # ~30x -> gt (hard-call) emission
+}

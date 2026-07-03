@@ -27,3 +27,14 @@ depths), this reads the called genotype directly, so it never touches \code{AD}.
 \details{
 Run with \code{call_ancestry(read_vcf_gt(path), caller = "nnil", emission = "gt", design = ...)} (a \code{g}-only input auto-selects the gt emission).
 }
+\examples{
+# A minimal biallelic-diploid VCF with a GT field.
+f <- tempfile(fileext = ".vcf")
+writeLines(c(
+  "##fileformat=VCFv4.2",
+  "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNIL1",
+  "1\t100000\t.\tA\tT\t.\t.\t.\tGT\t0/0",
+  "1\t200000\t.\tA\tT\t.\t.\t.\tGT\t0/1",
+  "1\t300000\t.\tA\tT\t.\t.\t.\tGT\t1/1"), f)
+read_vcf_gt(f)   # g in {0 REF-hom, 1 het, 2 ALT-hom, 3 missing}
+}

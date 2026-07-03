@@ -1,0 +1,59 @@
+url: https://sawers-rellan-labs.github.io/nilhmm/
+
+template:
+  bootstrap: 5
+
+home:
+  title: nilHMM — duration-aware HMM ancestry caller for NILs
+  description: >-
+    A single duration-aware 3-state (REF/HET/ALT) HMM engine with swappable
+    emission and duration layers, expressing the nnil, rtiger, binhmm, and atlas
+    ancestry callers.
+
+reference:
+  - title: Calling ancestry
+    desc: The top-level API and the named callers.
+    contents:
+      - call_ancestry
+      - caller_spec
+
+  - title: Engine
+    desc: Fit emission/transition parameters and decode the state path.
+    contents:
+      - fit
+      - decode
+
+  - title: Emissions
+    desc: The swappable emission axis (count / gt) and the depth-regime selector.
+    contents:
+      - emission_count
+      - emission_gt
+      - select_emission
+
+  - title: Duration
+    desc: The swappable duration axis (geometric / rigidity / hsmm).
+    contents:
+      - duration_geometric
+      - duration_rigidity
+      - duration_hsmm
+
+  - title: Input / output
+    desc: Readers for the observation table and the common-schema writer.
+    contents:
+      - read_counts
+      - read_vcf_gt
+      - write_common_schema
+
+  - title: Design priors & calibration
+    desc: Breeding-design priors, the fragment-size Null, and r calibration.
+    contents:
+      - design_priors
+      - calibrate_r
+      - expected_fragment_dist
+      - fit_design_gamma
+      - load_map
+      - cm_to_mb
+
+  - title: Plotting
+    contents:
+      - plot_fragment_sizes

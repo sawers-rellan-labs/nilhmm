@@ -22,6 +22,10 @@
 #'   fraction, missing rate, non-informative-marker rate.
 #' @param ... Ignored extra args (e.g. `f_1`/`f_2` consumed by [call_ancestry()]).
 #' @return `list(emission, duration)`.
+#' @examples
+#' caller_spec("nnil", r = 1e-4)          # count emission + geometric duration
+#' caller_spec("rtiger", r = 5)           # count emission + rigidity duration
+#' str(caller_spec("atlas"))              # gt emission + geometric duration
 #' @export
 caller_spec <- function(caller = c("nnil", "rtiger", "atlas"),
                         r = 0.01, err = 0.01, conc = 20, fit_means = FALSE,

@@ -25,3 +25,6 @@ Categorical over \verb{\{0, 1, 2, missing\}} with a genotype-error matrix. The c
 equivalent of \code{count} at saturated depth (Holland's native GT path; the
 MolBreeding regime). Hard call, so no \verb{(n, k)} cost blow-up.
 }
+\examples{
+emission_gt(germ = 0.05, gert = 0.10)
+}

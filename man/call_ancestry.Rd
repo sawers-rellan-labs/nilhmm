@@ -114,3 +114,12 @@ specs, runs \code{\link[=fit]{fit()}} / \code{\link[=decode]{decode()}} per (sam
 common-schema segment calls. Data-agnostic: pass the observations in; this
 function never reads paths.
 }
+\examples{
+# Toy single-NIL count table: a REF stretch then a donor (ALT) block.
+set.seed(1)
+toy <- data.frame(
+  name  = "NIL1", chr = 1L, pos = seq_len(40L) * 1e5L,
+  n_ref = c(rpois(20, 8), rpois(20, 4)),
+  n_alt = c(rpois(20, 0), rpois(20, 4)))
+call_ancestry(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
+}
