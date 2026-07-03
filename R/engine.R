@@ -188,9 +188,22 @@ decode <- function(model, obs) {
 #' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`.
 #' @param design Breeding-design key for priors (e.g. `"BC2S2"`, `"BC2S3"`).
 #'   Required unless `f_1`/`f_2` are supplied.
-#' @param r,err,conc,fit_means,p_switch Caller parameters forwarded to
-#'   [caller_spec()]. Explicit formals (not `...`) so that, e.g., `r` is never
-#'   partial-matched to another argument.
+#' @param rrate Count/geometric callers (`nnil`, `atlas`): expected per-marker
+#'   **recombination rate** for the geometric duration (self-stay = `1 - rrate`).
+#'   A resolution hyperparameter, not an MLE. Holland's nNIL sets it to
+#'   `2 * total_cM / (100 * n_markers)` (~`30 / n_markers` for a 1500 cM maize
+#'   map; the factor 2 is the RIL-like doubling for the backcross + self meioses,
+#'   Haldane & Waddington), and it is optimizable from data by KS-vs-sim
+#'   ([calibrate_r()]).
+#' @param rigidity `rtiger` caller only: integer minimum run length (e.g. `5`).
+#' @param xrate Exit rate of nilHMM's **rigidity duration** ([duration_rigidity()]):
+#'   the per-marker switch probability at the free (post-minimum-run) state — the
+#'   geometric tail beyond the enforced run. A nilHMM construct, **not** a RTIGER
+#'   parameter; the faithful `caller = "rtiger"` port uses only `rigidity` (plus
+#'   `threads`/`seed`/`postprocess`) and ignores `xrate`.
+#' @param r,p_switch Back-compat aliases for `rrate` and `xrate` respectively (for
+#'   `caller = "rtiger"`, a legacy `r` is read as the integer `rigidity`).
+#' @param err,conc,fit_means Count-emission parameters forwarded to [caller_spec()].
 #' @param f_1,f_2 Single-locus priors, used when `design` is `NULL`.
 #' @param source Value for the output `source` column.
 #' @param donor Donor/taxon label when `data` has no `donor` column.
@@ -246,8 +259,9 @@ decode <- function(model, obs) {
 #' call_ancestry(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
 #' @export
 call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
-                        design = NULL, r = 0.01, err = 0.01, conc = 20,
-                        fit_means = FALSE, p_switch = 0.01,
+                        design = NULL, rrate = NULL, r = 0.01, rigidity = NULL,
+                        err = 0.01, conc = 20,
+                        fit_means = FALSE, xrate = NULL, p_switch = 0.01,
                         f_1 = NULL, f_2 = NULL,
                         source = "nilHMM", donor = NA_character_,
                         parallel = FALSE, threads = 1L, seed = 1L,
@@ -272,6 +286,14 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   }
   has_donor <- "donor" %in% names(data)
 
+  # Canonical duration knobs; `r`/`p_switch` are back-compat aliases.
+  #   rrate = geometric recombination rate (nnil/atlas). xrate = exit rate of
+  #   nilHMM's rigidity DURATION (duration_rigidity) -- NOT a RTIGER parameter;
+  #   the faithful caller = "rtiger" port uses only `rigidity`. For that caller a
+  #   legacy `r` is read as the integer rigidity below.
+  if (!is.null(rrate)) r <- rrate
+  if (!is.null(xrate)) p_switch <- xrate
+
   # A hard-genotype (`g`-only, no counts) input is the categorical GT path
   # (Holland's nNIL genotype model on called genotypes; the saturated-depth /
   # MolBreeding regime). It only makes sense for caller = "nnil" + the gt emission
@@ -287,8 +309,14 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   # port of the RTIGER fork, not the count engine. `r` is the integer rigidity;
   # `postprocess` applies the border re-placement (on by default, as RTIGER does).
   if (caller == "rtiger") {
-    rigidity <- if (r >= 1) as.integer(r) else { warning("rtiger: r is the rigidity; using 5"); 5L }
-    return(.rtiger_states(data, rigidity, source, donor, has_donor, threads, seed, postprocess))
+    # `rigidity` is RTIGER's knob (integer minimum run length); `r` is accepted
+    # as a legacy alias so older `caller = "rtiger", r = 5` calls still work.
+    rig <- if (!is.null(rigidity)) rigidity else r
+    rig <- if (rig >= 1) as.integer(rig) else {
+      warning("rtiger: `rigidity` must be an integer >= 1; using 5")
+      5L
+    }
+    return(.rtiger_states(data, rig, source, donor, has_donor, threads, seed, postprocess))
   }
 
   # binhmm caller: the bin -> K=3 cluster -> HMM-smooth pipeline (R/binhmm.R),

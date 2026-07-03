@@ -11,12 +11,18 @@
 #'   (applied in [call_ancestry()]).
 #'
 #' @param caller One of `"nnil"`, `"rtiger"`, `"atlas"`.
-#' @param r Duration hyperparameter: geometric self-transition rate for
-#'   `nnil`/`atlas`; integer rigidity (minimum run length) for `rtiger`.
+#' @param rrate Geometric callers (`nnil`/`atlas`): expected per-marker
+#'   recombination rate (self-stay = `1 - rrate`). Holland's nNIL sets it to
+#'   `2 * total_cM / (100 * n_markers)`; `r` is a back-compat alias.
+#' @param rigidity `rtiger` only: integer minimum run length (e.g. `5`).
 #' @param err Count-emission baseline error.
 #' @param conc Count-emission BetaBinomial concentration.
 #' @param fit_means EM-fit emission means (count emission; S10).
-#' @param p_switch Free-state switch probability for the `rtiger` rigidity tail.
+#' @param xrate Exit rate of the **rigidity duration** ([duration_rigidity()]):
+#'   free-state (post-minimum-run) switch probability. A nilHMM construct, not a
+#'   RTIGER parameter. `p_switch` is a legacy alias.
+#' @param r,p_switch Back-compat aliases for `rrate`/`xrate` (a legacy `r` is read
+#'   as `rigidity` for `rtiger`).
 #' @param germ,gert,p,mr,nir Genotype-error rates for the gt emission (the `atlas`
 #'   caller; Holland's nNIL error model): hom error, het error, hom-error->het
 #'   fraction, missing rate, non-informative-marker rate.
@@ -24,19 +30,26 @@
 #' @return `list(emission, duration)`.
 #' @examples
 #' caller_spec("nnil", r = 1e-4)          # count emission + geometric duration
-#' caller_spec("rtiger", r = 5)           # count emission + rigidity duration
+#' caller_spec("rtiger", rigidity = 5)    # count emission + rigidity duration
 #' str(caller_spec("atlas"))              # gt emission + geometric duration
 #' @export
 caller_spec <- function(caller = c("nnil", "rtiger", "atlas"),
-                        r = 0.01, err = 0.01, conc = 20, fit_means = FALSE,
-                        p_switch = 0.01, germ = 0.05, gert = 0.10, p = 0.5,
+                        rrate = NULL, r = 0.01, rigidity = NULL, err = 0.01, conc = 20,
+                        fit_means = FALSE, xrate = NULL, p_switch = 0.01,
+                        germ = 0.05, gert = 0.10, p = 0.5,
                         mr = 0.10, nir = 0.01, ...) {
   caller <- match.arg(caller)
+  # Canonical knobs: rrate = geometric recombination rate; rigidity = RTIGER
+  # minimum run length; xrate = rigidity free-state exit rate. `r`/`p_switch` are
+  # back-compat aliases (and a legacy `r` is read as `rigidity` for RTIGER).
+  if (!is.null(rrate)) r <- rrate
+  if (!is.null(xrate)) p_switch <- xrate
+  rig <- if (!is.null(rigidity)) rigidity else r
   switch(caller,
     nnil    = list(emission = emission_count(err, conc, fit_means),
                    duration = duration_geometric(r)),
     rtiger  = list(emission = emission_count(err, conc, fit_means),
-                   duration = duration_rigidity(r, p_switch)),
+                   duration = duration_rigidity(rig, p_switch)),
     atlas   = list(emission = emission_gt(germ, gert, p, mr, nir),
                    duration = duration_geometric(r))
   )

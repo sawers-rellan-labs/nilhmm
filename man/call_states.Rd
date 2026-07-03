@@ -8,10 +8,13 @@ call_states(
   data,
   caller = c("nnil", "rtiger", "binhmm", "atlas"),
   design = NULL,
+  rrate = NULL,
   r = 0.01,
+  rigidity = NULL,
   err = 0.01,
   conc = 20,
   fit_means = FALSE,
+  xrate = NULL,
   p_switch = 0.01,
   f_1 = NULL,
   f_2 = NULL,
@@ -48,9 +51,26 @@ Optionally \code{donor}.}
 \item{design}{Breeding-design key for priors (e.g. \code{"BC2S2"}, \code{"BC2S3"}).
 Required unless \code{f_1}/\code{f_2} are supplied.}
 
-\item{r, err, conc, fit_means, p_switch}{Caller parameters forwarded to
-\code{\link[=caller_spec]{caller_spec()}}. Explicit formals (not \code{...}) so that, e.g., \code{r} is never
-partial-matched to another argument.}
+\item{rrate}{Count/geometric callers (\code{nnil}, \code{atlas}): expected per-marker
+\strong{recombination rate} for the geometric duration (self-stay = \code{1 - rrate}).
+A resolution hyperparameter, not an MLE. Holland's nNIL sets it to
+\code{2 * total_cM / (100 * n_markers)} (~\code{30 / n_markers} for a 1500 cM maize
+map; the factor 2 is the RIL-like doubling for the backcross + self meioses,
+Haldane & Waddington), and it is optimizable from data by KS-vs-sim
+(\code{\link[=calibrate_r]{calibrate_r()}}).}
+
+\item{r, p_switch}{Back-compat aliases for \code{rrate} and \code{xrate} respectively (for
+\code{caller = "rtiger"}, a legacy \code{r} is read as the integer \code{rigidity}).}
+
+\item{rigidity}{\code{rtiger} caller only: integer minimum run length (e.g. \code{5}).}
+
+\item{err, conc, fit_means}{Count-emission parameters forwarded to \code{\link[=caller_spec]{caller_spec()}}.}
+
+\item{xrate}{Exit rate of nilHMM's \strong{rigidity duration} (\code{\link[=duration_rigidity]{duration_rigidity()}}):
+the per-marker switch probability at the free (post-minimum-run) state — the
+geometric tail beyond the enforced run. A nilHMM construct, \strong{not} a RTIGER
+parameter; the faithful \code{caller = "rtiger"} port uses only \code{rigidity} (plus
+\code{threads}/\code{seed}/\code{postprocess}) and ignores \code{xrate}.}
 
 \item{f_1, f_2}{Single-locus priors, used when \code{design} is \code{NULL}.}
 
