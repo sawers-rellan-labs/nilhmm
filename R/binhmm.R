@@ -234,3 +234,71 @@
   calls <- do.call(rbind, out)
   calls[order(calls$donor, calls$name, calls$chr, calls$start_bp), , drop = FALSE]
 }
+
+#' Binhmm ancestry from pre-computed per-bin ALT frequency
+#'
+#' The [call_ancestry()] `binhmm` caller bins raw per-SNP read counts itself.
+#' When the bins are already computed upstream -- e.g. GATK
+#' `CollectAllelicCounts` summarized to fixed genomic windows (the
+#' `*_bin_genotypes.tsv` produced by the bzeaseq ancestry pipeline) -- use this
+#' entry point instead. It runs the same anchored 3-state Gaussian-emission HMM
+#' (the `gauss` backend) directly on the supplied
+#' `alt_freq`, with no re-binning, and returns common-schema segments.
+#'
+#' @param bins A data.frame with one row per bin and columns `name` (sample id),
+#'   `chr` (integer), `bin` (integer index for within-chromosome ordering),
+#'   `alt_freq`, `start_bp`, `end_bp`. An optional `donor` column is carried through.
+#' @param design Breeding-design key for the REF/HET/ALT start priors (e.g.
+#'   `"BC2S2"`); or supply `f_1` and `f_2` directly.
+#' @param f_1,f_2 Single-locus HET/ALT priors, used when `design` is `NULL`.
+#' @param stay Sticky self-transition probability.
+#' @param min_run Minimum donor run length in bins; shorter runs are folded to
+#'   REF (de-speckle).
+#' @param source,donor Output labels (`donor` used when `bins` has no `donor`).
+#'
+#' @return A data.frame in the common call schema
+#'   (`source, donor, name, chr, start_bp, end_bp, state`).
+#'
+#' @examples
+#' bins <- data.frame(
+#'   name = "NIL1", chr = 1L, bin = 1:5,
+#'   alt_freq = c(0.02, 0.5, 0.5, 0.02, 0.02),
+#'   start_bp = c(1, 1e6, 2e6, 3e6, 4e6), end_bp = c(1e6, 2e6, 3e6, 4e6, 5e6)
+#' )
+#' call_binhmm_bins(bins, f_1 = 0.03, f_2 = 0.11)
+#' @export
+call_binhmm_bins <- function(bins, design = NULL, f_1 = NULL, f_2 = NULL,
+                             stay = 0.995, min_run = 2L,
+                             source = "nilHMM", donor = NA_character_) {
+  bins <- as.data.frame(bins)
+  req <- c("name", "chr", "bin", "alt_freq", "start_bp", "end_bp")
+  if (!all(req %in% names(bins))) {
+    stop("call_binhmm_bins(): `bins` needs columns ", paste(req, collapse = ", "))
+  }
+  priors <- if (!is.null(design)) {
+    design_priors(design)
+  } else if (!is.null(f_1) && !is.null(f_2)) {
+    list(f_1 = f_1, f_2 = f_2)
+  } else {
+    stop("call_binhmm_bins(): supply `design` or both `f_1` and `f_2`")
+  }
+  start <- c(1 - priors$f_1 - priors$f_2, priors$f_1, priors$f_2)
+  has_donor <- "donor" %in% names(bins)
+  out <- list()
+  for (nm in unique(bins$name)) {
+    b <- bins[bins$name == nm, , drop = FALSE]
+    b <- b[order(b$chr, b$bin), , drop = FALSE]
+    dn <- if (has_donor) as.character(b$donor[1L]) else donor
+    fstate <- .binhmm_gauss_states(b$alt_freq, b$chr, start, stay, min_run)
+    for (cc in unique(b$chr)) {
+      i <- which(b$chr == cc)
+      seg <- .binhmm_segments(fstate[i], b$start_bp[i], b$end_bp[i])
+      out[[length(out) + 1L]] <- data.frame(
+        source = source, donor = dn, name = nm, chr = cc, seg,
+        stringsAsFactors = FALSE
+      )
+    }
+  }
+  calls <- do.call(rbind, out)
+  calls[order(calls$name, calls$chr, calls$start_bp), , drop = FALSE]
+}

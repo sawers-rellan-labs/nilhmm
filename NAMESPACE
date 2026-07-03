@@ -2,6 +2,7 @@
 
 export(calibrate_r)
 export(call_ancestry)
+export(call_binhmm_bins)
 export(caller_spec)
 export(cm_to_mb)
 export(decode)
