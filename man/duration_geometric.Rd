@@ -4,19 +4,19 @@
 \alias{duration_geometric}
 \title{Geometric (memoryless) duration}
 \usage{
-duration_geometric(r = 0.01)
+duration_geometric(rrate = 0.01)
 }
 \arguments{
-\item{r}{Self-transition / recombination rate between adjacent markers.}
+\item{rrate}{Per-marker recombination / switch rate between adjacent markers.}
 }
 \value{
 A duration spec for \code{\link[=fit]{fit()}}.
 }
 \description{
-Self-transition rate \code{r}; the nilHMM transition. \code{r} is a resolution
-hyperparameter, \strong{not} an MLE -- calibrate by KS-vs-sim (memory
-\code{rigidity-not-mle}, \code{\link[=calibrate_r]{calibrate_r()}}).
+Per-marker recombination rate \code{rrate} (self-stay = \code{1 - rrate}); the nilHMM
+transition. \code{rrate} is a resolution hyperparameter, \strong{not} an MLE --
+calibrate by KS-vs-sim (memory \code{rigidity-not-mle}, \code{\link[=calibrate_r]{calibrate_r()}}).
 }
 \examples{
-duration_geometric(r = 1e-4)
+duration_geometric(rrate = 1e-4)
 }

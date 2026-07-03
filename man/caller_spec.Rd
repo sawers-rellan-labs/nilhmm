@@ -6,14 +6,12 @@
 \usage{
 caller_spec(
   caller = c("nnil", "rtiger", "atlas"),
-  rrate = NULL,
-  r = 0.01,
+  rrate = 0.01,
   rigidity = NULL,
   err = 0.01,
   conc = 20,
   fit_means = FALSE,
-  xrate = NULL,
-  p_switch = 0.01,
+  xrate = 0.01,
   germ = 0.05,
   gert = 0.1,
   p = 0.5,
@@ -27,10 +25,7 @@ caller_spec(
 
 \item{rrate}{Geometric callers (\code{nnil}/\code{atlas}): expected per-marker
 recombination rate (self-stay = \code{1 - rrate}). Holland's nNIL sets it to
-\code{2 * total_cM / (100 * n_markers)}; \code{r} is a back-compat alias.}
-
-\item{r, p_switch}{Back-compat aliases for \code{rrate}/\code{xrate} (a legacy \code{r} is read
-as \code{rigidity} for \code{rtiger}).}
+\code{2 * total_cM / (100 * n_markers)}.}
 
 \item{rigidity}{\code{rtiger} only: integer minimum run length (e.g. \code{5}).}
 
@@ -42,7 +37,7 @@ as \code{rigidity} for \code{rtiger}).}
 
 \item{xrate}{Exit rate of the \strong{rigidity duration} (\code{\link[=duration_rigidity]{duration_rigidity()}}):
 free-state (post-minimum-run) switch probability. A nilHMM construct, not a
-RTIGER parameter. \code{p_switch} is a legacy alias.}
+RTIGER parameter.}
 
 \item{germ, gert, p, mr, nir}{Genotype-error rates for the gt emission (the \code{atlas}
 caller; Holland's nNIL error model): hom error, het error, hom-error->het

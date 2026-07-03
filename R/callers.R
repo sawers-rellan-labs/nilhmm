@@ -13,16 +13,14 @@
 #' @param caller One of `"nnil"`, `"rtiger"`, `"atlas"`.
 #' @param rrate Geometric callers (`nnil`/`atlas`): expected per-marker
 #'   recombination rate (self-stay = `1 - rrate`). Holland's nNIL sets it to
-#'   `2 * total_cM / (100 * n_markers)`; `r` is a back-compat alias.
+#'   `2 * total_cM / (100 * n_markers)`.
 #' @param rigidity `rtiger` only: integer minimum run length (e.g. `5`).
 #' @param err Count-emission baseline error.
 #' @param conc Count-emission BetaBinomial concentration.
 #' @param fit_means EM-fit emission means (count emission; S10).
 #' @param xrate Exit rate of the **rigidity duration** ([duration_rigidity()]):
 #'   free-state (post-minimum-run) switch probability. A nilHMM construct, not a
-#'   RTIGER parameter. `p_switch` is a legacy alias.
-#' @param r,p_switch Back-compat aliases for `rrate`/`xrate` (a legacy `r` is read
-#'   as `rigidity` for `rtiger`).
+#'   RTIGER parameter.
 #' @param germ,gert,p,mr,nir Genotype-error rates for the gt emission (the `atlas`
 #'   caller; Holland's nNIL error model): hom error, het error, hom-error->het
 #'   fraction, missing rate, non-informative-marker rate.
@@ -34,23 +32,18 @@
 #' str(caller_spec("atlas"))              # gt emission + geometric duration
 #' @export
 caller_spec <- function(caller = c("nnil", "rtiger", "atlas"),
-                        rrate = NULL, r = 0.01, rigidity = NULL, err = 0.01, conc = 20,
-                        fit_means = FALSE, xrate = NULL, p_switch = 0.01,
+                        rrate = 0.01, rigidity = NULL, err = 0.01, conc = 20,
+                        fit_means = FALSE, xrate = 0.01,
                         germ = 0.05, gert = 0.10, p = 0.5,
                         mr = 0.10, nir = 0.01, ...) {
   caller <- match.arg(caller)
-  # Canonical knobs: rrate = geometric recombination rate; rigidity = RTIGER
-  # minimum run length; xrate = rigidity free-state exit rate. `r`/`p_switch` are
-  # back-compat aliases (and a legacy `r` is read as `rigidity` for RTIGER).
-  if (!is.null(rrate)) r <- rrate
-  if (!is.null(xrate)) p_switch <- xrate
-  rig <- if (!is.null(rigidity)) rigidity else r
+  rig <- if (is.null(rigidity)) 5L else as.integer(rigidity)   # rtiger minimum run length
   switch(caller,
     nnil    = list(emission = emission_count(err, conc, fit_means),
-                   duration = duration_geometric(r)),
+                   duration = duration_geometric(rrate)),
     rtiger  = list(emission = emission_count(err, conc, fit_means),
-                   duration = duration_rigidity(rig, p_switch)),
+                   duration = duration_rigidity(rig, xrate)),
     atlas   = list(emission = emission_gt(germ, gert, p, mr, nir),
-                   duration = duration_geometric(r))
+                   duration = duration_geometric(rrate))
   )
 }

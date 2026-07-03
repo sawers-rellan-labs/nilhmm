@@ -26,10 +26,10 @@ expect_valid_calls <- function(calls, info) {
 test_that("all four callers return valid common-schema calls", {
   counts <- smoke_counts()
   expect_valid_calls(
-    call_ancestry(counts, caller = "nnil", design = "BC2S2", r = 7e-6),
+    call_ancestry(counts, caller = "nnil", design = "BC2S2", rrate = 7e-6),
     "nnil")
   expect_valid_calls(
-    call_ancestry(counts, caller = "rtiger", design = "BC2S2", r = 5L, seed = 1L),
+    call_ancestry(counts, caller = "rtiger", design = "BC2S2", rigidity = 5L, seed = 1L),
     "rtiger")
   expect_valid_calls(
     call_ancestry(counts, caller = "binhmm", design = "BC2S2"),

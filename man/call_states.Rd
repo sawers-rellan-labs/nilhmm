@@ -8,14 +8,12 @@ call_states(
   data,
   caller = c("nnil", "rtiger", "binhmm", "atlas"),
   design = NULL,
-  rrate = NULL,
-  r = 0.01,
+  rrate = 0.01,
   rigidity = NULL,
   err = 0.01,
   conc = 20,
   fit_means = FALSE,
-  xrate = NULL,
-  p_switch = 0.01,
+  xrate = 0.01,
   f_1 = NULL,
   f_2 = NULL,
   source = "nilHMM",
@@ -58,9 +56,6 @@ A resolution hyperparameter, not an MLE. Holland's nNIL sets it to
 map; the factor 2 is the RIL-like doubling for the backcross + self meioses,
 Haldane & Waddington), and it is optimizable from data by KS-vs-sim
 (\code{\link[=calibrate_r]{calibrate_r()}}).}
-
-\item{r, p_switch}{Back-compat aliases for \code{rrate} and \code{xrate} respectively (for
-\code{caller = "rtiger"}, a legacy \code{r} is read as the integer \code{rigidity}).}
 
 \item{rigidity}{\code{rtiger} caller only: integer minimum run length (e.g. \code{5}).}
 
@@ -144,7 +139,7 @@ toy <- data.frame(
   name  = "NIL1", chr = 1L, pos = seq_len(40L) * 1e5L,
   n_ref = c(rpois(20, 8), rpois(20, 4)),
   n_alt = c(rpois(20, 0), rpois(20, 4)))
-st <- call_states(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
+st <- call_states(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 to_segments(st)                       # or, in one step:
-call_ancestry(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
+call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 }

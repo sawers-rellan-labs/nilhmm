@@ -22,5 +22,5 @@ Convenience wrapper that chains the two stages: coordinate-free decode
 \examples{
 toy <- data.frame(name = "NIL1", chr = 1L, pos = (1:6) * 1e5L,
                   n_ref = c(9, 8, 4, 5, 9, 8), n_alt = c(0, 0, 4, 5, 0, 0))
-call_ancestry(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
+call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 }

@@ -201,8 +201,6 @@ decode <- function(model, obs) {
 #'   geometric tail beyond the enforced run. A nilHMM construct, **not** a RTIGER
 #'   parameter; the faithful `caller = "rtiger"` port uses only `rigidity` (plus
 #'   `threads`/`seed`/`postprocess`) and ignores `xrate`.
-#' @param r,p_switch Back-compat aliases for `rrate` and `xrate` respectively (for
-#'   `caller = "rtiger"`, a legacy `r` is read as the integer `rigidity`).
 #' @param err,conc,fit_means Count-emission parameters forwarded to [caller_spec()].
 #' @param f_1,f_2 Single-locus priors, used when `design` is `NULL`.
 #' @param source Value for the output `source` column.
@@ -254,14 +252,14 @@ decode <- function(model, obs) {
 #'   name  = "NIL1", chr = 1L, pos = seq_len(40L) * 1e5L,
 #'   n_ref = c(rpois(20, 8), rpois(20, 4)),
 #'   n_alt = c(rpois(20, 0), rpois(20, 4)))
-#' st <- call_states(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
+#' st <- call_states(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #' to_segments(st)                       # or, in one step:
-#' call_ancestry(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
+#' call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #' @export
 call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
-                        design = NULL, rrate = NULL, r = 0.01, rigidity = NULL,
+                        design = NULL, rrate = 0.01, rigidity = NULL,
                         err = 0.01, conc = 20,
-                        fit_means = FALSE, xrate = NULL, p_switch = 0.01,
+                        fit_means = FALSE, xrate = 0.01,
                         f_1 = NULL, f_2 = NULL,
                         source = "nilHMM", donor = NA_character_,
                         parallel = FALSE, threads = 1L, seed = 1L,
@@ -286,14 +284,6 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   }
   has_donor <- "donor" %in% names(data)
 
-  # Canonical duration knobs; `r`/`p_switch` are back-compat aliases.
-  #   rrate = geometric recombination rate (nnil/atlas). xrate = exit rate of
-  #   nilHMM's rigidity DURATION (duration_rigidity) -- NOT a RTIGER parameter;
-  #   the faithful caller = "rtiger" port uses only `rigidity`. For that caller a
-  #   legacy `r` is read as the integer rigidity below.
-  if (!is.null(rrate)) r <- rrate
-  if (!is.null(xrate)) p_switch <- xrate
-
   # A hard-genotype (`g`-only, no counts) input is the categorical GT path
   # (Holland's nNIL genotype model on called genotypes; the saturated-depth /
   # MolBreeding regime). It only makes sense for caller = "nnil" + the gt emission
@@ -309,13 +299,8 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   # port of the RTIGER fork, not the count engine. `r` is the integer rigidity;
   # `postprocess` applies the border re-placement (on by default, as RTIGER does).
   if (caller == "rtiger") {
-    # `rigidity` is RTIGER's knob (integer minimum run length); `r` is accepted
-    # as a legacy alias so older `caller = "rtiger", r = 5` calls still work.
-    rig <- if (!is.null(rigidity)) rigidity else r
-    rig <- if (rig >= 1) as.integer(rig) else {
-      warning("rtiger: `rigidity` must be an integer >= 1; using 5")
-      5L
-    }
+    rig <- if (is.null(rigidity)) 5L else as.integer(rigidity)   # minimum run length
+    if (rig < 1L) stop("rtiger: `rigidity` must be an integer >= 1")
     return(.rtiger_states(data, rig, source, donor, has_donor, threads, seed, postprocess))
   }
 
@@ -340,8 +325,8 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   # gt (confusion) emission is used, NOT the count/BetaBinomial mean model.
   googa <- caller == "atlas"
 
-  spec <- caller_spec(caller, r = r, err = err, conc = conc, fit_means = fit_means,
-                      p_switch = p_switch, germ = germ, gert = gert, p = p, mr = mr, nir = nir)
+  spec <- caller_spec(caller, rrate = rrate, err = err, conc = conc, fit_means = fit_means,
+                      xrate = xrate, germ = germ, gert = gert, p = p, mr = mr, nir = nir)
   if (!is.null(emission)) spec$emission <- switch(match.arg(emission, c("count","gt")),
     count  = emission_count(err, conc, fit_means),
     gt     = emission_gt(germ, gert, p, mr, nir))
@@ -474,7 +459,7 @@ to_segments <- function(states) {
 #' @examples
 #' toy <- data.frame(name = "NIL1", chr = 1L, pos = (1:6) * 1e5L,
 #'                   n_ref = c(9, 8, 4, 5, 9, 8), n_alt = c(0, 0, 4, 5, 0, 0))
-#' call_ancestry(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
+#' call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #' @export
 call_ancestry <- function(data, ...) {
   to_segments(call_states(data, ...))

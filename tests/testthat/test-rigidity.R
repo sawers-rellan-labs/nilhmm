@@ -34,7 +34,7 @@ test_that("duration_rigidity enforces the minimum run length (interior segments)
 # (b) faithful RTIGER caller ----------------------------------------------------
 test_that("rtiger caller runs end-to-end and returns valid common-schema calls", {
   counts <- rig_counts()
-  got <- call_ancestry(counts, caller = "rtiger", r = 5L)
+  got <- call_ancestry(counts, caller = "rtiger", rigidity = 5L)
   expect_named(got, c("source", "donor", "name", "chr", "start_bp", "end_bp", "state"))
   expect_true(all(got$state %in% 0:2))             # pat/het/mat -> REF/HET/ALT
   expect_true(all(got$end_bp >= got$start_bp))
@@ -43,7 +43,7 @@ test_that("rtiger caller runs end-to-end and returns valid common-schema calls",
 
 test_that("rtiger caller is deterministic for a fixed seed", {
   counts <- rig_counts()
-  a <- call_ancestry(counts, caller = "rtiger", r = 5L, seed = 1L)
-  b <- call_ancestry(counts, caller = "rtiger", r = 5L, seed = 1L)
+  a <- call_ancestry(counts, caller = "rtiger", rigidity = 5L, seed = 1L)
+  b <- call_ancestry(counts, caller = "rtiger", rigidity = 5L, seed = 1L)
   expect_equal(a, b)
 })

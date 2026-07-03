@@ -6,41 +6,41 @@
 
 #' Geometric (memoryless) duration
 #'
-#' Self-transition rate `r`; the nilHMM transition. `r` is a resolution
-#' hyperparameter, **not** an MLE -- calibrate by KS-vs-sim (memory
-#' `rigidity-not-mle`, [calibrate_r()]).
+#' Per-marker recombination rate `rrate` (self-stay = `1 - rrate`); the nilHMM
+#' transition. `rrate` is a resolution hyperparameter, **not** an MLE --
+#' calibrate by KS-vs-sim (memory `rigidity-not-mle`, [calibrate_r()]).
 #'
-#' @param r Self-transition / recombination rate between adjacent markers.
+#' @param rrate Per-marker recombination / switch rate between adjacent markers.
 #' @return A duration spec for [fit()].
 #' @examples
-#' duration_geometric(r = 1e-4)
+#' duration_geometric(rrate = 1e-4)
 #' @export
-duration_geometric <- function(r = 0.01) {
-  structure(list(type = "geometric", r = r),
+duration_geometric <- function(rrate = 0.01) {
+  structure(list(type = "geometric", r = rrate),
             class = c("nilHMM_duration_geometric", "nilHMM_duration"))
 }
 
 #' Rigidity duration (RTIGER reimplementation)
 #'
-#' Enforces a hard minimum run length of `r` markers by expanding each state
-#' into a chain of `r` sub-states (phase-type / Erlang machinery). Reimplements
+#' Enforces a hard minimum run length of `rigidity` markers by expanding each
+#' state into a chain of `rigidity` sub-states (phase-type / Erlang). Reimplements
 #' the subset of RTIGER we use (BetaBinomial emission + rigidity + Viterbi +
 #' KS-calibrated `r`); `optimize_R` is intentionally NOT ported (it
 #' over-rigidifies, memory `optimize-R-overrigidifies-nil-sim`). Validate
 #' against `tests/fixtures/baseline_pre_refactor/rtiger_rigidity_ref/`.
 #'
-#' @param r Minimum run length in markers (the rigidity, integer >= 1).
-#' @param p_switch Per-marker switch probability at the free (post-minimum)
-#'   state -- the geometric tail beyond the enforced minimum run. Rigidity of 1
-#'   reduces the expansion to a plain geometric transition with this switch rate.
+#' @param rigidity Minimum run length in markers (integer >= 1).
+#' @param xrate Per-marker switch / exit probability at the free (post-minimum)
+#'   state -- the geometric tail beyond the enforced minimum run. `rigidity` of 1
+#'   reduces the expansion to a plain geometric transition with this exit rate.
 #' @return A duration spec for [fit()].
 #' @examples
-#' duration_rigidity(r = 5, p_switch = 2e-3)
+#' duration_rigidity(rigidity = 5, xrate = 2e-3)
 #' @export
-duration_rigidity <- function(r = 5L, p_switch = 0.01) {
-  r <- as.integer(r)
-  if (r < 1L) stop("duration_rigidity(): r must be >= 1")
-  structure(list(type = "rigidity", r = r, p_switch = p_switch),
+duration_rigidity <- function(rigidity = 5L, xrate = 0.01) {
+  r <- as.integer(rigidity)
+  if (r < 1L) stop("duration_rigidity(): rigidity must be >= 1")
+  structure(list(type = "rigidity", r = r, p_switch = xrate),
             class = c("nilHMM_duration_rigidity", "nilHMM_duration"))
 }
 
