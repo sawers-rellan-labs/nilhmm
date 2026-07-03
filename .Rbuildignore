@@ -1,14 +1,8 @@
-^nilhmm$
-^nilhmm\.egg-info$
-^setup\.py$
-^requirements\.txt$
-^scripts$
-^envs$
+^legacy$
+^agent$
+^\.claude$
 ^codemcp\.toml$
 ^commit_changes\.sh$
-^\.pytest_cache$
-^tests/test_.*\.py$
-^tests/__pycache__$
 ^tests/fixtures$
 ^calibration$
 ^data-raw$
