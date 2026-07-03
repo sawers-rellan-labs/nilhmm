@@ -65,8 +65,8 @@
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># install.packages("remotes")</span></span>
-<span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"sawers-rellan-labs/nilhmm"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
+<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"sawers-rellan-labs/nilhmm"</span><span class="op">)</span></span></code></pre></div>
 <p>Building from source needs a <strong>C++ toolchain</strong> (the engine is Rcpp / RcppParallel). The <code>rtiger</code> caller is a <strong>Julia-free port</strong> of the RTIGER HMM, so no Julia install is required. <code>rebmix</code> is an optional <code>Suggests</code> (only for bit-exact reproduction of the original <code>binhmm</code> clustering backend).</p>
 </div>
 <div class="section level2">

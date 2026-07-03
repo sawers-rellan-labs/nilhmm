@@ -31,8 +31,8 @@ Rcpp package. The Python original is frozen at
 
 ``` r
 
-# install.packages("remotes")
-remotes::install_github("sawers-rellan-labs/nilhmm")
+# install.packages("devtools")
+devtools::install_github("sawers-rellan-labs/nilhmm")
 ```
 
 Building from source needs a **C++ toolchain** (the engine is Rcpp /
