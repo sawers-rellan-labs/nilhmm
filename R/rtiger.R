@@ -152,8 +152,8 @@
 # [pat,het,mat]=(1,2,3) -> common [REF,HET,ALT]=(0,1,2) via state-1, and RLE to
 # the common segment schema. RTIGER fits across all samples in `data` (the
 # consumer groups per taxon). No post-processing yet (separate item).
-.call_ancestry_rtiger <- function(data, rigidity, source, donor, has_donor, threads, seed,
-                                  postprocess = TRUE) {
+.rtiger_states <- function(data, rigidity, source, donor, has_donor, threads, seed,
+                           postprocess = TRUE) {
   by_name <- split(data, data$name, drop = TRUE)
   obs <- list(); pos <- list(); donor_of <- character(0)
   for (nm in names(by_name)) {
@@ -171,10 +171,12 @@
   paths <- .rtiger_decode(obs, fit, rigidity, postprocess = postprocess, threads = threads)
   out <- list()
   for (nm in names(obs)) for (cc in names(obs[[nm]])) {
-    macro <- paths[[nm]][[cc]] - 1L                      # 1/2/3 -> 0/1/2
-    out[[length(out) + 1L]] <- .rle_segments(macro, pos[[nm]][[cc]], as.integer(cc),
-                                             nm, source, donor_of[[nm]])
+    macro <- paths[[nm]][[cc]] - 1L                      # 1/2/3 -> 0/1/2 (per-marker states)
+    out[[length(out) + 1L]] <- data.frame(
+      source = source, donor = donor_of[[nm]], name = nm, chr = as.integer(cc),
+      pos = as.integer(pos[[nm]][[cc]]), state = as.integer(macro),
+      stringsAsFactors = FALSE)
   }
-  calls <- do.call(rbind, out)
-  calls[order(calls$donor, calls$name, calls$chr, calls$start_bp), , drop = FALSE]
+  states <- do.call(rbind, out)
+  states[order(states$donor, states$name, states$chr, states$pos), , drop = FALSE]
 }

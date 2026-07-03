@@ -2,124 +2,25 @@
 % Please edit documentation in R/engine.R
 \name{call_ancestry}
 \alias{call_ancestry}
-\title{Top-level ancestry-calling API}
+\title{Top-level ancestry-calling API (decode + segment)}
 \usage{
-call_ancestry(
-  data,
-  caller = c("nnil", "rtiger", "binhmm", "atlas"),
-  design = NULL,
-  r = 0.01,
-  err = 0.01,
-  conc = 20,
-  fit_means = FALSE,
-  p_switch = 0.01,
-  f_1 = NULL,
-  f_2 = NULL,
-  source = "nilHMM",
-  donor = NA_character_,
-  parallel = FALSE,
-  threads = 1L,
-  seed = 1L,
-  postprocess = TRUE,
-  emission = NULL,
-  bin_size = 1e+06,
-  cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
-  joint_clust = FALSE,
-  obs_weights = FALSE,
-  atlas_thresh = 0.95,
-  atlas_het = 0.25,
-  atlas_min_reads = 5L,
-  germ = 0.05,
-  gert = 0.1,
-  p = 0.5,
-  mr = 0.1,
-  nir = 0.01
-)
+call_ancestry(data, ...)
 }
 \arguments{
-\item{data}{Long observation table with columns \verb{name, chr, pos} and either
-\verb{n_ref, n_alt} read counts (from \code{\link[=read_counts]{read_counts()}}; for the count/rtiger/binhmm/
-atlas paths) or a pre-called hard-genotype column \code{g} in \verb{\{0,1,2,3\}} (from
-\code{\link[=read_vcf_gt]{read_vcf_gt()}}; auto-selects \code{caller = "nnil"}, \code{emission = "gt"}).
-Optionally \code{donor}.}
-
-\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}, \code{"atlas"}.}
-
-\item{design}{Breeding-design key for priors (e.g. \code{"BC2S2"}, \code{"BC2S3"}).
-Required unless \code{f_1}/\code{f_2} are supplied.}
-
-\item{r, err, conc, fit_means, p_switch}{Caller parameters forwarded to
-\code{\link[=caller_spec]{caller_spec()}}. Explicit formals (not \code{...}) so that, e.g., \code{r} is never
-partial-matched to another argument.}
-
-\item{f_1, f_2}{Single-locus priors, used when \code{design} is \code{NULL}.}
-
-\item{source}{Value for the output \code{source} column.}
-
-\item{donor}{Donor/taxon label when \code{data} has no \code{donor} column.}
-
-\item{parallel}{If \code{TRUE}, decode samples across cores via RcppParallel
-(only the fixed-means batched path; control thread count with
-\code{\link[RcppParallel:setThreadOptions]{RcppParallel::setThreadOptions()}}). Identical results to serial.}
-
-\item{threads, seed}{RTIGER caller only: E-step threads and the seed for its
-randomized init.}
-
-\item{postprocess}{RTIGER caller only: apply the border re-placement (default TRUE).}
-
-\item{emission}{Optional emission override (\code{"count"}, \code{"gt"}) for the \code{nnil}
-caller; \code{NULL} uses the caller's default.}
-
-\item{bin_size, cluster_method}{\code{binhmm} caller only: genomic bin width in bp
-(default 1 Mb) and the per-bin genotyping backend --- \code{"gauss"} (default: the
-anchored 3-state Gaussian-emission HMM; fixes the HET over-call and
-high-coverage fragmentation of the K=3 clustering), or the original
-cluster-then-smooth route \code{"gmm"} / \code{"kmeans"} / \code{"rebmix"} (the last needs
-the suggested \pkg{rebmix} package, for bit-exact rpubs reproduction).
-\code{joint_clust}/\code{obs_weights} apply only to the cluster backends.}
-
-\item{joint_clust}{\code{binhmm} caller only: if \code{TRUE}, pool all samples' bins and
-learn one shared set of REF/HET/ALT clusters on raw alt-freq (borrows
-strength across the cohort; cf. \code{get_joint_ancestry_calls.R}); if \code{FALSE}
-(default), cluster each sample independently on its informative-count-weighted
-alt-freq. This is joint \emph{clustering} only; the HMM stays per-sample.}
-
-\item{obs_weights}{\code{binhmm} caller only, \code{joint_clust = TRUE} only: if \code{TRUE},
-weight the (gmm) clustering fit by each bin's informative-variant count
-(weights the influence, not the alt-freq value).}
-
-\item{atlas_thresh, atlas_het, atlas_min_reads}{\code{atlas} caller only: GOOGA
-genotype-call thresholds on the donor read fraction --- homozygous call when
-a parent's fraction >= \code{atlas_thresh} (0.95), HET when both parents >=
-\code{atlas_het} (0.25), and a minimum of \code{atlas_min_reads} (5) informative reads
-per gene (else missing). For \code{atlas}, \code{n_ref}/\code{n_alt} are the recurrent/donor
-competitive-alignment read counts (ambiguous excluded upstream).}
-
-\item{germ, gert, p, mr, nir}{Genotype-error rates for the \code{gt} (categorical)
-emission (Holland's nNIL model): \code{germ} error on true homozygotes, \code{gert} on
-true heterozygotes, \code{p} fraction of hom errors called het, \code{mr} missing rate,
-\code{nir} non-informative-marker rate. Raising \code{germ}/\code{gert} toward the platform's
-real error rate is the native cure for over-fragmentation (isolated
-miscalled markers are absorbed as errors rather than opening 1-marker
-segments); calibrate to a clean control, don't crank blindly. Used by the gt
-emission (\code{emission = "gt"}, a \code{g} genotype input, or the \code{atlas} caller).}
+\item{data, ...}{Passed to \code{\link[=call_states]{call_states()}}.}
 }
 \value{
 data.frame in the common schema
 (\verb{source, donor, name, chr, start_bp, end_bp, state}).
 }
 \description{
-Resolves a named caller (and optional design preset) into emission + duration
-specs, runs \code{\link[=fit]{fit()}} / \code{\link[=decode]{decode()}} per (sample, chromosome), and returns
-common-schema segment calls. Data-agnostic: pass the observations in; this
-function never reads paths.
+Convenience wrapper that chains the two stages: coordinate-free decode
+(\code{\link[=call_states]{call_states()}}) followed by coordinate reinstatement (\code{\link[=to_segments]{to_segments()}}).
+\code{call_ancestry(...)} is exactly \code{to_segments(call_states(...))}. See
+\code{\link[=call_states]{call_states()}} for the full argument list.
 }
 \examples{
-# Toy single-NIL count table: a REF stretch then a donor (ALT) block.
-set.seed(1)
-toy <- data.frame(
-  name  = "NIL1", chr = 1L, pos = seq_len(40L) * 1e5L,
-  n_ref = c(rpois(20, 8), rpois(20, 4)),
-  n_alt = c(rpois(20, 0), rpois(20, 4)))
+toy <- data.frame(name = "NIL1", chr = 1L, pos = (1:6) * 1e5L,
+                  n_ref = c(9, 8, 4, 5, 9, 8), n_alt = c(0, 0, 4, 5, 0, 0))
 call_ancestry(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
 }

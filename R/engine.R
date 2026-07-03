@@ -75,8 +75,8 @@
 # pairs, and run one C++ viterbi_batch over all samples. Returns NULL if the
 # data is not a clean rectangular grid (every sample x every position once),
 # so call_ancestry can fall back to the safe per-sample loop.
-.batched_calls <- function(data, emission, td, theta, source, donor, has_donor,
-                           parallel = FALSE) {
+.batched_states <- function(data, emission, td, theta, source, donor, has_donor,
+                            parallel = FALSE) {
   viterbi_fun <- if (parallel) viterbi_batch_par_cpp else viterbi_batch_cpp
   by_chr <- split(seq_len(nrow(data)), data$chr)   # row indices per chr, O(n)
   out <- vector("list", length(by_chr))
@@ -96,17 +96,17 @@
     em_u  <- count_emission_loglik_cpp(as.integer(u %/% base), as.integer(u %% base),
                                        theta, emission$conc)
     inv   <- matrix(match(key, u) - 1L, Tn, S)
-    paths <- viterbi_fun(td$log_start, td$log_trans, em_u, inv)         # Tn x S
-    seg   <- rle_segments_batch_cpp(paths, pos_lv)                      # all samples at once
-    dn_by <- if (has_donor) data$donor[ri][match(samples, nm_v)] else rep(donor, S)
+    paths <- viterbi_fun(td$log_start, td$log_trans, em_u, inv)         # Tn x S (positions x samples)
+    # coordinate-free: one state per original observation row (align via pos x sample)
+    dn_v <- if (has_donor) data$donor[ri] else rep(donor, length(ri))
     out[[i]] <- data.frame(
-      source = source, donor = dn_by[seg$sample], name = samples[seg$sample],
-      chr = as.integer(names(by_chr)[i]),
-      start_bp = seg$start_bp, end_bp = seg$end_bp, state = seg$state,
+      source = source, donor = dn_v, name = nm_v,
+      chr = as.integer(names(by_chr)[i]), pos = as.integer(pos_v),
+      state = as.integer(paths[cbind(pii, si)]),
       stringsAsFactors = FALSE)
   }
-  calls <- do.call(rbind, out)
-  calls[order(calls$donor, calls$name, calls$chr, calls$start_bp), , drop = FALSE]
+  states <- do.call(rbind, out)
+  states[order(states$donor, states$name, states$chr, states$pos), , drop = FALSE]
 }
 
 #' Fit HMM emission/transition parameters
@@ -171,12 +171,14 @@ decode <- function(model, obs) {
   if (model$n_sub > 1L) path %/% model$n_sub else path
 }
 
-#' Top-level ancestry-calling API
+#' Coordinate-free ancestry decode (per-observation states)
 #'
 #' Resolves a named caller (and optional design preset) into emission + duration
-#' specs, runs [fit()] / [decode()] per (sample, chromosome), and returns
-#' common-schema segment calls. Data-agnostic: pass the observations in; this
-#' function never reads paths.
+#' specs and runs [fit()] / [decode()] per (sample, chromosome), returning one
+#' ancestry **state per observation unit** --- coordinate-free: no genomic
+#' intervals. Feed the result to [to_segments()] to reinstate coordinates and
+#' collapse into common-schema segments; [call_ancestry()] chains the two.
+#' Data-agnostic: pass the observations in; this function never reads paths.
 #'
 #' @param data Long observation table with columns `name, chr, pos` and either
 #'   `n_ref, n_alt` read counts (from [read_counts()]; for the count/rtiger/binhmm/
@@ -229,8 +231,9 @@ decode <- function(model, obs) {
 #'   `atlas_het` (0.25), and a minimum of `atlas_min_reads` (5) informative reads
 #'   per gene (else missing). For `atlas`, `n_ref`/`n_alt` are the recurrent/donor
 #'   competitive-alignment read counts (ambiguous excluded upstream).
-#' @return data.frame in the common schema
-#'   (`source, donor, name, chr, start_bp, end_bp, state`).
+#' @return data.frame of per-unit states
+#'   (`source, donor, name, chr, pos, state`; the `binhmm` caller additionally
+#'   carries per-bin `start_bp, end_bp`). Pass to [to_segments()] for intervals.
 #' @examples
 #' # Toy single-NIL count table: a REF stretch then a donor (ALT) block.
 #' set.seed(1)
@@ -238,24 +241,35 @@ decode <- function(model, obs) {
 #'   name  = "NIL1", chr = 1L, pos = seq_len(40L) * 1e5L,
 #'   n_ref = c(rpois(20, 8), rpois(20, 4)),
 #'   n_alt = c(rpois(20, 0), rpois(20, 4)))
+#' st <- call_states(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
+#' to_segments(st)                       # or, in one step:
 #' call_ancestry(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
 #' @export
-call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
-                          design = NULL, r = 0.01, err = 0.01, conc = 20,
-                          fit_means = FALSE, p_switch = 0.01,
-                          f_1 = NULL, f_2 = NULL,
-                          source = "nilHMM", donor = NA_character_,
-                          parallel = FALSE, threads = 1L, seed = 1L,
-                          postprocess = TRUE, emission = NULL,
-                          bin_size = 1e6, cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
-                          joint_clust = FALSE, obs_weights = FALSE,
-                          atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L,
-                          germ = 0.05, gert = 0.10, p = 0.5, mr = 0.10, nir = 0.01) {
+call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
+                        design = NULL, r = 0.01, err = 0.01, conc = 20,
+                        fit_means = FALSE, p_switch = 0.01,
+                        f_1 = NULL, f_2 = NULL,
+                        source = "nilHMM", donor = NA_character_,
+                        parallel = FALSE, threads = 1L, seed = 1L,
+                        postprocess = TRUE, emission = NULL,
+                        bin_size = 1e6, cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
+                        joint_clust = FALSE, obs_weights = FALSE,
+                        atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L,
+                        germ = 0.05, gert = 0.10, p = 0.5, mr = 0.10, nir = 0.01) {
   caller <- match.arg(caller)
   has_counts <- all(c("n_ref", "n_alt") %in% names(data))
   has_gt     <- "g" %in% names(data)          # pre-called hard genotype (0/1/2/3), e.g. from read_vcf_gt()
-  if (!all(c("name", "chr", "pos") %in% names(data)) || !(has_counts || has_gt))
-    stop("call_ancestry(): data needs columns name, chr, pos and either (n_ref, n_alt) read counts or a `g` genotype column")
+  has_af     <- "alt_freq" %in% names(data)   # pre-binned binhmm input (bin summary done upstream)
+  if (!all(c("name", "chr", "pos") %in% names(data)))
+    stop("call_states(): data needs columns name, chr, pos")
+  if (caller == "binhmm") {
+    if (!(has_counts || has_af))
+      stop("call_states(): caller = 'binhmm' needs (n_ref, n_alt) read counts to bin, ",
+           "or a pre-binned `alt_freq` column (with start_bp, end_bp)")
+  } else if (!(has_counts || has_gt)) {
+    stop("call_states(): caller = '", caller, "' needs (n_ref, n_alt) read counts ",
+         "or a `g` genotype column")
+  }
   has_donor <- "donor" %in% names(data)
 
   # A hard-genotype (`g`-only, no counts) input is the categorical GT path
@@ -264,7 +278,7 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   # (the count/rtiger/binhmm/atlas paths all need read counts).
   if (has_gt && !has_counts) {
     if (caller != "nnil")
-      stop("call_ancestry(): a `g` genotype input (no read counts) requires caller = 'nnil'; ",
+      stop("call_states(): a `g` genotype input (no read counts) requires caller = 'nnil'; ",
            "'", caller, "' needs n_ref/n_alt read counts")
     emission <- "gt"
   }
@@ -274,7 +288,7 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   # `postprocess` applies the border re-placement (on by default, as RTIGER does).
   if (caller == "rtiger") {
     rigidity <- if (r >= 1) as.integer(r) else { warning("rtiger: r is the rigidity; using 5"); 5L }
-    return(.call_ancestry_rtiger(data, rigidity, source, donor, has_donor, threads, seed, postprocess))
+    return(.rtiger_states(data, rigidity, source, donor, has_donor, threads, seed, postprocess))
   }
 
   # binhmm caller: the bin -> K=3 cluster -> HMM-smooth pipeline (R/binhmm.R),
@@ -284,10 +298,10 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
     cluster_method <- match.arg(cluster_method)
     priors <- if (!is.null(design)) design_priors(design)
               else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
-              else stop("call_ancestry(): supply `design` or both `f_1` and `f_2`")
-    return(.call_ancestry_binhmm(data, bin_size, cluster_method, priors,
-                                 source, donor, has_donor,
-                                 joint_clust = joint_clust, obs_weights = obs_weights))
+              else stop("call_states(): supply `design` or both `f_1` and `f_2`")
+    return(.binhmm_states(data, bin_size, cluster_method, priors,
+                          source, donor, has_donor,
+                          joint_clust = joint_clust, obs_weights = obs_weights))
   }
 
   # ATLAS caller (R/atlas.R): GOOGA-style per-gene ancestry from competitive-
@@ -306,7 +320,7 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
 
   priors <- if (!is.null(design)) design_priors(design)
             else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
-            else stop("call_ancestry(): supply `design` or both `f_1` and `f_2`")
+            else stop("call_states(): supply `design` or both `f_1` and `f_2`")
 
   td     <- .duration_transition(spec$duration, priors)   # same for all samples
   theta0 <- .emission_theta(spec$emission)
@@ -317,7 +331,7 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   # non-rectangular grid make batching unsafe.
   if (!isTRUE(spec$emission$fit_means) && td$n_sub == 1L &&
       inherits(spec$emission, "nilHMM_emission_count")) {
-    batched <- .batched_calls(data, spec$emission, td, theta0, source, donor, has_donor, parallel)
+    batched <- .batched_states(data, spec$emission, td, theta0, source, donor, has_donor, parallel)
     if (!is.null(batched)) return(batched)
   }
 
@@ -357,8 +371,83 @@ call_ancestry <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
                             emission = spec$emission, duration = spec$duration),
                        class = "nilHMM_model")
     for (o in obs_list)
-      out[[length(out) + 1L]] <- .rle_segments(decode(model, o), o$pos, o$chr, nm, source, donor_nm)
+      out[[length(out) + 1L]] <- data.frame(
+        source = source, donor = donor_nm, name = nm, chr = as.integer(o$chr),
+        pos = as.integer(o$pos), state = as.integer(decode(model, o)),
+        stringsAsFactors = FALSE)
+  }
+  states <- do.call(rbind, out)
+  states[order(states$donor, states$name, states$chr, states$pos), , drop = FALSE]
+}
+
+#' Collapse per-unit ancestry states into genomic segments
+#'
+#' The coordinate-reinstatement step: run-length-collapses the equal-state runs
+#' within each `(name, chr)` from [call_states()] into segments. **Point** units
+#' (markers) use `pos` for both boundaries; **interval** units (bins) carry their
+#' own per-unit `start_bp`/`end_bp` (as the `binhmm` caller emits). This is the
+#' only place genomic coordinates re-enter — the decode itself is coordinate-free.
+#'
+#' @param states A per-unit state table from [call_states()]: `name, chr, pos,
+#'   state` (+ optional `source, donor`; + optional `start_bp, end_bp` for
+#'   interval/bin units).
+#' @return data.frame in the common schema
+#'   (`source, donor, name, chr, start_bp, end_bp, state`).
+#' @examples
+#' st <- data.frame(name = "NIL1", chr = 1L, pos = (1:6) * 1e5L,
+#'                  state = c(0L, 0L, 2L, 2L, 0L, 0L))
+#' to_segments(st)
+#' @export
+to_segments <- function(states) {
+  if (is.null(states) || !nrow(states)) {
+    return(states)
+  }
+  st <- as.data.frame(states, stringsAsFactors = FALSE)
+  if (!all(c("name", "chr", "pos", "state") %in% names(st))) {
+    stop("to_segments(): `states` needs columns name, chr, pos, state")
+  }
+  if (!"source" %in% names(st)) st$source <- "nilHMM"
+  if (!"donor" %in% names(st)) st$donor <- NA_character_
+  interval <- all(c("start_bp", "end_bp") %in% names(st))
+  gkey <- paste(st$name, st$chr, sep = "\r")
+  o <- order(gkey, st$pos)
+  st <- st[o, , drop = FALSE]
+  gkey <- gkey[o]
+  out <- list()
+  for (g in unique(gkey)) {
+    i <- which(gkey == g)
+    state <- as.integer(st$state[i])
+    n <- length(state)
+    brk <- which(state[-1L] != state[-n]) # run boundaries (same RLE as .rle_segments)
+    s <- c(1L, brk + 1L)
+    e <- c(brk, n)
+    sb <- if (interval) st$start_bp[i][s] else st$pos[i][s]
+    eb <- if (interval) st$end_bp[i][e] else st$pos[i][e]
+    out[[length(out) + 1L]] <- data.frame(
+      source = st$source[i][s], donor = st$donor[i][s], name = st$name[i][s],
+      chr = as.integer(st$chr[i][s]), start_bp = as.integer(sb),
+      end_bp = as.integer(eb), state = state[s], stringsAsFactors = FALSE
+    )
   }
   calls <- do.call(rbind, out)
   calls[order(calls$donor, calls$name, calls$chr, calls$start_bp), , drop = FALSE]
+}
+
+#' Top-level ancestry-calling API (decode + segment)
+#'
+#' Convenience wrapper that chains the two stages: coordinate-free decode
+#' ([call_states()]) followed by coordinate reinstatement ([to_segments()]).
+#' `call_ancestry(...)` is exactly `to_segments(call_states(...))`. See
+#' [call_states()] for the full argument list.
+#'
+#' @param data,... Passed to [call_states()].
+#' @return data.frame in the common schema
+#'   (`source, donor, name, chr, start_bp, end_bp, state`).
+#' @examples
+#' toy <- data.frame(name = "NIL1", chr = 1L, pos = (1:6) * 1e5L,
+#'                   n_ref = c(9, 8, 4, 5, 9, 8), n_alt = c(0, 0, 4, 5, 0, 0))
+#' call_ancestry(toy, caller = "nnil", design = "BC2S2", r = 1e-4, err = 0.01)
+#' @export
+call_ancestry <- function(data, ...) {
+  to_segments(call_states(data, ...))
 }
