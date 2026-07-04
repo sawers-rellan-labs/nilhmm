@@ -305,6 +305,15 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
     emission <- "gt"
   }
 
+  # Required priors are a caller-argument problem, not a data problem, so validate
+  # them BEFORE any coverage filtering below. Otherwise an all-zero-coverage input
+  # would trip the min_cov "no covered markers" error and mask a genuinely missing
+  # `design`/`f_1`/`f_2`. Every caller but rtiger (which fits its own start freqs)
+  # needs priors; each path re-resolves them below, this just fails fast up front.
+  if (caller != "rtiger" &&
+      is.null(design) && !(!is.null(f_1) && !is.null(f_2)))
+    stop("call_states(): supply `design` or both `f_1` and `f_2`")
+
   # gt path: "no coverage" is a missing genotype (g == 3). Drop missing calls so
   # the gt (nnil hard-genotype) caller ignores uncovered positions too, mirroring
   # the count/rtiger covered-marker filter below.
