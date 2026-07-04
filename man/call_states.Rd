@@ -22,6 +22,7 @@ call_states(
   threads = 1L,
   seed = 1L,
   postprocess = TRUE,
+  min_cov = 1L,
   emission = NULL,
   bin_size = 1e+06,
   cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
@@ -81,6 +82,13 @@ parameter; the faithful \code{caller = "rtiger"} port uses only \code{rigidity} 
 randomized init.}
 
 \item{postprocess}{RTIGER caller only: apply the border re-placement (default TRUE).}
+
+\item{min_cov}{RTIGER caller only: drop markers with fewer than \code{min_cov} total
+reads (\code{n_ref + n_alt}) before fit/decode (default \code{1L}, i.e. keep only
+covered markers). This matches RTIGER, which decodes covered markers only:
+zero-coverage panel positions carry no emission signal but still count toward
+the rigidity run length, diluting it (8 panel markers may be ~2 covered).
+Set \code{min_cov = 0L} to decode every input marker (the old behaviour).}
 
 \item{emission}{Optional emission override (\code{"count"}, \code{"gt"}) for the \code{nnil}
 caller; \code{NULL} uses the caller's default.}
