@@ -15,6 +15,32 @@ count_emission_loglik_cpp <- function(n, a, theta, conc) {
     .Call(`_nilHMM_count_emission_loglik_cpp`, n, a, theta, conc)
 }
 
+#' Find a large independent set in a thresholded similarity/distance matrix
+#'
+#' Faithful port of FastIndep (Abraham 2013): the deterministic greedy heuristic
+#' plus `n_runs - 1` stochastic runs. Two nodes are "related" (an edge) when the
+#' matrix entry crosses `threshold` in the sense given by `distance`; an
+#' independent set has no edges among its members. The matrix diagonal is ignored.
+#'
+#' @param sim Symmetric numeric matrix. A similarity (higher = more related,
+#'   `distance = false`) or a distance (lower = more related, `distance = true`).
+#' @param threshold Edge cutoff. Similarity: edge if `sim[i,j] >= threshold`.
+#'   Distance: edge if `sim[i,j] <= threshold`.
+#' @param n_runs Total runs: 1 = greedy only; `> 1` adds `n_runs - 1` stochastic
+#'   runs and returns the distinct sets found.
+#' @param seed Seed for the stochastic runs (self-contained splitmix64 PRNG;
+#'   independent of R's RNG). The greedy run is deterministic and seed-free.
+#' @param distance If `true`, `sim` is a distance and the edge sense is inverted
+#'   (edge if `<= threshold`). Default `false` (similarity).
+#' @return A list: `best` (1-based indices of the largest independent set found,
+#'   the greedy set when it is largest), `sets` (list of distinct sets, greedy
+#'   first then by decreasing size), `size_dist` (named integer vector, set
+#'   size -> number of distinct sets of that size).
+#' @keywords internal
+fast_indep_cpp <- function(sim, threshold, n_runs, seed, distance = FALSE) {
+    .Call(`_nilHMM_fast_indep_cpp`, sim, threshold, n_runs, seed, distance)
+}
+
 #' Forward-backward state posteriors (log-space; time-homogeneous transitions)
 #'
 #' @param log_init Length-K log initial-state probabilities.
@@ -46,6 +72,26 @@ forward_backward_cpp <- function(log_init, log_trans, log_emit) {
 #' @keywords internal
 interp_geno_cpp <- function(obs_cm, G, target_cm, mode) {
     .Call(`_nilHMM_interp_geno_cpp`, obs_cm, G, target_cm, mode)
+}
+
+#' Pairwise marker relatedness matrix (r2 / MI / VI)
+#'
+#' Build a symmetric markers x markers relatedness matrix from a
+#' markers x samples dosage matrix, under a pluggable measure, for feeding
+#' `fast_indep_cpp`. Computed over the samples where both markers are
+#' non-missing (any non-finite entry is missing).
+#'
+#' @param geno Numeric matrix, rows = markers, cols = samples; dosages
+#'   (typically 0/1/2). Missing entries are `NA`/`NaN`.
+#' @param method 0 = r2 (squared Pearson correlation, a similarity),
+#'   1 = mi (Miller-Madow mutual information, a similarity),
+#'   2 = vi (variation of information, a distance / metric).
+#' @param base For mi/vi only: 0 = nats, 1 = bits. Ignored for r2.
+#' @return Symmetric numeric matrix (markers x markers). Diagonal: r2 = 1,
+#'   mi = H(X), vi = 0.
+#' @keywords internal
+pairwise_distance_cpp <- function(geno, method, base) {
+    .Call(`_nilHMM_pairwise_distance_cpp`, geno, method, base)
 }
 
 #' RTIGER emission log-probabilities (getlogpsi)

@@ -24,6 +24,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fast_indep_cpp
+List fast_indep_cpp(NumericMatrix sim, double threshold, int n_runs, int seed, bool distance);
+RcppExport SEXP _nilHMM_fast_indep_cpp(SEXP simSEXP, SEXP thresholdSEXP, SEXP n_runsSEXP, SEXP seedSEXP, SEXP distanceSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type sim(simSEXP);
+    Rcpp::traits::input_parameter< double >::type threshold(thresholdSEXP);
+    Rcpp::traits::input_parameter< int >::type n_runs(n_runsSEXP);
+    Rcpp::traits::input_parameter< int >::type seed(seedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distance(distanceSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_indep_cpp(sim, threshold, n_runs, seed, distance));
+    return rcpp_result_gen;
+END_RCPP
+}
 // forward_backward_cpp
 NumericMatrix forward_backward_cpp(NumericVector log_init, NumericMatrix log_trans, NumericMatrix log_emit);
 RcppExport SEXP _nilHMM_forward_backward_cpp(SEXP log_initSEXP, SEXP log_transSEXP, SEXP log_emitSEXP) {
@@ -48,6 +63,19 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type target_cm(target_cmSEXP);
     Rcpp::traits::input_parameter< int >::type mode(modeSEXP);
     rcpp_result_gen = Rcpp::wrap(interp_geno_cpp(obs_cm, G, target_cm, mode));
+    return rcpp_result_gen;
+END_RCPP
+}
+// pairwise_distance_cpp
+NumericMatrix pairwise_distance_cpp(NumericMatrix geno, int method, int base);
+RcppExport SEXP _nilHMM_pairwise_distance_cpp(SEXP genoSEXP, SEXP methodSEXP, SEXP baseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type geno(genoSEXP);
+    Rcpp::traits::input_parameter< int >::type method(methodSEXP);
+    Rcpp::traits::input_parameter< int >::type base(baseSEXP);
+    rcpp_result_gen = Rcpp::wrap(pairwise_distance_cpp(geno, method, base));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -256,8 +284,10 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_count_emission_loglik_cpp", (DL_FUNC) &_nilHMM_count_emission_loglik_cpp, 4},
+    {"_nilHMM_fast_indep_cpp", (DL_FUNC) &_nilHMM_fast_indep_cpp, 5},
     {"_nilHMM_forward_backward_cpp", (DL_FUNC) &_nilHMM_forward_backward_cpp, 3},
     {"_nilHMM_interp_geno_cpp", (DL_FUNC) &_nilHMM_interp_geno_cpp, 4},
+    {"_nilHMM_pairwise_distance_cpp", (DL_FUNC) &_nilHMM_pairwise_distance_cpp, 3},
     {"_nilHMM_rtiger_getlogpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_getlogpsi_cpp, 4},
     {"_nilHMM_rtiger_productpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_productpsi_cpp, 2},
     {"_nilHMM_rtiger_forward_cpp", (DL_FUNC) &_nilHMM_rtiger_forward_cpp, 5},
