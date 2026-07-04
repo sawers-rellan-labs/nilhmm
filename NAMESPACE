@@ -2,6 +2,7 @@
 
 export(calibrate_r)
 export(call_ancestry)
+export(call_gl)
 export(call_states)
 export(caller_spec)
 export(caller_sweep)
