@@ -30,12 +30,26 @@ read_counts <- function(path, format = c("tsv", "gatk_table", "vcf_ad"), name = 
   if (format != "tsv") stop("read_counts(): only format='tsv' is implemented (Task 4)")
 
   if (dir.exists(path)) {
-    files <- list.files(path, pattern = "\\.tsv$", full.names = TRUE)
-    return(do.call(rbind, lapply(files, read_counts, format = "tsv")))
+    files <- list.files(path, pattern = "\\.tsv(\\.gz)?$", full.names = TRUE)
+    parts <- lapply(files, read_counts, format = "tsv")
+    # rbindlist avoids the O(n^2) copying of do.call(rbind, .) over many files.
+    if (requireNamespace("data.table", quietly = TRUE)) {
+      return(as.data.frame(data.table::rbindlist(parts)))
+    }
+    return(do.call(rbind, parts))
   }
 
-  d <- utils::read.table(path, sep = "\t", header = FALSE, stringsAsFactors = FALSE,
-                         col.names = c("chr", "pos", "ref", "n_ref", "alt", "n_alt"))
+  # fread is ~10x faster than read.table here (and reads .gz directly); the base
+  # reader is the fallback when data.table is not installed.
+  cn <- c("chr", "pos", "ref", "n_ref", "alt", "n_alt")
+  if (requireNamespace("data.table", quietly = TRUE)) {
+    d <- data.table::fread(path, sep = "\t", header = FALSE, col.names = cn,
+                           colClasses = list(character = 1L, integer = c(2L, 4L, 6L)),
+                           showProgress = FALSE)
+  } else {
+    d <- utils::read.table(path, sep = "\t", header = FALSE, stringsAsFactors = FALSE,
+                           col.names = cn)
+  }
   nm <- if (!is.null(name)) name else sub("\\..*$", "", basename(path))
   data.frame(
     name  = nm,

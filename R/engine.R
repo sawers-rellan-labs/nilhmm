@@ -211,6 +211,12 @@ decode <- function(model, obs) {
 #' @param threads,seed RTIGER caller only: E-step threads and the seed for its
 #'   randomized init.
 #' @param postprocess RTIGER caller only: apply the border re-placement (default TRUE).
+#' @param min_cov RTIGER caller only: drop markers with fewer than `min_cov` total
+#'   reads (`n_ref + n_alt`) before fit/decode (default `1L`, i.e. keep only
+#'   covered markers). This matches RTIGER, which decodes covered markers only:
+#'   zero-coverage panel positions carry no emission signal but still count toward
+#'   the rigidity run length, diluting it (8 panel markers may be ~2 covered).
+#'   Set `min_cov = 0L` to decode every input marker (the old behaviour).
 #' @param emission Optional emission override (`"count"`, `"gt"`) for the `nnil`
 #'   caller; `NULL` uses the caller's default.
 #' @param bin_size,cluster_method `binhmm` caller only: genomic bin width in bp
@@ -263,7 +269,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
                         f_1 = NULL, f_2 = NULL,
                         source = "nilHMM", donor = NA_character_,
                         parallel = FALSE, threads = 1L, seed = 1L,
-                        postprocess = TRUE, emission = NULL,
+                        postprocess = TRUE, min_cov = 1L, emission = NULL,
                         bin_size = 1e6, cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
                         joint_clust = FALSE, obs_weights = FALSE,
                         atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L,
@@ -301,6 +307,14 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   if (caller == "rtiger") {
     rig <- if (is.null(rigidity)) 5L else as.integer(rigidity)   # minimum run length
     if (rig < 1L) stop("rtiger: `rigidity` must be an integer >= 1")
+    # RTIGER decodes covered markers only; zero-coverage panel positions carry no
+    # emission signal but count toward the rigidity run, diluting it. Drop markers
+    # below `min_cov` total reads to match RTIGER's preprocessing (default keeps
+    # only covered markers; `min_cov = 0L` restores decoding every input marker).
+    if (!is.null(min_cov) && min_cov > 0L) {
+      data <- data[data$n_ref + data$n_alt >= min_cov, , drop = FALSE]
+      if (!nrow(data)) stop("rtiger: no markers with coverage >= min_cov (", min_cov, ")")
+    }
     return(.rtiger_states(data, rig, source, donor, has_donor, threads, seed, postprocess))
   }
 

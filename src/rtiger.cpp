@@ -801,6 +801,17 @@ List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates,
     NS[c] = as<std::vector<int> >(ns_list[c]);
     if ((int)KS[c].size() > Tmax) Tmax = (int)KS[c].size();
   }
+  // Hard stop on under-covered chains, as the RTIGER (Julia) fit does: a chain
+  // shorter than 2*rigidity has an empty zeta window and its E-step degenerates
+  // to NaN. RTIGER aborts rather than fit such data; do the same, up front on the
+  // main thread (throwing from inside the parallel E-step would be unsafe). The
+  // caller must drop low-coverage (sample, chromosome) chains first.
+  for (int c = 0; c < nchains; ++c)
+    if ((int)KS[c].size() < 2 * r)
+      Rcpp::stop("rtiger: chain %d has %d covered markers, below the 2*rigidity = %d "
+                 "floor (RTIGER requires >= 2*rigidity per chromosome). Drop "
+                 "low-coverage samples/chromosomes before fitting.",
+                 c, (int)KS[c].size(), 2 * r);
   // Contiguous chunking for the parallel E-step: K = min(threads, nchains)
   // chunks, each folded into its own partial, reduced in chunk order (so the
   // result is deterministic for a fixed thread count). threads=1 -> 1 chunk =
@@ -823,7 +834,14 @@ List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates,
     std::vector<std::map<long long, std::vector<double> > > W_p(nchunks);
     EStepChunk worker(KS, NS, logPI, logA, alpha, beta, edges, r, s, Tmax,
                       sumZeta_p, startAcc_p, sumk_p, sumn_p, W_p);
-    parallelFor(0, nchunks, worker, 1);              // grain 1 -> each chunk independent
+    // nchunks == 1 (threads <= 1) runs the worker DIRECTLY, without TBB. Going
+    // through parallelFor even for a single chunk was nondeterministic across
+    // repeated calls: it did not reliably invoke the worker over the whole range,
+    // leaving the pooled sufficient statistics empty -> NaN emission M-step ->
+    // silent return of the init as a "converged" fit. A direct call is
+    // deterministic. threads > 1 keeps the per-chunk parallel fold.
+    if (nchunks <= 1) worker(0, (std::size_t)nchunks);
+    else parallelFor(0, nchunks, worker, 1);         // grain 1 -> each chunk independent
 
     // reduce partials in fixed chunk order (deterministic for fixed thread count)
     NumericMatrix sumZeta(s, s);
@@ -839,6 +857,17 @@ List rtiger_fit_cpp(List ks_list, List ns_list, int r, int nstates,
         for (int st = 0; st < s; ++st) w[st] += it->second[st];
       }
     }
+
+    // Guard: a non-empty E-step must assign some emission weight. If the pooled
+    // total is zero the E-step produced nothing (e.g. it never ran, or the input
+    // has no covered markers) — every state's mi = sumk/sumn would be NaN and the
+    // emission M-step would silently keep the init, reporting a bogus 1-iteration
+    // "convergence". Fail loudly instead.
+    double totw = 0.0; for (int st = 0; st < s; ++st) totw += sumn[st];
+    if (!(totw > 0.0))
+      Rcpp::stop("rtiger_fit_cpp: E-step produced zero total emission weight over %d "
+                 "chains (degenerate/empty fit); check that the input has covered markers.",
+                 nchains);
 
     // ---- M-step ----
     NumericMatrix Anew(s, s);

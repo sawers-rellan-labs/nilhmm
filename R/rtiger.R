@@ -167,6 +167,25 @@
       pos[[nm]][[cc]] <- dc$pos
     }
   }
+  # RTIGER requires >= 2*rigidity covered markers per chromosome (below that the
+  # E-step degenerates to NaN). rtiger_fit_cpp also hard-stops on this, but only
+  # knows the flat chain index; check here so the error names the offending
+  # (sample, chromosome) pairs the caller must drop or better-cover.
+  floor_n <- 2L * as.integer(rigidity)
+  short <- unlist(lapply(names(obs), function(nm) {
+    ln <- vapply(obs[[nm]], function(ch) length(ch$k), integer(1))
+    bad <- ln < floor_n
+    if (any(bad)) sprintf("%s chr%s (%d markers)", nm, names(obs[[nm]])[bad], ln[bad])
+  }))
+  if (length(short)) {
+    stop(sprintf(
+      "rtiger: %d (sample, chromosome) chain(s) below 2*rigidity = %d covered markers (RTIGER requires >= that). Offenders%s:\n  %s",
+      length(short), floor_n,
+      if (length(short) > 10L) " (first 10)" else "",
+      paste(utils::head(short, 10L), collapse = "\n  ")),
+      call. = FALSE)
+  }
+
   fit   <- .rtiger_fit(obs, rigidity, threads = threads, seed = seed)
   paths <- .rtiger_decode(obs, fit, rigidity, postprocess = postprocess, threads = threads)
   out <- list()
