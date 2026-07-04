@@ -211,12 +211,16 @@ decode <- function(model, obs) {
 #' @param threads,seed RTIGER caller only: E-step threads and the seed for its
 #'   randomized init.
 #' @param postprocess RTIGER caller only: apply the border re-placement (default TRUE).
-#' @param min_cov RTIGER caller only: drop markers with fewer than `min_cov` total
-#'   reads (`n_ref + n_alt`) before fit/decode (default `1L`, i.e. keep only
-#'   covered markers). This matches RTIGER, which decodes covered markers only:
-#'   zero-coverage panel positions carry no emission signal but still count toward
-#'   the rigidity run length, diluting it (8 panel markers may be ~2 covered).
-#'   Set `min_cov = 0L` to decode every input marker (the old behaviour).
+#' @param min_cov Drop no-coverage units before decoding (default `1L`; `0L` keeps
+#'   everything, the old behaviour). "No coverage" is caller-specific but the
+#'   intent is uniform — never make a confident call from no data, and keep all
+#'   callers on the same support for comparability:
+#'   * `nnil` (count) and `rtiger`: markers with `n_ref + n_alt < min_cov`;
+#'   * `nnil` gt path: missing genotypes (`g == 3`);
+#'   * `binhmm`: bins with fewer than `min_cov` informative markers (`ninf`).
+#'   Zero-coverage units carry no emission signal — they only slow decoding,
+#'   marginally inflate `nnil` fragmentation, and dilute `rtiger`'s rigidity run.
+#'   (The `atlas` caller has its own `atlas_min_reads` gate and is unaffected.)
 #' @param emission Optional emission override (`"count"`, `"gt"`) for the `nnil`
 #'   caller; `NULL` uses the caller's default.
 #' @param bin_size,cluster_method `binhmm` caller only: genomic bin width in bp
@@ -301,20 +305,36 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
     emission <- "gt"
   }
 
+  # gt path: "no coverage" is a missing genotype (g == 3). Drop missing calls so
+  # the gt (nnil hard-genotype) caller ignores uncovered positions too, mirroring
+  # the count/rtiger covered-marker filter below.
+  if (identical(emission, "gt") && "g" %in% names(data) &&
+      !is.null(min_cov) && min_cov > 0L) {
+    data <- data[data$g != 3L, , drop = FALSE]
+    if (!nrow(data)) stop("call_states(): no non-missing genotypes after the min_cov filter")
+  }
+
+  # Covered-marker filter for the count-emission callers (`nnil` count path and
+  # `rtiger`): drop markers with fewer than `min_cov` total reads. A zero-coverage
+  # panel position carries no emission signal — it only slows decoding, marginally
+  # inflates fragmentation for `nnil`, and dilutes the rigidity run for `rtiger`
+  # (which requires covered markers anyway). This makes the two callers run on the
+  # SAME marker support, so their calls are directly comparable. `binhmm` bins its
+  # own way and the `gt`/`alt_freq` inputs have no read counts to threshold, so
+  # they are exempt. `min_cov = 0L` restores decoding every input marker.
+  if (has_counts && !identical(emission, "gt") && caller %in% c("nnil", "rtiger") &&
+      !is.null(min_cov) && min_cov > 0L) {
+    data <- data[data$n_ref + data$n_alt >= min_cov, , drop = FALSE]
+    if (!nrow(data))
+      stop("call_states(): no markers with coverage >= min_cov (", min_cov, ")")
+  }
+
   # RTIGER caller: its own EM/Viterbi (src/rtiger.cpp, R/rtiger.R) — a faithful
   # port of the RTIGER fork, not the count engine. `r` is the integer rigidity;
   # `postprocess` applies the border re-placement (on by default, as RTIGER does).
   if (caller == "rtiger") {
     rig <- if (is.null(rigidity)) 5L else as.integer(rigidity)   # minimum run length
     if (rig < 1L) stop("rtiger: `rigidity` must be an integer >= 1")
-    # RTIGER decodes covered markers only; zero-coverage panel positions carry no
-    # emission signal but count toward the rigidity run, diluting it. Drop markers
-    # below `min_cov` total reads to match RTIGER's preprocessing (default keeps
-    # only covered markers; `min_cov = 0L` restores decoding every input marker).
-    if (!is.null(min_cov) && min_cov > 0L) {
-      data <- data[data$n_ref + data$n_alt >= min_cov, , drop = FALSE]
-      if (!nrow(data)) stop("rtiger: no markers with coverage >= min_cov (", min_cov, ")")
-    }
     return(.rtiger_states(data, rig, source, donor, has_donor, threads, seed, postprocess))
   }
 
@@ -328,7 +348,8 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
               else stop("call_states(): supply `design` or both `f_1` and `f_2`")
     return(.binhmm_states(data, bin_size, cluster_method, priors,
                           source, donor, has_donor,
-                          joint_clust = joint_clust, obs_weights = obs_weights))
+                          joint_clust = joint_clust, obs_weights = obs_weights,
+                          min_cov = min_cov))
   }
 
   # ATLAS caller (R/atlas.R): GOOGA-style per-gene ancestry from competitive-

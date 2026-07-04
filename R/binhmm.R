@@ -186,7 +186,7 @@
 # HMM smoothing/decoding is always per (sample, chromosome).
 .binhmm_states <- function(data, bin_size, cluster_method, priors,
                            source, donor, has_donor, stay = 0.995,
-                           joint_clust = FALSE, obs_weights = FALSE) {
+                           joint_clust = FALSE, obs_weights = FALSE, min_cov = 1L) {
   # Accept EITHER raw per-SNP counts (binned here) OR a table that is already
   # binned upstream, carrying `alt_freq` + `start_bp`/`end_bp` (e.g. the bzeaseq
   # `*_bin_genotypes.tsv`). Bin summarization is a data-prep concern, so both
@@ -204,6 +204,15 @@
     )
   } else {
     .binhmm_bin(data, bin_size)
+  }
+  # Ignore no-coverage bins: a bin with fewer than `min_cov` informative markers
+  # (`ninf`) has no reads to compute alt_freq from. Left in, it defaults to
+  # alt_freq = 0 and would be silently called REF — a confident call from no data.
+  # Dropping it leaves that interval uncalled instead. `min_cov = 0L` keeps all
+  # bins (the old behaviour).
+  if (!is.null(min_cov) && min_cov > 0L) {
+    bins <- bins[bins$ninf >= min_cov, , drop = FALSE]
+    if (!nrow(bins)) stop("binhmm: no bins with >= min_cov informative markers")
   }
   start <- c(1 - priors$f_1 - priors$f_2, priors$f_1, priors$f_2)   # REF/HET/ALT (Mendelian)
   donor_of <- if (has_donor) tapply(as.character(data$donor), data$name, `[`, 1L) else NULL

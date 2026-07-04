@@ -83,12 +83,18 @@ randomized init.}
 
 \item{postprocess}{RTIGER caller only: apply the border re-placement (default TRUE).}
 
-\item{min_cov}{RTIGER caller only: drop markers with fewer than \code{min_cov} total
-reads (\code{n_ref + n_alt}) before fit/decode (default \code{1L}, i.e. keep only
-covered markers). This matches RTIGER, which decodes covered markers only:
-zero-coverage panel positions carry no emission signal but still count toward
-the rigidity run length, diluting it (8 panel markers may be ~2 covered).
-Set \code{min_cov = 0L} to decode every input marker (the old behaviour).}
+\item{min_cov}{Drop no-coverage units before decoding (default \code{1L}; \code{0L} keeps
+everything, the old behaviour). "No coverage" is caller-specific but the
+intent is uniform — never make a confident call from no data, and keep all
+callers on the same support for comparability:
+\itemize{
+\item \code{nnil} (count) and \code{rtiger}: markers with \code{n_ref + n_alt < min_cov};
+\item \code{nnil} gt path: missing genotypes (\code{g == 3});
+\item \code{binhmm}: bins with fewer than \code{min_cov} informative markers (\code{ninf}).
+Zero-coverage units carry no emission signal — they only slow decoding,
+marginally inflate \code{nnil} fragmentation, and dilute \code{rtiger}'s rigidity run.
+(The \code{atlas} caller has its own \code{atlas_min_reads} gate and is unaffected.)
+}}
 
 \item{emission}{Optional emission override (\code{"count"}, \code{"gt"}) for the \code{nnil}
 caller; \code{NULL} uses the caller's default.}
