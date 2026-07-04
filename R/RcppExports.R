@@ -26,6 +26,28 @@ forward_backward_cpp <- function(log_init, log_trans, log_emit) {
     .Call(`_nilHMM_forward_backward_cpp`, log_init, log_trans, log_emit)
 }
 
+#' Interpolate a complete genotype block onto a target cM grid (single chr)
+#'
+#' Linear flanking-marker interpolation in genetic distance for one chromosome.
+#' For a target at cM `t` between called flanking markers L (at `obs_cm[jj]`) and
+#' R (at `obs_cm[jj+1]`), the weight is `w = (t - cM_L) / (cM_R - cM_L)` and the
+#' continuous dosage is `vL + w*(vR - vL)`. Ends are clamped to the terminal
+#' observed value (`stats::approx` rule = 2); tied flanking positions
+#' (`denom == 0`) collapse to `w = 0`.
+#'
+#' @param obs_cm Numeric cM of the observed markers, ascending, length k.
+#' @param G Numeric k x n genotype matrix (row = observed marker, col = sample),
+#'   COMPLETE (no NA); values are the alt/teosinte-allele dosage in 0 to 2.
+#' @param target_cm Numeric cM of the target grid, ascending, length M.
+#' @param mode Interpolation mode: 0 = continuous dosage ramp (Tian 2011),
+#'   1 = step / nearest flanking value (`w < 0.5 ? vL : vR`, tie `w == 0.5` -> vR;
+#'   Chen/TeoNAM), 2 = round(continuous) to 0/1/2.
+#' @return Numeric M x n matrix of interpolated genotypes.
+#' @keywords internal
+interp_geno_cpp <- function(obs_cm, G, target_cm, mode) {
+    .Call(`_nilHMM_interp_geno_cpp`, obs_cm, G, target_cm, mode)
+}
+
 #' RTIGER emission log-probabilities (getlogpsi)
 #'
 #' logpsi(i,t) = logpdf(BetaBinomial(n_t, a_i, b_i), k_t). Memoized over distinct

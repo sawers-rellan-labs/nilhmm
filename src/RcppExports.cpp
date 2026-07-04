@@ -37,6 +37,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// interp_geno_cpp
+NumericMatrix interp_geno_cpp(NumericVector obs_cm, NumericMatrix G, NumericVector target_cm, int mode);
+RcppExport SEXP _nilHMM_interp_geno_cpp(SEXP obs_cmSEXP, SEXP GSEXP, SEXP target_cmSEXP, SEXP modeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type obs_cm(obs_cmSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type G(GSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type target_cm(target_cmSEXP);
+    Rcpp::traits::input_parameter< int >::type mode(modeSEXP);
+    rcpp_result_gen = Rcpp::wrap(interp_geno_cpp(obs_cm, G, target_cm, mode));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rtiger_getlogpsi_cpp
 NumericMatrix rtiger_getlogpsi_cpp(IntegerVector k, IntegerVector n, NumericVector a, NumericVector b);
 RcppExport SEXP _nilHMM_rtiger_getlogpsi_cpp(SEXP kSEXP, SEXP nSEXP, SEXP aSEXP, SEXP bSEXP) {
@@ -243,6 +257,7 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_count_emission_loglik_cpp", (DL_FUNC) &_nilHMM_count_emission_loglik_cpp, 4},
     {"_nilHMM_forward_backward_cpp", (DL_FUNC) &_nilHMM_forward_backward_cpp, 3},
+    {"_nilHMM_interp_geno_cpp", (DL_FUNC) &_nilHMM_interp_geno_cpp, 4},
     {"_nilHMM_rtiger_getlogpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_getlogpsi_cpp, 4},
     {"_nilHMM_rtiger_productpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_productpsi_cpp, 2},
     {"_nilHMM_rtiger_forward_cpp", (DL_FUNC) &_nilHMM_rtiger_forward_cpp, 5},

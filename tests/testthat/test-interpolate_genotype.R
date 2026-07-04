@@ -1,0 +1,115 @@
+# interpolate_genotype(): flanking-marker genotype interpolation in cM
+# (Tian 2011 continuous / Chen-TeoNAM step / round). Deterministic hard-call
+# densification onto a target grid -- NOT ancestry inference.
+
+test_that("concordant fill: a single observed state fills every target (all modes)", {
+  obs <- data.frame(chr = 1L, cm = c(0, 1, 2, 3))
+  target <- data.frame(chr = 1L, cm = c(-1, 0.4, 1.7, 3, 5))
+  for (state in c(0, 2)) {
+    geno <- matrix(state, nrow = 4, ncol = 2, dimnames = list(NULL, c("A", "B")))
+    for (mode in c("continuous", "step", "round")) {
+      out <- interpolate_genotype(geno, obs, target, mode)
+      expect_equal(unname(out), matrix(state, nrow = nrow(target), ncol = 2),
+                   info = paste(mode, state))
+    }
+  }
+})
+
+test_that("continuous ramp matches hand-computed values; step/round at midpoint", {
+  obs <- data.frame(chr = 1L, cm = c(0, 1))
+  geno <- matrix(c(0, 2), nrow = 2, dimnames = list(NULL, "S1"))
+  target <- data.frame(chr = 1L, cm = c(0, 0.25, 0.5, 0.75, 1))
+
+  cont <- interpolate_genotype(geno, obs, target, "continuous")
+  expect_equal(as.numeric(cont), c(0, 0.5, 1.0, 1.5, 2.0))
+
+  step <- interpolate_genotype(geno, obs, target, "step")
+  # w = 0, .25, .5, .75, 1 -> vL,vL,vR(tie),vR,vR = 0,0,2,2,2
+  expect_equal(as.numeric(step), c(0, 0, 2, 2, 2))
+
+  rnd <- interpolate_genotype(geno, obs, target, "round")
+  # C++ std::round is round-half-away-from-zero: round(0,.5,1,1.5,2) -> 0,1,1,2,2
+  expect_equal(as.numeric(rnd), c(0, 1, 1, 2, 2))
+})
+
+test_that("step fabricates no het across a 0<->2 gap; round does", {
+  obs <- data.frame(chr = 1L, cm = c(0, 10))
+  geno <- matrix(c(0, 2), nrow = 2, dimnames = list(NULL, "S1"))
+  target <- data.frame(chr = 1L, cm = seq(0, 10, by = 0.5))
+
+  step <- as.numeric(interpolate_genotype(geno, obs, target, "step"))
+  expect_true(all(step %in% c(0, 2)))
+  expect_false(any(step == 1))
+
+  rnd <- as.numeric(interpolate_genotype(geno, obs, target, "round"))
+  expect_true(all(rnd %in% c(0, 1, 2)))
+  expect_true(any(rnd == 1))   # fabricated het band
+})
+
+test_that("ends are clamped to the terminal observed value (all modes)", {
+  obs <- data.frame(chr = 1L, cm = c(2, 4, 6))
+  geno <- matrix(c(0, 1, 2), nrow = 3, dimnames = list(NULL, "S1"))
+  target <- data.frame(chr = 1L, cm = c(-5, 0, 10, 100))  # all outside [2, 6]
+  for (mode in c("continuous", "step", "round")) {
+    out <- as.numeric(interpolate_genotype(geno, obs, target, mode))
+    expect_equal(out, c(0, 0, 2, 2), info = mode)  # left->first, right->last
+  }
+})
+
+test_that("a target exactly on an observed cM returns the observed value", {
+  obs <- data.frame(chr = 1L, cm = c(0, 1, 2))
+  geno <- matrix(c(0, 1, 2), nrow = 3, dimnames = list(NULL, "S1"))
+  target <- data.frame(chr = 1L, cm = c(0, 1, 2))
+  for (mode in c("continuous", "step", "round")) {
+    out <- as.numeric(interpolate_genotype(geno, obs, target, mode))
+    expect_equal(out, c(0, 1, 2), info = mode)
+  }
+})
+
+test_that("no interpolation bleeds across a chromosome boundary", {
+  obs <- data.frame(chr = c(1L, 1L, 2L, 2L), cm = c(0, 1, 0, 1))
+  # chr1: 0 -> 0 ; chr2: 2 -> 2. A midpoint must stay within its own chr.
+  geno <- matrix(c(0, 0, 2, 2), nrow = 4, dimnames = list(NULL, "S1"))
+  target <- data.frame(chr = c(1L, 2L), cm = c(0.5, 0.5))
+  out <- as.numeric(interpolate_genotype(geno, obs, target, "continuous"))
+  expect_equal(out, c(0, 2))  # if it bled, chr1's midpoint would drift toward 2
+})
+
+test_that("continuous mode equals stats::approx(rule = 2) per sample", {
+  set.seed(1)
+  obs <- data.frame(chr = 1L, cm = sort(cumsum(runif(40, 0.1, 2))))
+  geno <- matrix(runif(40 * 5, 0, 2), nrow = 40,
+                 dimnames = list(NULL, paste0("S", 1:5)))
+  target <- data.frame(chr = 1L,
+                       cm = sort(runif(120, min(obs$cm) - 5, max(obs$cm) + 5)))
+  out <- interpolate_genotype(geno, obs, target, "continuous")
+  for (j in 1:5) {
+    ref <- stats::approx(obs$cm, geno[, j], xout = target$cm, rule = 2)$y
+    expect_equal(out[, j], ref, info = paste("sample", j))
+  }
+})
+
+test_that("row/col names are carried through", {
+  obs <- data.frame(chr = 1L, cm = c(0, 1))
+  geno <- matrix(c(0, 2), nrow = 2, dimnames = list(NULL, "SAMP"))
+  target <- data.frame(chr = 1L, cm = c(0, 0.5, 1))
+  rownames(target) <- c("t1", "t2", "t3")
+  out <- interpolate_genotype(geno, obs, target, "continuous")
+  expect_equal(colnames(out), "SAMP")
+  expect_equal(rownames(out), c("t1", "t2", "t3"))
+})
+
+test_that("validation: NA, mismatched nrow, and unsorted obs are rejected", {
+  obs <- data.frame(chr = 1L, cm = c(0, 1, 2))
+  geno <- matrix(c(0, 1, 2), nrow = 3)
+  target <- data.frame(chr = 1L, cm = c(0, 1))
+
+  g_na <- geno; g_na[2] <- NA
+  expect_error(interpolate_genotype(g_na, obs, target, "step"), "complete")
+  expect_error(interpolate_genotype(matrix(0, nrow = 2), obs, target, "step"),
+               "nrow")
+  obs_bad <- data.frame(chr = 1L, cm = c(0, 0, 1))  # tied -> not strictly increasing
+  expect_error(
+    interpolate_genotype(geno, obs_bad, target, "step"),
+    "sorted|strictly increasing")
+})
