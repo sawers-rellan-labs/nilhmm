@@ -5,9 +5,10 @@
 # (validity, determinism) rather than CLI bit-identity -- see the package docs.
 
 # Locate the reference FastIndep binary, if installed (for the CLI cross-check).
+# Discovery is env/PATH-based so the test stays portable; set FASTINDEP_BIN (e.g.
+# in ~/.Renviron) to point at a local build, otherwise the cross-check skips.
 fastindep_bin <- function() {
-  cand <- c(Sys.getenv("FASTINDEP_BIN"), "/Users/fvrodriguez/bio/bin/fastindep",
-            unname(Sys.which("fastindep")))
+  cand <- c(Sys.getenv("FASTINDEP_BIN"), unname(Sys.which("fastindep")))
   cand <- cand[nzchar(cand)]
   hit <- cand[file.exists(cand)]
   if (length(hit)) hit[1] else NA_character_
