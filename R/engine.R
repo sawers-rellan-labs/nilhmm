@@ -386,12 +386,17 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   # Split by sample ONCE (O(n)) rather than re-scanning the frame per sample
   # (which is O(samples * rows) and dominates wall-clock on large cohorts).
   by_name <- split(data, data$name, drop = TRUE)
-  out <- list()
-  for (nm in names(by_name)) {
+
+  # Per-sample work is independent (each sample builds its own chains, optionally
+  # fits its own emission means, and decodes), so parallelize across samples when
+  # threads > 1 on unix. This is the win for the fit_means path (whose per-sample
+  # EM dominates) and for any non-rectangular cohort that misses the batched fast
+  # path. Each call returns this sample's stacked per-chromosome state rows.
+  one_sample <- function(nm) {
     dn <- by_name[[nm]]
     donor_nm <- if (has_donor) dn$donor[1] else donor
-    # per-chromosome observation sequences for this sample (HMM decodes each chr
-    # independently; emission params are shared and fit pooled across them).
+    # per-chromosome observation sequences (HMM decodes each chr independently;
+    # emission means are fit pooled across a sample's chromosomes).
     obs_list <- lapply(split(dn, dn$chr, drop = TRUE), function(dc) {
       dc <- dc[order(dc$pos), , drop = FALSE]
       if (has_gt && !has_counts) {                 # pre-called genotypes (read_vcf_gt): use g directly
@@ -418,13 +423,23 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
                             log_trans = td$log_trans, n_sub = td$n_sub,
                             emission = spec$emission, duration = spec$duration),
                        class = "nilHMM_model")
-    for (o in obs_list)
-      out[[length(out) + 1L]] <- data.frame(
-        source = source, donor = donor_nm, name = nm, chr = as.integer(o$chr),
-        pos = as.integer(o$pos), state = as.integer(decode(model, o)),
-        stringsAsFactors = FALSE)
+    do.call(rbind, lapply(obs_list, function(o) data.frame(
+      source = source, donor = donor_nm, name = nm, chr = as.integer(o$chr),
+      pos = as.integer(o$pos), state = as.integer(decode(model, o)),
+      stringsAsFactors = FALSE)))
   }
-  states <- do.call(rbind, out)
+
+  nms <- names(by_name)
+  per <- if (threads > 1L && .Platform$OS.type == "unix")
+           parallel::mclapply(nms, one_sample, mc.cores = threads)
+         else lapply(nms, one_sample)
+  bad <- vapply(per, function(x) inherits(x, "try-error") || is.null(x), logical(1))
+  if (any(bad)) stop("call_states(): decoding failed for sample(s): ",
+                     paste(nms[bad], collapse = ", "))
+  # rbindlist avoids the O(n^2)-ish copying of do.call(rbind, .) over many
+  # per-sample frames — it's the serial tail that caps the mclapply speedup.
+  states <- if (requireNamespace("data.table", quietly = TRUE))
+              as.data.frame(data.table::rbindlist(per)) else do.call(rbind, per)
   states[order(states$donor, states$name, states$chr, states$pos), , drop = FALSE]
 }
 
