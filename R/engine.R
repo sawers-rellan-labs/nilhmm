@@ -472,27 +472,25 @@ to_segments <- function(states) {
   if (!"source" %in% names(st)) st$source <- "nilHMM"
   if (!"donor" %in% names(st)) st$donor <- NA_character_
   interval <- all(c("start_bp", "end_bp") %in% names(st))
+  # Single vectorized RLE across all (name, chr) groups: order by (group, pos),
+  # then a run starts wherever the group or the state changes. Avoids the per-group
+  # loop + do.call(rbind) that dominated wall-clock on large cohorts (the RLE and
+  # segment build are then O(n) over the whole table).
   gkey <- paste(st$name, st$chr, sep = "\r")
   o <- order(gkey, st$pos)
   st <- st[o, , drop = FALSE]
   gkey <- gkey[o]
-  out <- list()
-  for (g in unique(gkey)) {
-    i <- which(gkey == g)
-    state <- as.integer(st$state[i])
-    n <- length(state)
-    brk <- which(state[-1L] != state[-n]) # run boundaries (same RLE as .rle_segments)
-    s <- c(1L, brk + 1L)
-    e <- c(brk, n)
-    sb <- if (interval) st$start_bp[i][s] else st$pos[i][s]
-    eb <- if (interval) st$end_bp[i][e] else st$pos[i][e]
-    out[[length(out) + 1L]] <- data.frame(
-      source = st$source[i][s], donor = st$donor[i][s], name = st$name[i][s],
-      chr = as.integer(st$chr[i][s]), start_bp = as.integer(sb),
-      end_bp = as.integer(eb), state = state[s], stringsAsFactors = FALSE
-    )
-  }
-  calls <- do.call(rbind, out)
+  state <- as.integer(st$state)
+  n <- length(state)
+  s <- which(c(TRUE, state[-1L] != state[-n] | gkey[-1L] != gkey[-n]))  # run-start rows
+  e <- c(s[-1L] - 1L, n)                                                # run-end rows
+  calls <- data.frame(
+    source   = st$source[s], donor = st$donor[s], name = st$name[s],
+    chr      = as.integer(st$chr[s]),
+    start_bp = as.integer(if (interval) st$start_bp[s] else st$pos[s]),
+    end_bp   = as.integer(if (interval) st$end_bp[e] else st$pos[e]),
+    state    = state[s], stringsAsFactors = FALSE
+  )
   calls[order(calls$donor, calls$name, calls$chr, calls$start_bp), , drop = FALSE]
 }
 
