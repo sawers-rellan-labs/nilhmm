@@ -152,8 +152,9 @@
 # [pat,het,mat]=(1,2,3) -> common [REF,HET,ALT]=(0,1,2) via state-1, and RLE to
 # the common segment schema. RTIGER fits across all samples in `data` (the
 # consumer groups per taxon). No post-processing yet (separate item).
-.rtiger_states <- function(data, rigidity, source, donor, has_donor, threads, seed,
-                           postprocess = TRUE) {
+# Build the per-(sample, chr) (k = ref, n = total) observations, positions, and
+# donor labels from the common input. Shared by the single call and caller_sweep.
+.rtiger_obs <- function(data, has_donor, donor) {
   by_name <- split(data, data$name, drop = TRUE)
   obs <- list(); pos <- list(); donor_of <- character(0)
   for (nm in names(by_name)) {
@@ -167,35 +168,45 @@
       pos[[nm]][[cc]] <- dc$pos
     }
   }
-  # RTIGER requires >= 2*rigidity covered markers per chromosome (below that the
-  # E-step degenerates to NaN). rtiger_fit_cpp also hard-stops on this, but only
-  # knows the flat chain index; check here so the error names the offending
-  # (sample, chromosome) pairs the caller must drop or better-cover.
+  list(obs = obs, pos = pos, donor_of = donor_of)
+}
+
+# Hard-stop (naming the offending sample/chromosome) if any chain has fewer than
+# 2*rigidity covered markers -- below that the E-step degenerates to NaN.
+# rtiger_fit_cpp also guards this but only knows the flat chain index.
+.rtiger_check_coverage <- function(obs, rigidity) {
   floor_n <- 2L * as.integer(rigidity)
   short <- unlist(lapply(names(obs), function(nm) {
     ln <- vapply(obs[[nm]], function(ch) length(ch$k), integer(1))
     bad <- ln < floor_n
     if (any(bad)) sprintf("%s chr%s (%d markers)", nm, names(obs[[nm]])[bad], ln[bad])
   }))
-  if (length(short)) {
+  if (length(short))
     stop(sprintf(
       "rtiger: %d (sample, chromosome) chain(s) below 2*rigidity = %d covered markers (RTIGER requires >= that). Offenders%s:\n  %s",
-      length(short), floor_n,
-      if (length(short) > 10L) " (first 10)" else "",
-      paste(utils::head(short, 10L), collapse = "\n  ")),
-      call. = FALSE)
-  }
+      length(short), floor_n, if (length(short) > 10L) " (first 10)" else "",
+      paste(utils::head(short, 10L), collapse = "\n  ")), call. = FALSE)
+}
 
-  fit   <- .rtiger_fit(obs, rigidity, threads = threads, seed = seed)
-  paths <- .rtiger_decode(obs, fit, rigidity, postprocess = postprocess, threads = threads)
+# Assemble decoded per-chain Viterbi paths (1/2/3) into the per-marker common
+# state schema (state = path - 1: pat/het/mat -> REF/HET/ALT = 0/1/2).
+.rtiger_assemble <- function(obs, pos, paths, donor_of, source) {
   out <- list()
   for (nm in names(obs)) for (cc in names(obs[[nm]])) {
-    macro <- paths[[nm]][[cc]] - 1L                      # 1/2/3 -> 0/1/2 (per-marker states)
     out[[length(out) + 1L]] <- data.frame(
       source = source, donor = donor_of[[nm]], name = nm, chr = as.integer(cc),
-      pos = as.integer(pos[[nm]][[cc]]), state = as.integer(macro),
+      pos = as.integer(pos[[nm]][[cc]]), state = as.integer(paths[[nm]][[cc]] - 1L),
       stringsAsFactors = FALSE)
   }
   states <- do.call(rbind, out)
   states[order(states$donor, states$name, states$chr, states$pos), , drop = FALSE]
+}
+
+.rtiger_states <- function(data, rigidity, source, donor, has_donor, threads, seed,
+                           postprocess = TRUE) {
+  o <- .rtiger_obs(data, has_donor, donor)
+  .rtiger_check_coverage(o$obs, rigidity)
+  fit   <- .rtiger_fit(o$obs, rigidity, threads = threads, seed = seed)
+  paths <- .rtiger_decode(o$obs, fit, rigidity, postprocess = postprocess, threads = threads)
+  .rtiger_assemble(o$obs, o$pos, paths, o$donor_of, source)
 }
