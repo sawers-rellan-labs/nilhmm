@@ -2,40 +2,57 @@
 #
 # The segmentation parameter (rtiger `rigidity`, nnil `rrate`) is a prior on run
 # length / switch rate, not an emission property, so the fitted emission is
-# ~parameter-independent. That lets the expensive estimation run ONCE and the grid
-# be swept by cheap decodes -- exact at the reference value, a close approximation
-# elsewhere -- fanned across cores. Turns an N-fit sweep into 1 fit + N decodes.
+# ~parameter-independent. That lets the expensive estimation be amortized across
+# the grid, fanned across cores. This sweep is for CALIBRATION -- finding the best
+# parameter -- so it needs segmentations that are comparable across the grid for
+# scoring, not per-value fits identical to a cold refit. Two `refit` modes:
+#   "none" -- fit ONCE at `ref`, reuse for every decode. Holds the emission fixed
+#             so differences across the grid reflect ONLY the segmentation prior
+#             (what you're calibrating); exact at `ref`, a close approximation
+#             elsewhere. Cheapest (1 fit + N decodes); the recommended scan mode.
+#   "cold" -- fit each value from scratch. Exact per value (== per-value
+#             call_ancestry); the baseline. Refitting the emission per value can
+#             add local-optimum jitter across the grid on multimodal data.
+# Workflow: scan with "none" -> pick the best value -> take the exact final calls
+# from a single call_ancestry() at that value (a warm-start mode was evaluated and
+# dropped: on multimodal fits it reaches a different optimum than cold, so it is
+# neither exact nor better than "none" for ranking).
 
-#' Sweep a caller's segmentation parameter with one shared fit
+#' Sweep a caller's segmentation parameter with an amortized fit
 #'
-#' Fit once (rtiger: the joint EM; nnil: the per-sample emission means, or nothing
-#' when `fit_means = FALSE`), then decode across `values`, fanning the independent
-#' decodes over `threads`. Results are exact at `ref` and a close approximation for
-#' other values (the emission is nearly parameter-invariant), at a fraction of a
-#' cold per-value refit.
+#' Fit the emission once (rtiger: the joint EM; nnil: per-sample means, or nothing
+#' when `fit_means = FALSE`) and sweep `values`, fanning the decodes over
+#' `threads`. `refit` controls the accuracy/speed trade (see details).
 #'
 #' @param data Common input: `name, chr, pos, n_ref, n_alt` (+ optional `donor`).
 #' @param caller `"rtiger"` (sweeps `rigidity`) or `"nnil"` (sweeps `rrate`).
 #' @param values Parameter grid to sweep.
+#' @param refit `"none"` (fit once at `ref` and reuse -- exact at `ref`, a close
+#'   approximation elsewhere; recommended for calibration, as it isolates the
+#'   segmentation prior) or `"cold"` (fit each value from scratch -- exact per
+#'   value, the baseline). For nnil with `fit_means = FALSE` the emission is
+#'   `rrate`-independent, so both are identical (and exact). This sweep *finds* the
+#'   best value; for the exact final calls, refit once with [call_ancestry()] at
+#'   the chosen value.
 #' @param design,f_1,f_2 Population priors (a design name, or explicit `f_1`,`f_2`).
 #' @param threads Fan-out width (`parallel::mclapply` on unix; serial otherwise).
-#' @param ref Reference value for the single shared fit (default `median(values)`,
-#'   rounded for rtiger). The emission is fit here and reused across the grid.
-#' @param min_cov Covered-marker filter before decoding (default `1L`, as in
-#'   [call_states()]); `0L` keeps every marker.
+#' @param ref Reference value for the shared fit (default `median(values)`,
+#'   rounded for rtiger).
+#' @param min_cov Covered-marker filter before decoding (default `1L`); `0L` keeps all.
 #' @param err,conc,fit_means nnil count-emission parameters (fixed across the grid).
 #' @param seed,postprocess rtiger fit seed and border post-processing.
 #' @param source,donor Output labels.
-#' @return A common-schema segment table (`source, donor, name, chr, start_bp,
-#'   end_bp, state`) with an added column named for the swept parameter
-#'   (`rigidity` or `rrate`) tagging each value's calls.
+#' @return A common-schema segment table with an added column named for the swept
+#'   parameter (`rigidity` or `rrate`) tagging each value's calls.
 #' @export
 caller_sweep <- function(data, caller = c("rtiger", "nnil"), values,
+                         refit = c("none", "cold"),
                          design = NULL, f_1 = NULL, f_2 = NULL, threads = 1L,
                          ref = NULL, min_cov = 1L, err = 0.01, conc = 20,
                          fit_means = FALSE, seed = 1L, postprocess = TRUE,
                          source = "nilHMM", donor = NA_character_) {
   caller <- match.arg(caller)
+  refit <- match.arg(refit)
   if (!all(c("name", "chr", "pos") %in% names(data)))
     stop("caller_sweep(): data needs columns name, chr, pos")
   if (!length(values)) stop("caller_sweep(): `values` is empty")
@@ -53,14 +70,18 @@ caller_sweep <- function(data, caller = c("rtiger", "nnil"), values,
     data <- data[data$n_ref + data$n_alt >= min_cov, , drop = FALSE]
   if (!nrow(data)) stop("caller_sweep(): no markers with coverage >= min_cov")
 
-  # ---------------- rtiger: one joint EM, decode per rigidity -----------------
+  # ---------------- rtiger: EM (once / warm / cold) + decode per rigidity -----
   if (caller == "rtiger") {
     values <- as.integer(values)
     o <- .rtiger_obs(data, has_donor, donor)
     .rtiger_check_coverage(o$obs, max(values))            # feasibility for the whole grid
     r_ref <- if (is.null(ref)) as.integer(round(stats::median(values))) else as.integer(ref)
-    fit <- .rtiger_fit(o$obs, r_ref, threads = threads, seed = seed)   # ONE fit
+    ref_fit <- if (refit == "cold") NULL
+               else .rtiger_fit(o$obs, r_ref, threads = threads, seed = seed)   # shared fit
     segs <- fan(values, function(v) {
+      fit <- if (refit == "cold")
+               .rtiger_fit(o$obs, v, threads = 1L, seed = seed)                 # exact, from scratch
+             else ref_fit                                                        # none: reuse the ref fit
       paths <- .rtiger_decode(o$obs, fit, v, postprocess = postprocess, threads = 1L)
       seg <- to_segments(.rtiger_assemble(o$obs, o$pos, paths, o$donor_of, source))
       seg$rigidity <- v
@@ -69,44 +90,48 @@ caller_sweep <- function(data, caller = c("rtiger", "nnil"), values,
     return(do.call(rbind, segs))
   }
 
-  # ---------------- nnil: per-sample emission once, decode per rrate ----------
+  # ---------------- nnil: per-sample emission + decode per rrate --------------
   priors <- if (!is.null(design)) design_priors(design)
             else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
             else stop("caller_sweep(nnil): supply `design` or both `f_1`, `f_2`")
   emission <- emission_count(err, conc, fit_means)
   theta0 <- .emission_theta(emission)
   ref_rrate <- if (is.null(ref)) stats::median(values) else ref
+  td_of <- function(v) .duration_transition(
+    caller_spec("nnil", rrate = v, err = err, conc = conc, fit_means = fit_means)$duration, priors)
   by_name <- split(data, data$name, drop = TRUE)
 
-  # Phase 1 (parallel): per-sample chains + emission theta -- fixed (theta0) or
-  # fit ONCE at ref_rrate. Its transition only matters for the fit_means EM.
-  td_ref <- .duration_transition(
-    caller_spec("nnil", rrate = ref_rrate, err = err, conc = conc, fit_means = fit_means)$duration, priors)
+  # Phase 1 (parallel): per-sample chains + (for none/warm) a reference emission
+  # fit at ref_rrate. Fixed-means needs no fit; cold refits per value in phase 2.
+  td_ref <- td_of(ref_rrate)
+  need_ref <- isTRUE(fit_means) && refit == "none"
   samples <- fan(names(by_name), function(nm) {
     dn <- by_name[[nm]]
     obs_list <- lapply(split(dn, dn$chr, drop = TRUE), function(dc) {
       dc <- dc[order(dc$pos), , drop = FALSE]
       list(chr = dc$chr[1], pos = dc$pos, n = dc$n_ref + dc$n_alt, a = dc$n_alt)
     })
-    theta <- if (isTRUE(fit_means)) .em_fit_means(obs_list, emission, td_ref, theta0) else theta0
+    ref_theta <- if (need_ref) .em_fit_means(obs_list, emission, td_ref, theta0) else theta0
     list(name = nm, donor = if (has_donor) dn$donor[1] else donor,
-         obs_list = obs_list, theta = theta)
+         obs_list = obs_list, ref_theta = ref_theta)
   })
 
-  # Phase 2 (parallel over value x sample): build the transition per rrate, decode
-  # every sample with its already-fit emission. Precompute the transitions serially.
-  tds <- lapply(values, function(v) .duration_transition(
-    caller_spec("nnil", rrate = v, err = err, conc = conc, fit_means = fit_means)$duration, priors))
+  # Phase 2 (parallel over value x sample): theta per (value, sample) per `refit`,
+  # then decode. Precompute transitions serially (cheap).
+  tds <- lapply(values, td_of)
   jobs <- expand.grid(vi = seq_along(values), si = seq_along(samples))
   rows <- fan(seq_len(nrow(jobs)), function(j) {
-    s <- samples[[jobs$si[j]]]; td <- tds[[jobs$vi[j]]]
-    model <- structure(list(theta = s$theta, log_start = td$log_start,
+    s <- samples[[jobs$si[j]]]; td <- tds[[jobs$vi[j]]]; v <- values[jobs$vi[j]]
+    theta <- if (!isTRUE(fit_means)) theta0            # fixed emission: rrate-independent (exact)
+             else if (refit == "none") s$ref_theta     # fit once at ref, reuse
+             else .em_fit_means(s$obs_list, emission, td, theta0)   # cold: refit per value
+    model <- structure(list(theta = theta, log_start = td$log_start,
                             log_trans = td$log_trans, n_sub = td$n_sub,
                             emission = emission), class = "nilHMM_model")
     do.call(rbind, lapply(s$obs_list, function(o) data.frame(
       source = source, donor = s$donor, name = s$name, chr = as.integer(o$chr),
       pos = as.integer(o$pos), state = as.integer(decode(model, o)),
-      rrate = values[jobs$vi[j]], stringsAsFactors = FALSE)))
+      rrate = v, stringsAsFactors = FALSE)))
   })
   st <- do.call(rbind, rows)
   do.call(rbind, lapply(values, function(v) {

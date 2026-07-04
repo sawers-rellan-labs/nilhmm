@@ -2,12 +2,13 @@
 % Please edit documentation in R/sweep.R
 \name{caller_sweep}
 \alias{caller_sweep}
-\title{Sweep a caller's segmentation parameter with one shared fit}
+\title{Sweep a caller's segmentation parameter with an amortized fit}
 \usage{
 caller_sweep(
   data,
   caller = c("rtiger", "nnil"),
   values,
+  refit = c("none", "cold"),
   design = NULL,
   f_1 = NULL,
   f_2 = NULL,
@@ -30,15 +31,22 @@ caller_sweep(
 
 \item{values}{Parameter grid to sweep.}
 
+\item{refit}{\code{"none"} (fit once at \code{ref} and reuse -- exact at \code{ref}, a close
+approximation elsewhere; recommended for calibration, as it isolates the
+segmentation prior) or \code{"cold"} (fit each value from scratch -- exact per
+value, the baseline). For nnil with \code{fit_means = FALSE} the emission is
+\code{rrate}-independent, so both are identical (and exact). This sweep \emph{finds} the
+best value; for the exact final calls, refit once with \code{\link[=call_ancestry]{call_ancestry()}} at
+the chosen value.}
+
 \item{design, f_1, f_2}{Population priors (a design name, or explicit \code{f_1},\code{f_2}).}
 
 \item{threads}{Fan-out width (\code{parallel::mclapply} on unix; serial otherwise).}
 
-\item{ref}{Reference value for the single shared fit (default \code{median(values)},
-rounded for rtiger). The emission is fit here and reused across the grid.}
+\item{ref}{Reference value for the shared fit (default \code{median(values)},
+rounded for rtiger).}
 
-\item{min_cov}{Covered-marker filter before decoding (default \code{1L}, as in
-\code{\link[=call_states]{call_states()}}); \code{0L} keeps every marker.}
+\item{min_cov}{Covered-marker filter before decoding (default \code{1L}); \code{0L} keeps all.}
 
 \item{err, conc, fit_means}{nnil count-emission parameters (fixed across the grid).}
 
@@ -47,13 +55,11 @@ rounded for rtiger). The emission is fit here and reused across the grid.}
 \item{source, donor}{Output labels.}
 }
 \value{
-A common-schema segment table (\verb{source, donor, name, chr, start_bp, end_bp, state}) with an added column named for the swept parameter
-(\code{rigidity} or \code{rrate}) tagging each value's calls.
+A common-schema segment table with an added column named for the swept
+parameter (\code{rigidity} or \code{rrate}) tagging each value's calls.
 }
 \description{
-Fit once (rtiger: the joint EM; nnil: the per-sample emission means, or nothing
-when \code{fit_means = FALSE}), then decode across \code{values}, fanning the independent
-decodes over \code{threads}. Results are exact at \code{ref} and a close approximation for
-other values (the emission is nearly parameter-invariant), at a fraction of a
-cold per-value refit.
+Fit the emission once (rtiger: the joint EM; nnil: per-sample means, or nothing
+when \code{fit_means = FALSE}) and sweep \code{values}, fanning the decodes over
+\code{threads}. \code{refit} controls the accuracy/speed trade (see details).
 }
