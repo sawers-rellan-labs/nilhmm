@@ -81,6 +81,12 @@ interpolate_genotype <- function(geno, obs, target,
   if (!identical(order(target$chr, target$cm), seq_len(nrow(target))))
     stop("interpolate_genotype(): `target` must be sorted by (chr, cm).")
 
+  # Empty target grid -> a 0-row matrix with geno's columns (rbind of no blocks
+  # would be NULL and break the colnames<- assignment below).
+  if (nrow(target) == 0L)
+    return(matrix(numeric(0), nrow = 0L, ncol = ncol(geno),
+                  dimnames = list(NULL, colnames(geno))))
+
   # Split by chr, interpolate each chr independently (no cross-chr bleed), rbind.
   chrs <- unique(target$chr)
   blocks <- vector("list", length(chrs))

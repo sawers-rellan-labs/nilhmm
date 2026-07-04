@@ -15,6 +15,15 @@ test_that("concordant fill: a single observed state fills every target (all mode
   }
 })
 
+test_that("empty target grid returns a 0-row matrix with geno's columns", {
+  obs <- data.frame(chr = 1L, cm = c(0, 1))
+  geno <- matrix(c(0, 2, 1, 1), nrow = 2, dimnames = list(NULL, c("S1", "S2")))
+  target <- data.frame(chr = integer(0), cm = numeric(0))
+  out <- interpolate_genotype(geno, obs, target, "continuous")
+  expect_equal(dim(out), c(0L, 2L))
+  expect_identical(colnames(out), c("S1", "S2"))
+})
+
 test_that("continuous ramp matches hand-computed values; step/round at midpoint", {
   obs <- data.frame(chr = 1L, cm = c(0, 1))
   geno <- matrix(c(0, 2), nrow = 2, dimnames = list(NULL, "S1"))
