@@ -81,17 +81,17 @@ BEGIN_RCPP
 END_RCPP
 }
 // lb_viterbi_cpp
-IntegerVector lb_viterbi_cpp(NumericVector log_init, NumericMatrix log_emit, IntegerVector pos, double recombdist, bool drp);
-RcppExport SEXP _nilHMM_lb_viterbi_cpp(SEXP log_initSEXP, SEXP log_emitSEXP, SEXP posSEXP, SEXP recombdistSEXP, SEXP drpSEXP) {
+IntegerVector lb_viterbi_cpp(NumericVector log_init, NumericMatrix log_emit, NumericVector tpos, double recombdist, bool drp);
+RcppExport SEXP _nilHMM_lb_viterbi_cpp(SEXP log_initSEXP, SEXP log_emitSEXP, SEXP tposSEXP, SEXP recombdistSEXP, SEXP drpSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type log_init(log_initSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type log_emit(log_emitSEXP);
-    Rcpp::traits::input_parameter< IntegerVector >::type pos(posSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type tpos(tposSEXP);
     Rcpp::traits::input_parameter< double >::type recombdist(recombdistSEXP);
     Rcpp::traits::input_parameter< bool >::type drp(drpSEXP);
-    rcpp_result_gen = Rcpp::wrap(lb_viterbi_cpp(log_init, log_emit, pos, recombdist, drp));
+    rcpp_result_gen = Rcpp::wrap(lb_viterbi_cpp(log_init, log_emit, tpos, recombdist, drp));
     return rcpp_result_gen;
 END_RCPP
 }

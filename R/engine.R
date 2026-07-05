@@ -238,18 +238,26 @@ decode <- function(model, obs) {
 #' @param obs_weights `binhmm` caller only, `joint_clust = TRUE` only: if `TRUE`,
 #'   weight the (gmm) clustering fit by each bin's informative-variant count
 #'   (weights the influence, not the alt-freq value).
-#' @param genotypeerr,recombdist,drp `lbimpute` caller only (Fragoso et al. 2014):
-#'   `genotypeerr` is the coverage-independent genotyping-error rate (LB-Impute
-#'   `genotypeerr`, default 0.05) that bounds every emission to
+#' @param genotypeerr,recombdist,drp,unit `lbimpute` caller only (Fragoso et al.
+#'   2014): `genotypeerr` is the coverage-independent genotyping-error rate
+#'   (LB-Impute `genotypeerr`, default 0.05) that bounds every emission to
 #'   `[genotypeerr, 1 - genotypeerr]`; `err` doubles as LB-Impute's per-read
 #'   `readerr` (its default is 0.05, higher than the shared `err = 0.01`).
-#'   `recombdist` is the bp distance over which the recombination probability
-#'   equalizes (LB-Impute `recombdist`, default 1e7 = ~50 cM in maize); larger
-#'   values mean stiffer paths. `drp` (LB-Impute `-dr`): when `TRUE`, a
-#'   homozygous->homozygous switch is priced as a single recombination rather
-#'   than a double event (use for inbred / RIL populations). For `lbimpute`,
-#'   `design`/`f_1,f_2` only seed the start distribution (flat if absent) and
-#'   zero-coverage markers are kept so the distance transition sees true spacing.
+#'   `unit` chooses the coordinate the transition decays over: `"bp"` (default,
+#'   the faithful LB-Impute model -- a uniform genome-wide recombination rate
+#'   over physical distance) or `"cm"` (map-aware -- uses a `cm` column of genetic
+#'   positions per marker, so the local recombination rate, e.g. maize
+#'   centromeric suppression, is captured). Output coordinates are always bp
+#'   (`pos`); cM only feeds the transition. `recombdist` is the coordinate
+#'   distance over which the recombination probability equalizes (LB-Impute
+#'   `recombdist`); it shares units with the coordinate, so its default is
+#'   unit-aware (`1e7` bp = ~50 cM in maize, or `50` cM) and larger values mean
+#'   stiffer paths -- a validation layer warns on a bp/cM `recombdist` mismatch.
+#'   `drp` (LB-Impute `-dr`): when `TRUE`, a homozygous->homozygous switch is
+#'   priced as a single recombination rather than a double event (use for inbred
+#'   / RIL populations). For `lbimpute`, `design`/`f_1,f_2` only seed the start
+#'   distribution (flat if absent) and zero-coverage markers are kept so the
+#'   transition sees true marker spacing.
 #' @param germ,gert,p,mr,nir Genotype-error rates for the `gt` (categorical)
 #'   emission (Holland's nNIL model): `germ` error on true homozygotes, `gert` on
 #'   true heterozygotes, `p` fraction of hom errors called het, `mr` missing rate,
@@ -289,7 +297,8 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
                         bin_size = 1e6, cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
                         joint_clust = FALSE, obs_weights = FALSE,
                         atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L,
-                        genotypeerr = 0.05, recombdist = 1e7, drp = FALSE,
+                        genotypeerr = 0.05, recombdist = NULL, drp = FALSE,
+                        unit = c("bp", "cm"),
                         germ = 0.05, gert = 0.10, p = 0.5, mr = 0.10, nir = 0.01) {
   caller <- match.arg(caller)
   has_counts <- all(c("n_ref", "n_alt") %in% names(data))
@@ -381,11 +390,52 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
   # single time-homogeneous matrix the count/gt callers share. `design`/`f_1,f_2`
   # only seed the start distribution (LB-Impute has no state-frequency prior in
   # its transition); absent, the start is flat. Zero-coverage markers are kept
-  # (flat emission) so the distance transition sees true physical marker spacing.
+  # (flat emission) so the distance transition sees true marker spacing.
+  #
+  # The transition decays over a coordinate: physical bp (`unit = "bp"`, the
+  # faithful LB-Impute model, a uniform genome-wide recombination rate) or
+  # genetic cM (`unit = "cm"`, map-aware, so local recombination rate -- e.g.
+  # maize centromeric suppression -- is captured). Output coordinates are always
+  # bp (`pos`); cM only feeds the transition. `recombdist` and the coordinate
+  # must share units, so its default is unit-aware and a validation layer warns
+  # on the dangerous unit/`recombdist` mismatches (see the design discussion).
   if (caller == "lbimpute") {
+    unit <- match.arg(unit)
     if (!has_counts)
       stop("call_states(): caller = 'lbimpute' needs (n_ref, n_alt) read counts")
+
+    # Transition coordinate: bp `pos` (default) or cM `cm`. Output stays bp.
+    tcol <- if (unit == "cm") "cm" else "pos"
+    if (unit == "cm" && !("cm" %in% names(data)))
+      stop("call_states(): caller = 'lbimpute' with unit = 'cm' needs a `cm` ",
+           "column of genetic (map) positions per marker")
+    tvals <- data[[tcol]]
+    if (anyNA(tvals))
+      stop("call_states(): `", tcol, "` (lbimpute transition coordinate) contains NA")
+
+    # Value-based checks (not storage type -- R literals default to double, so an
+    # is.integer test would misread the natural `c(1e6, 2e6)` bp input as cM).
+    if (unit == "bp" && any(tvals != floor(tvals)))
+      stop("call_states(): bp positions must be whole numbers ",
+           "(fractional values look like cM -- did you mean unit = 'cm'?)")
+
+    # Unit-aware recombdist default; then warn on the mismatch that silently
+    # ruins the calls (cM coords with a bp-sized recombdist collapse the whole
+    # chromosome to one segment; bp coords with a cM-sized recombdist over-split).
+    if (is.null(recombdist)) recombdist <- if (unit == "cm") 50 else 1e7
     if (recombdist <= 0) stop("call_states(): `recombdist` must be > 0")
+    if (unit == "cm" && recombdist > 1000)
+      warning("call_states(): unit = 'cm' but recombdist = ", recombdist,
+              " looks bp-sized; cM `recombdist` is typically ~50. ",
+              "The transition will barely relax and the path may collapse to one segment.")
+    if (unit == "bp" && recombdist < 1000)
+      warning("call_states(): unit = 'bp' but recombdist = ", recombdist,
+              " looks cM-sized; bp `recombdist` is typically ~1e7. ",
+              "The transition will over-relax and the path may over-fragment.")
+    if (unit == "cm" && max(tvals) > 1000 && all(tvals == floor(tvals)))
+      warning("call_states(): unit = 'cm' but the `cm` values are all whole and ",
+              "exceed 1000 -- they look like bp. Check the coordinate units.")
+
     log_init <- if (!is.null(design)) {
                   pr <- design_priors(design); log(c(1 - pr$f_1 - pr$f_2, pr$f_1, pr$f_2))
                 } else if (!is.null(f_1) && !is.null(f_2)) {
@@ -393,7 +443,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
                   log(c(1 - f_1 - f_2, f_1, f_2))
                 } else log(rep(1 / 3, 3))          # flat start (LB-Impute default)
     return(.lbimpute_states(data, err, genotypeerr, recombdist, drp, log_init,
-                            source, donor, has_donor, threads))
+                            source, donor, has_donor, tcol, threads))
   }
 
   # ATLAS caller (R/atlas.R): GOOGA-style per-gene ancestry from competitive-

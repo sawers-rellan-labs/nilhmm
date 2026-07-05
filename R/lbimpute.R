@@ -13,17 +13,18 @@
 # matrix the count/gt callers share.
 
 # Per (sample, chromosome) decode. `data` has name, chr, pos, n_ref, n_alt
-# (+ optional donor). Returns per-marker state rows (source, donor, name, chr,
-# pos, state) for to_segments().
+# (+ optional donor, + `tcol` for the transition coordinate). Output coordinates
+# are always bp (`pos`); the transition decays over `tcol` (bp `pos` or cM `cm`).
+# Returns per-marker state rows (source, donor, name, chr, pos, state).
 .lbimpute_states <- function(data, err, errg, recombdist, drp, log_init,
-                             source, donor, has_donor, threads = 1L) {
+                             source, donor, has_donor, tcol = "pos", threads = 1L) {
   by_name <- split(data, data$name, drop = TRUE)
 
   one_sample <- function(nm) {
     dn <- by_name[[nm]]
     donor_nm <- if (has_donor) dn$donor[1] else donor
     do.call(rbind, lapply(split(dn, dn$chr, drop = TRUE), function(dc) {
-      dc <- dc[order(dc$pos), , drop = FALSE]
+      dc <- dc[order(dc$pos), , drop = FALSE]           # order by bp; the map (cm) is monotonic with it
       nref <- as.integer(dc$n_ref); nalt <- as.integer(dc$n_alt)
       # memoize the emission over DISTINCT (n_ref, n_alt) pairs, index back (the
       # count-emission trick in emissions.R): read depths repeat heavily.
@@ -32,7 +33,8 @@
       u    <- unique(key)
       em_u <- lb_emission_loglik_cpp(as.integer(u %/% base), as.integer(u %% base), err, errg)
       em   <- em_u[match(key, u), , drop = FALSE]
-      path <- lb_viterbi_cpp(log_init, em, as.integer(dc$pos), recombdist, drp)
+      tpos <- as.numeric(dc[[tcol]])                    # transition coordinate (bp or cM)
+      path <- lb_viterbi_cpp(log_init, em, tpos, recombdist, drp)
       data.frame(source = source, donor = donor_nm, name = nm,
                  chr = as.integer(dc$chr[1]), pos = as.integer(dc$pos),
                  state = as.integer(path), stringsAsFactors = FALSE)

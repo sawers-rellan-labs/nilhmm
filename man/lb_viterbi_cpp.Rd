@@ -4,17 +4,20 @@
 \alias{lb_viterbi_cpp}
 \title{LB-Impute distance-aware full-chromosome Viterbi}
 \usage{
-lb_viterbi_cpp(log_init, log_emit, pos, recombdist, drp)
+lb_viterbi_cpp(log_init, log_emit, tpos, recombdist, drp)
 }
 \arguments{
 \item{log_init}{Length-3 vector of log initial-state probabilities (REF/HET/ALT).}
 
 \item{log_emit}{T x 3 matrix of log emissions (from \code{\link[=lb_emission_loglik_cpp]{lb_emission_loglik_cpp()}}).}
 
-\item{pos}{Integer length-T marker positions in bp (sorted ascending).}
+\item{tpos}{Numeric length-T transition coordinate per marker, non-decreasing.
+The genetic (cM) or physical (bp) coordinate the transition decays over; the
+arithmetic is unit-agnostic, so \code{tpos} and \code{recombdist} must share units.}
 
-\item{recombdist}{Distance in bp over which recombination probability
-equalizes (LB-Impute \code{recombdist}, default 1e7).}
+\item{recombdist}{Coordinate distance (same units as \code{tpos}) over which the
+recombination probability equalizes (LB-Impute \code{recombdist}; 1e7 bp, or
+~50 cM).}
 
 \item{drp}{If \code{TRUE}, a homozygous->homozygous switch is priced as a single
 recombination rather than a double event.}

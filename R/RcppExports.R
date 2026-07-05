@@ -110,15 +110,18 @@ lb_emission_loglik_cpp <- function(nref, nalt, err, errg) {
 #'
 #' @param log_init Length-3 vector of log initial-state probabilities (REF/HET/ALT).
 #' @param log_emit T x 3 matrix of log emissions (from [lb_emission_loglik_cpp()]).
-#' @param pos Integer length-T marker positions in bp (sorted ascending).
-#' @param recombdist Distance in bp over which recombination probability
-#'   equalizes (LB-Impute `recombdist`, default 1e7).
+#' @param tpos Numeric length-T transition coordinate per marker, non-decreasing.
+#'   The genetic (cM) or physical (bp) coordinate the transition decays over; the
+#'   arithmetic is unit-agnostic, so `tpos` and `recombdist` must share units.
+#' @param recombdist Coordinate distance (same units as `tpos`) over which the
+#'   recombination probability equalizes (LB-Impute `recombdist`; 1e7 bp, or
+#'   ~50 cM).
 #' @param drp If `TRUE`, a homozygous->homozygous switch is priced as a single
 #'   recombination rather than a double event.
 #' @return Integer length-T most-likely state path (0 = REF, 1 = HET, 2 = ALT).
 #' @keywords internal
-lb_viterbi_cpp <- function(log_init, log_emit, pos, recombdist, drp) {
-    .Call(`_nilHMM_lb_viterbi_cpp`, log_init, log_emit, pos, recombdist, drp)
+lb_viterbi_cpp <- function(log_init, log_emit, tpos, recombdist, drp) {
+    .Call(`_nilHMM_lb_viterbi_cpp`, log_init, log_emit, tpos, recombdist, drp)
 }
 
 #' Pairwise marker relatedness matrix (r2 / MI / VI)

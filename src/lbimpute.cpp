@@ -77,20 +77,23 @@ NumericMatrix lb_emission_loglik_cpp(IntegerVector nref, IntegerVector nalt,
 //'
 //' @param log_init Length-3 vector of log initial-state probabilities (REF/HET/ALT).
 //' @param log_emit T x 3 matrix of log emissions (from [lb_emission_loglik_cpp()]).
-//' @param pos Integer length-T marker positions in bp (sorted ascending).
-//' @param recombdist Distance in bp over which recombination probability
-//'   equalizes (LB-Impute `recombdist`, default 1e7).
+//' @param tpos Numeric length-T transition coordinate per marker, non-decreasing.
+//'   The genetic (cM) or physical (bp) coordinate the transition decays over; the
+//'   arithmetic is unit-agnostic, so `tpos` and `recombdist` must share units.
+//' @param recombdist Coordinate distance (same units as `tpos`) over which the
+//'   recombination probability equalizes (LB-Impute `recombdist`; 1e7 bp, or
+//'   ~50 cM).
 //' @param drp If `TRUE`, a homozygous->homozygous switch is priced as a single
 //'   recombination rather than a double event.
 //' @return Integer length-T most-likely state path (0 = REF, 1 = HET, 2 = ALT).
 //' @keywords internal
 // [[Rcpp::export]]
 IntegerVector lb_viterbi_cpp(NumericVector log_init, NumericMatrix log_emit,
-                             IntegerVector pos, double recombdist, bool drp) {
+                             NumericVector tpos, double recombdist, bool drp) {
   const int T = log_emit.nrow();
   if (log_emit.ncol() != 3) stop("lb_viterbi_cpp: log_emit must be T x 3");
   if (log_init.size() != 3) stop("lb_viterbi_cpp: log_init must have length 3");
-  if (pos.size() != T) stop("lb_viterbi_cpp: length(pos) must equal nrow(log_emit)");
+  if (tpos.size() != T) stop("lb_viterbi_cpp: length(tpos) must equal nrow(log_emit)");
   if (recombdist <= 0.0) stop("lb_viterbi_cpp: recombdist must be > 0");
 
   IntegerVector path(T);
@@ -103,8 +106,8 @@ IntegerVector lb_viterbi_cpp(NumericVector log_init, NumericMatrix log_emit,
   // per-edge log transition, rebuilt from the marker gap (0 = REF, 1 = HET, 2 = ALT).
   double lt[3][3];
   for (int t = 1; t < T; ++t) {
-    double d = (double)pos[t] - (double)pos[t - 1];
-    if (d < 0) stop("lb_viterbi_cpp: `pos` must be sorted ascending");
+    double d = tpos[t] - tpos[t - 1];
+    if (d < 0) stop("lb_viterbi_cpp: `tpos` must be non-decreasing");
     const double e  = std::exp(-d / recombdist);
     const double ps = 0.5 * (1.0 + e);   // stay
     const double pr = 0.5 * (1.0 - e);   // single recombination

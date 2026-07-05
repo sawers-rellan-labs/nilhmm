@@ -59,8 +59,14 @@ port of LB-Impute: it keeps LB-Impute's coverage-aware emission and
 distance-dependent transition (the `-dr` double-recomb penalty is `drp`) but
 decodes with the engine's full-chromosome Viterbi rather than LB-Impute's
 windowed forward/reverse consensus (the optimal path that window approximates).
-`write_vcf_impute()` (in `io.R`) emits LB-Impute's imputed-VCF deliverable from
-the per-marker states — optional and decoupled from the engine.
+The transition decays over a coordinate chosen by `unit`: `"bp"` (faithful,
+uniform genome-wide rate) or `"cm"` (map-aware — pass a `cm` column of genetic
+positions so local recombination rate is captured; the C++ `lb_viterbi_cpp` takes
+a numeric `tpos` and is unit-agnostic). `recombdist` shares the coordinate's units
+(unit-aware default 1e7 bp / 50 cM) and a validation layer warns on unit/`recombdist`
+mismatches. Output coordinates are always bp. `write_vcf_impute()` (in `io.R`)
+emits LB-Impute's imputed-VCF deliverable from the per-marker states — optional
+and decoupled from the engine.
 
 ### Downstream utilities (not callers)
 

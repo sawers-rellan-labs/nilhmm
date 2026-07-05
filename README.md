@@ -98,11 +98,16 @@ in emission, duration, and the input they expect.
 - `lbimpute` — a native port of LB-Impute (Fragoso et al. 2014) for very
   low-coverage (<1×) biallelic populations: a coverage-aware emission (bounded by
   `genotypeerr` so one artifactual marker can't dominate) and a distance-dependent
-  transition (recombination scales with the bp gap over `recombdist`; the
+  transition (recombination scales with the marker gap over `recombdist`; the
   homozygous↔homozygous switch carries a double-recombination penalty unless
-  `drp = TRUE`, for RILs). Decoded with the engine's full-chromosome Viterbi —
-  the optimal path that LB-Impute's windowed forward/reverse consensus
-  approximates. Emit an imputed VCF from the result with `write_vcf_impute()`.
+  `drp = TRUE`, for RILs). The transition decays over physical bp (`unit = "bp"`,
+  the faithful uniform-rate model) or, with a `cm` column of map positions,
+  genetic distance (`unit = "cm"`) so the *local* recombination rate — e.g. maize
+  centromeric suppression — is captured; output coordinates stay bp either way,
+  and `recombdist`'s default is unit-aware (`1e7` bp / `50` cM). Decoded with the
+  engine's full-chromosome Viterbi — the optimal path that LB-Impute's windowed
+  forward/reverse consensus approximates. Emit an imputed VCF from the result
+  with `write_vcf_impute()`.
 
 ## Related building blocks
 

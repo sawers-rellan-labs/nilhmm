@@ -32,8 +32,9 @@ call_states(
   atlas_het = 0.25,
   atlas_min_reads = 5L,
   genotypeerr = 0.05,
-  recombdist = 1e+07,
+  recombdist = NULL,
   drp = FALSE,
+  unit = c("bp", "cm"),
   germ = 0.05,
   gert = 0.1,
   p = 0.5,
@@ -127,18 +128,26 @@ a parent's fraction >= \code{atlas_thresh} (0.95), HET when both parents >=
 per gene (else missing). For \code{atlas}, \code{n_ref}/\code{n_alt} are the recurrent/donor
 competitive-alignment read counts (ambiguous excluded upstream).}
 
-\item{genotypeerr, recombdist, drp}{\code{lbimpute} caller only (Fragoso et al. 2014):
-\code{genotypeerr} is the coverage-independent genotyping-error rate (LB-Impute
-\code{genotypeerr}, default 0.05) that bounds every emission to
+\item{genotypeerr, recombdist, drp, unit}{\code{lbimpute} caller only (Fragoso et al.
+2014): \code{genotypeerr} is the coverage-independent genotyping-error rate
+(LB-Impute \code{genotypeerr}, default 0.05) that bounds every emission to
 \verb{[genotypeerr, 1 - genotypeerr]}; \code{err} doubles as LB-Impute's per-read
 \code{readerr} (its default is 0.05, higher than the shared \code{err = 0.01}).
-\code{recombdist} is the bp distance over which the recombination probability
-equalizes (LB-Impute \code{recombdist}, default 1e7 = ~50 cM in maize); larger
-values mean stiffer paths. \code{drp} (LB-Impute \code{-dr}): when \code{TRUE}, a
-homozygous->homozygous switch is priced as a single recombination rather
-than a double event (use for inbred / RIL populations). For \code{lbimpute},
-\code{design}/\verb{f_1,f_2} only seed the start distribution (flat if absent) and
-zero-coverage markers are kept so the distance transition sees true spacing.}
+\code{unit} chooses the coordinate the transition decays over: \code{"bp"} (default,
+the faithful LB-Impute model -- a uniform genome-wide recombination rate
+over physical distance) or \code{"cm"} (map-aware -- uses a \code{cm} column of genetic
+positions per marker, so the local recombination rate, e.g. maize
+centromeric suppression, is captured). Output coordinates are always bp
+(\code{pos}); cM only feeds the transition. \code{recombdist} is the coordinate
+distance over which the recombination probability equalizes (LB-Impute
+\code{recombdist}); it shares units with the coordinate, so its default is
+unit-aware (\code{1e7} bp = ~50 cM in maize, or \code{50} cM) and larger values mean
+stiffer paths -- a validation layer warns on a bp/cM \code{recombdist} mismatch.
+\code{drp} (LB-Impute \code{-dr}): when \code{TRUE}, a homozygous->homozygous switch is
+priced as a single recombination rather than a double event (use for inbred
+/ RIL populations). For \code{lbimpute}, \code{design}/\verb{f_1,f_2} only seed the start
+distribution (flat if absent) and zero-coverage markers are kept so the
+transition sees true marker spacing.}
 
 \item{germ, gert, p, mr, nir}{Genotype-error rates for the \code{gt} (categorical)
 emission (Holland's nNIL model): \code{germ} error on true homozygotes, \code{gert} on

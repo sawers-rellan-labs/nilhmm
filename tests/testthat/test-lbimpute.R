@@ -31,8 +31,8 @@ test_that("lb_viterbi recovers a REF -> ALT -> REF block", {
 
 test_that("lb_viterbi errors on unsorted positions and bad dims", {
   em <- lb_emission_loglik_cpp(c(5L, 5L), c(0L, 0L), 0.05, 0.05)
-  expect_error(lb_viterbi_cpp(log(rep(1/3, 3)), em, c(2L, 1L), 1e7, FALSE), "sorted")
-  expect_error(lb_viterbi_cpp(log(rep(1/3, 3)), em, 1L, 1e7, FALSE), "length")
+  expect_error(lb_viterbi_cpp(log(rep(1/3, 3)), em, c(2, 1), 1e7, FALSE), "non-decreasing")
+  expect_error(lb_viterbi_cpp(log(rep(1/3, 3)), em, 1, 1e7, FALSE), "length")
 })
 
 test_that("call_ancestry(caller='lbimpute') returns the common segment schema", {
@@ -46,6 +46,61 @@ test_that("call_ancestry(caller='lbimpute') returns the common segment schema", 
   # a clean REF half then ALT half -> two segments
   expect_equal(nrow(seg), 2L)
   expect_equal(seg$state, c(0L, 2L))
+})
+
+test_that("lbimpute cM (map-aware) transition: bp-equivalent map reproduces bp calls", {
+  # A perfectly uniform 5 cM/Mb map makes cM a linear rescale of bp, so with a
+  # matched recombdist (1e7 bp <-> 50 cM) the cM path must equal the bp path.
+  pos <- seq_len(40L) * 1e5L
+  toy <- data.frame(name = "NIL1", chr = 1L, pos = pos, cm = pos * 5e-6,
+                    n_ref = c(rep(10L, 20), rep(0L, 20)),
+                    n_alt = c(rep(0L, 20), rep(10L, 20)))
+  bp <- call_ancestry(toy, caller = "lbimpute", recombdist = 1e7, unit = "bp")
+  cm <- call_ancestry(toy, caller = "lbimpute", recombdist = 50, unit = "cm")
+  expect_equal(bp$state, cm$state)
+  expect_equal(bp$start_bp, cm$start_bp)   # output stays in bp
+})
+
+test_that("lbimpute cM path differs where the map is non-uniform (centromere)", {
+  # Two markers physically far apart but at the SAME cM (recombination-suppressed)
+  # should NOT be allowed to switch under the cM transition (d_cm = 0 forbids it),
+  # whereas the bp transition sees a large gap and permits the switch.
+  pos <- as.integer(c(1e6, 5e7, 9e7))               # wide bp spacing
+  cm  <- c(10, 10, 10)                              # flat cM: no recombination here
+  toy <- data.frame(name = "NIL1", chr = 1L, pos = pos, cm = cm,
+                    n_ref = c(10L, 0L, 10L), n_alt = c(0L, 10L, 0L))
+  cmcall <- call_ancestry(toy, caller = "lbimpute", unit = "cm", recombdist = 50)
+  # zero cM gap -> transition forbidden -> single homozygous block, no ALT dip
+  expect_equal(nrow(cmcall), 1L)
+  expect_false(2L %in% cmcall$state)
+})
+
+test_that("lbimpute unit validation errors and warns", {
+  base <- data.frame(name = "NIL1", chr = 1L, pos = c(1e5, 2e5),
+                     n_ref = c(5L, 5L), n_alt = c(0L, 0L))
+  # unit = 'cm' without a cm column
+  expect_error(call_ancestry(base, caller = "lbimpute", unit = "cm"), "needs a `cm`")
+  # fractional bp -> looks like cM
+  frac <- transform(base, pos = c(1.5, 2.5))
+  expect_error(call_ancestry(frac, caller = "lbimpute", unit = "bp"), "whole numbers")
+  # bp coords with a cM-sized recombdist -> over-fragment warning
+  expect_warning(call_ancestry(base, caller = "lbimpute", unit = "bp", recombdist = 50),
+                 "over-relax")
+  # cM coords with a bp-sized recombdist -> collapse warning
+  cmdat <- data.frame(name = "NIL1", chr = 1L, pos = c(1e5, 2e5), cm = c(0.5, 1.5),
+                      n_ref = c(5L, 5L), n_alt = c(0L, 0L))
+  expect_warning(call_ancestry(cmdat, caller = "lbimpute", unit = "cm", recombdist = 1e7),
+                 "bp-sized")
+})
+
+test_that("lbimpute default recombdist is unit-aware", {
+  # cM default (50) must NOT trip the bp-sized warning; bp default (1e7) must not warn.
+  cmdat <- data.frame(name = "NIL1", chr = 1L, pos = c(1e5, 2e5), cm = c(0.5, 1.5),
+                      n_ref = c(5L, 5L), n_alt = c(0L, 0L))
+  expect_no_warning(call_ancestry(cmdat, caller = "lbimpute", unit = "cm"))
+  bpdat <- data.frame(name = "NIL1", chr = 1L, pos = c(1e5, 2e5),
+                      n_ref = c(5L, 5L), n_alt = c(0L, 0L))
+  expect_no_warning(call_ancestry(bpdat, caller = "lbimpute", unit = "bp"))
 })
 
 test_that("lbimpute works without a design (flat start) and honours donor column", {
