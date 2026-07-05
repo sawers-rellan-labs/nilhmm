@@ -52,8 +52,15 @@ Numeric states: **0 = REF** (recurrent hom, e.g. B73), **1 = HET**, **2 = ALT**
 | `rtiger` | `count` | rigidity | allelic read counts | RTIGER (Julia-free port) |
 | `binhmm` | anchored Gaussian on binned alt-freq | per-bin HMM | allelic read counts | "ancestry by bins" |
 | `atlas` | `gt` (GOOGA thresholds) | geometric | competitive-alignment RNA-seq counts | GOOGA |
+| `lbimpute` | coverage-aware (bounded by `genotypeerr`) | distance-based (double-recomb penalty) | very low-coverage (<1×) allelic read counts | LB-Impute (Fragoso 2014, native port) |
 
-See `README.md` for per-caller detail and `?call_ancestry`.
+See `README.md` for per-caller detail and `?call_ancestry`. `lbimpute` is a native
+port of LB-Impute: it keeps LB-Impute's coverage-aware emission and
+distance-dependent transition (the `-dr` double-recomb penalty is `drp`) but
+decodes with the engine's full-chromosome Viterbi rather than LB-Impute's
+windowed forward/reverse consensus (the optimal path that window approximates).
+`write_vcf_impute()` (in `io.R`) emits LB-Impute's imputed-VCF deliverable from
+the per-marker states — optional and decoupled from the engine.
 
 ### Downstream utilities (not callers)
 
@@ -78,13 +85,15 @@ Data-agnostic helpers for the companion `zealhmm` QTL-mapping pipeline; they tak
   `emissions.R` (`emission_count`/`emission_gt`); `duration.R` (`duration_*`);
   `presets_design.R` (`design_priors`, `cm_to_mb`) / `presets_regime.R`
   (`select_emission`); `io.R` (`read_counts`, `read_vcf_gt`); `calibrate.R`
-  (`calibrate_r`); `sweep.R` (`caller_sweep`); `rtiger.R`, `binhmm.R`, `atlas.R`;
+  (`calibrate_r`); `sweep.R` (`caller_sweep`); `rtiger.R`, `binhmm.R`, `atlas.R`,
+  `lbimpute.R`; `io.R` also holds `write_vcf_impute` (LB-Impute imputed-VCF output);
   `map.R` (`load_map`, stub); `interpolate_genotype.R` (genotype densification);
   `pairwise_distance.R` / `select_independent.R` (LD marker thinning);
   `plot.R`, `nilHMM-package.R`, `RcppExports.R`.
 - `src/` — Rcpp engine: `emission_count.cpp`, `forward_backward.cpp`, `viterbi.cpp`,
   `viterbi_batch.cpp`, `viterbi_batch_par.cpp` (RcppParallel/TBB), `segments.cpp`
-  (RLE), `rtiger.cpp`, `interpolate_genotype.cpp`, `fast_indep.cpp` (FastIndep port),
+  (RLE), `rtiger.cpp`, `lbimpute.cpp` (LB-Impute emission + distance-aware Viterbi),
+  `interpolate_genotype.cpp`, `fast_indep.cpp` (FastIndep port),
   `pairwise_distance.cpp` (r2/MI/VI), plus generated `RcppExports.cpp` and `Makevars`.
 - `design/` — **design of record**: `architecture.md`, `Implementation.md`,
   `REFACTOR_R_PACKAGE.md`, `RTIGER_PORT.md`, `VALIDATION.md`, `package_structure.md`,

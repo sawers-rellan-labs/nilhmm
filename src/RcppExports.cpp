@@ -66,6 +66,35 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// lb_emission_loglik_cpp
+NumericMatrix lb_emission_loglik_cpp(IntegerVector nref, IntegerVector nalt, double err, double errg);
+RcppExport SEXP _nilHMM_lb_emission_loglik_cpp(SEXP nrefSEXP, SEXP naltSEXP, SEXP errSEXP, SEXP errgSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector >::type nref(nrefSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type nalt(naltSEXP);
+    Rcpp::traits::input_parameter< double >::type err(errSEXP);
+    Rcpp::traits::input_parameter< double >::type errg(errgSEXP);
+    rcpp_result_gen = Rcpp::wrap(lb_emission_loglik_cpp(nref, nalt, err, errg));
+    return rcpp_result_gen;
+END_RCPP
+}
+// lb_viterbi_cpp
+IntegerVector lb_viterbi_cpp(NumericVector log_init, NumericMatrix log_emit, IntegerVector pos, double recombdist, bool drp);
+RcppExport SEXP _nilHMM_lb_viterbi_cpp(SEXP log_initSEXP, SEXP log_emitSEXP, SEXP posSEXP, SEXP recombdistSEXP, SEXP drpSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type log_init(log_initSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type log_emit(log_emitSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type pos(posSEXP);
+    Rcpp::traits::input_parameter< double >::type recombdist(recombdistSEXP);
+    Rcpp::traits::input_parameter< bool >::type drp(drpSEXP);
+    rcpp_result_gen = Rcpp::wrap(lb_viterbi_cpp(log_init, log_emit, pos, recombdist, drp));
+    return rcpp_result_gen;
+END_RCPP
+}
 // pairwise_distance_cpp
 NumericMatrix pairwise_distance_cpp(NumericMatrix geno, int method, int base);
 RcppExport SEXP _nilHMM_pairwise_distance_cpp(SEXP genoSEXP, SEXP methodSEXP, SEXP baseSEXP) {
@@ -287,6 +316,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_fast_indep_cpp", (DL_FUNC) &_nilHMM_fast_indep_cpp, 5},
     {"_nilHMM_forward_backward_cpp", (DL_FUNC) &_nilHMM_forward_backward_cpp, 3},
     {"_nilHMM_interp_geno_cpp", (DL_FUNC) &_nilHMM_interp_geno_cpp, 4},
+    {"_nilHMM_lb_emission_loglik_cpp", (DL_FUNC) &_nilHMM_lb_emission_loglik_cpp, 4},
+    {"_nilHMM_lb_viterbi_cpp", (DL_FUNC) &_nilHMM_lb_viterbi_cpp, 5},
     {"_nilHMM_pairwise_distance_cpp", (DL_FUNC) &_nilHMM_pairwise_distance_cpp, 3},
     {"_nilHMM_rtiger_getlogpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_getlogpsi_cpp, 4},
     {"_nilHMM_rtiger_productpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_productpsi_cpp, 2},

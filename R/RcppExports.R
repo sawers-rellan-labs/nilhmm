@@ -74,6 +74,53 @@ interp_geno_cpp <- function(obs_cm, G, target_cm, mode) {
     .Call(`_nilHMM_interp_geno_cpp`, obs_cm, G, target_cm, mode)
 }
 
+#' LB-Impute coverage-aware emission (log-space, REF/HET/ALT)
+#'
+#' Per-marker emission from allelic read depths, the model of
+#' `ImputeOffspring.getprobabilities2`. Raw state likelihoods are
+#' \eqn{E_{REF}\propto(1-err)^{n_{ref}}err^{n_{alt}}},
+#' \eqn{E_{ALT}\propto(1-err)^{n_{alt}}err^{n_{ref}}},
+#' \eqn{E_{HET}\propto 0.5^{n_{ref}+n_{alt}}}; each is divided by the per-marker
+#' maximum, scaled by \eqn{1-2\,err_g} and offset by \eqn{err_g}, bounding every
+#' emission to \eqn{[err_g,\,1-err_g]} so a single artifactual marker cannot
+#' dominate the path. A zero-coverage marker emits flat (all states equal).
+#'
+#' @param nref,nalt Integer per-marker reference / alternate read counts.
+#' @param err Per-read sequencing-error probability (LB-Impute `readerr`).
+#' @param errg Coverage-independent genotyping-error probability (LB-Impute
+#'   `genotypeerr`); sets the emission floor/ceiling.
+#' @return A T x 3 matrix of log emission probabilities (columns REF/HET/ALT).
+#' @keywords internal
+lb_emission_loglik_cpp <- function(nref, nalt, err, errg) {
+    .Call(`_nilHMM_lb_emission_loglik_cpp`, nref, nalt, err, errg)
+}
+
+#' LB-Impute distance-aware full-chromosome Viterbi
+#'
+#' Decodes the most-likely REF/HET/ALT path under LB-Impute's distance-dependent
+#' transition (`FindPath2`). Between markers a physical distance `d` bp apart,
+#' the stay probability is \eqn{p_s = 0.5(1 + e^{-d/recombdist})} and the single
+#' recombination probability is \eqn{p_r = 0.5(1 - e^{-d/recombdist})}. Homozygous
+#' <-> heterozygous transitions cost one recombination (\eqn{p_r}); homozygous
+#' -> the OTHER homozygous state costs two (\eqn{p_r^2}) unless `drp = TRUE`
+#' (LB-Impute `-dr`), which prices it as a single event (for inbred / RIL
+#' populations). Transition weights are LB-Impute's exact (un-normalized) model;
+#' the Viterbi argmax over full-chromosome paths supersedes the original's
+#' windowed best-path + forward/reverse consensus.
+#'
+#' @param log_init Length-3 vector of log initial-state probabilities (REF/HET/ALT).
+#' @param log_emit T x 3 matrix of log emissions (from [lb_emission_loglik_cpp()]).
+#' @param pos Integer length-T marker positions in bp (sorted ascending).
+#' @param recombdist Distance in bp over which recombination probability
+#'   equalizes (LB-Impute `recombdist`, default 1e7).
+#' @param drp If `TRUE`, a homozygous->homozygous switch is priced as a single
+#'   recombination rather than a double event.
+#' @return Integer length-T most-likely state path (0 = REF, 1 = HET, 2 = ALT).
+#' @keywords internal
+lb_viterbi_cpp <- function(log_init, log_emit, pos, recombdist, drp) {
+    .Call(`_nilHMM_lb_viterbi_cpp`, log_init, log_emit, pos, recombdist, drp)
+}
+
 #' Pairwise marker relatedness matrix (r2 / MI / VI)
 #'
 #' Build a symmetric markers x markers relatedness matrix from a

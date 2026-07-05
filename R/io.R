@@ -118,6 +118,77 @@ read_vcf_gt <- function(path, samples = NULL) {
                stringsAsFactors = FALSE)))
 }
 
+#' Write imputed per-marker genotypes as a VCF (LB-Impute-style deliverable)
+#'
+#' Optional, decoupled from the engine: turns a per-marker state table (from
+#' [call_states()], typically `caller = "lbimpute"`) into an imputed biallelic
+#' VCF -- LB-Impute's native output form (missing filled, false homozygotes
+#' corrected), as opposed to nilHMM's default segment schema. State -> genotype is
+#' `0 -> 0/0` (REF-hom), `1 -> 0/1` (het), `2 -> 1/1` (ALT-hom); any marker x
+#' sample absent from `states` is written `./.`. This never re-reads the input
+#' VCF; supply per-marker `REF`/`ALT` alleles via `markers` if you want the real
+#' alleles rather than the `N` placeholder.
+#'
+#' @param states A per-marker state table with columns `name, chr, pos, state`
+#'   (0/1/2), e.g. from `call_states(..., caller = "lbimpute")`.
+#' @param path Output `.vcf` path.
+#' @param markers Optional data.frame keyed by `chr, pos` carrying `ref`, `alt`
+#'   (and optional `id`) alleles to emit; when `NULL`, REF/ALT default to `N`.
+#' @param ref,alt Fallback single-character REF/ALT alleles when `markers` is
+#'   `NULL` (default `"N"`).
+#' @return `path`, invisibly.
+#' @examples
+#' st <- data.frame(name = c("NIL1", "NIL1", "NIL2", "NIL2"),
+#'                  chr = 1L, pos = c(1e5, 2e5, 1e5, 2e5),
+#'                  state = c(0L, 2L, 1L, 0L))
+#' write_vcf_impute(st, tempfile(fileext = ".vcf"))
+#' @export
+write_vcf_impute <- function(states, path, markers = NULL, ref = "N", alt = "N") {
+  need <- c("name", "chr", "pos", "state")
+  if (!all(need %in% names(states)))
+    stop("write_vcf_impute(): `states` needs columns ", paste(need, collapse = ", "))
+  st <- as.data.frame(states, stringsAsFactors = FALSE)
+  if (anyDuplicated(paste(st$name, st$chr, st$pos, sep = "\r")))
+    stop("write_vcf_impute(): duplicate (name, chr, pos) rows in `states`")
+  samples <- sort(unique(st$name))
+  mk <- unique(st[, c("chr", "pos")])
+  mk <- mk[order(mk$chr, mk$pos), , drop = FALSE]
+  M <- nrow(mk); S <- length(samples)
+
+  # marker x sample state grid (NA where a sample has no call at a marker)
+  mkey <- paste(mk$chr, mk$pos, sep = "\r")
+  grid <- matrix(NA_integer_, M, S, dimnames = list(NULL, samples))
+  ri <- match(paste(st$chr, st$pos, sep = "\r"), mkey)
+  ci <- match(st$name, samples)
+  grid[cbind(ri, ci)] <- as.integer(st$state)
+  gt <- c("0/0", "0/1", "1/1")[grid + 1L]
+  gt[is.na(gt)] <- "./."
+  dim(gt) <- c(M, S)
+
+  # per-marker REF/ALT (from `markers` if supplied, else the scalar fallback)
+  ref_v <- rep(ref, M); alt_v <- rep(alt, M); id_v <- rep(".", M)
+  if (!is.null(markers)) {
+    if (!all(c("chr", "pos", "ref", "alt") %in% names(markers)))
+      stop("write_vcf_impute(): `markers` needs columns chr, pos, ref, alt")
+    j <- match(mkey, paste(markers$chr, markers$pos, sep = "\r"))
+    ref_v <- ifelse(is.na(j), ref, markers$ref[j])
+    alt_v <- ifelse(is.na(j), alt, markers$alt[j])
+    if ("id" %in% names(markers)) id_v <- ifelse(is.na(j), ".", markers$id[j])
+  }
+
+  con <- file(path, "wt"); on.exit(close(con))
+  writeLines(c(
+    "##fileformat=VCFv4.2",
+    "##source=nilHMM::write_vcf_impute",
+    "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Imputed genotype\">",
+    paste(c("#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO",
+            "FORMAT", samples), collapse = "\t")), con)
+  body <- paste(mk$chr, mk$pos, id_v, ref_v, alt_v, ".", ".", ".", "GT",
+                apply(gt, 1L, paste, collapse = "\t"), sep = "\t")
+  writeLines(body, con)
+  invisible(path)
+}
+
 #' Write segment calls in the common schema
 #'
 #' Columns: `source, donor, name, chr, start_bp, end_bp, state` (0/1/2). `name`

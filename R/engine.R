@@ -185,7 +185,7 @@ decode <- function(model, obs) {
 #'   atlas paths) or a pre-called hard-genotype column `g` in `{0,1,2,3}` (from
 #'   [read_vcf_gt()]; auto-selects `caller = "nnil"`, `emission = "gt"`).
 #'   Optionally `donor`.
-#' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`.
+#' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`, `"lbimpute"`.
 #' @param design Breeding-design key for priors (e.g. `"BC2S2"`, `"BC2S3"`).
 #'   Required unless `f_1`/`f_2` are supplied.
 #' @param rrate Count/geometric callers (`nnil`, `atlas`): expected per-marker
@@ -238,6 +238,18 @@ decode <- function(model, obs) {
 #' @param obs_weights `binhmm` caller only, `joint_clust = TRUE` only: if `TRUE`,
 #'   weight the (gmm) clustering fit by each bin's informative-variant count
 #'   (weights the influence, not the alt-freq value).
+#' @param genotypeerr,recombdist,drp `lbimpute` caller only (Fragoso et al. 2014):
+#'   `genotypeerr` is the coverage-independent genotyping-error rate (LB-Impute
+#'   `genotypeerr`, default 0.05) that bounds every emission to
+#'   `[genotypeerr, 1 - genotypeerr]`; `err` doubles as LB-Impute's per-read
+#'   `readerr` (its default is 0.05, higher than the shared `err = 0.01`).
+#'   `recombdist` is the bp distance over which the recombination probability
+#'   equalizes (LB-Impute `recombdist`, default 1e7 = ~50 cM in maize); larger
+#'   values mean stiffer paths. `drp` (LB-Impute `-dr`): when `TRUE`, a
+#'   homozygous->homozygous switch is priced as a single recombination rather
+#'   than a double event (use for inbred / RIL populations). For `lbimpute`,
+#'   `design`/`f_1,f_2` only seed the start distribution (flat if absent) and
+#'   zero-coverage markers are kept so the distance transition sees true spacing.
 #' @param germ,gert,p,mr,nir Genotype-error rates for the `gt` (categorical)
 #'   emission (Holland's nNIL model): `germ` error on true homozygotes, `gert` on
 #'   true heterozygotes, `p` fraction of hom errors called het, `mr` missing rate,
@@ -266,7 +278,7 @@ decode <- function(model, obs) {
 #' to_segments(st)                       # or, in one step:
 #' call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #' @export
-call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
+call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute"),
                         design = NULL, rrate = 0.01, rigidity = NULL,
                         err = 0.01, conc = 20,
                         fit_means = FALSE, xrate = 0.01,
@@ -277,6 +289,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
                         bin_size = 1e6, cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
                         joint_clust = FALSE, obs_weights = FALSE,
                         atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L,
+                        genotypeerr = 0.05, recombdist = 1e7, drp = FALSE,
                         germ = 0.05, gert = 0.10, p = 0.5, mr = 0.10, nir = 0.01) {
   caller <- match.arg(caller)
   has_counts <- all(c("n_ref", "n_alt") %in% names(data))
@@ -310,7 +323,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
   # would trip the min_cov "no covered markers" error and mask a genuinely missing
   # `design`/`f_1`/`f_2`. Every caller but rtiger (which fits its own start freqs)
   # needs priors; each path re-resolves them below, this just fails fast up front.
-  if (caller != "rtiger" &&
+  if (!caller %in% c("rtiger", "lbimpute") &&
       is.null(design) && !(!is.null(f_1) && !is.null(f_2)))
     stop("call_states(): supply `design` or both `f_1` and `f_2`")
 
@@ -359,6 +372,28 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas"),
                           source, donor, has_donor,
                           joint_clust = joint_clust, obs_weights = obs_weights,
                           min_cov = min_cov))
+  }
+
+  # LB-Impute caller (R/lbimpute.R, src/lbimpute.cpp): a native port of
+  # Fragoso et al. 2014. Coverage-aware emission + distance-dependent transition
+  # (double-recomb penalty), decoded with a full-chromosome Viterbi. Routed
+  # separately because its transition is per-marker (distance-based), not the
+  # single time-homogeneous matrix the count/gt callers share. `design`/`f_1,f_2`
+  # only seed the start distribution (LB-Impute has no state-frequency prior in
+  # its transition); absent, the start is flat. Zero-coverage markers are kept
+  # (flat emission) so the distance transition sees true physical marker spacing.
+  if (caller == "lbimpute") {
+    if (!has_counts)
+      stop("call_states(): caller = 'lbimpute' needs (n_ref, n_alt) read counts")
+    if (recombdist <= 0) stop("call_states(): `recombdist` must be > 0")
+    log_init <- if (!is.null(design)) {
+                  pr <- design_priors(design); log(c(1 - pr$f_1 - pr$f_2, pr$f_1, pr$f_2))
+                } else if (!is.null(f_1) && !is.null(f_2)) {
+                  if (f_1 + f_2 >= 1) stop("call_states(): `f_1` + `f_2` must be < 1")
+                  log(c(1 - f_1 - f_2, f_1, f_2))
+                } else log(rep(1 / 3, 3))          # flat start (LB-Impute default)
+    return(.lbimpute_states(data, err, genotypeerr, recombdist, drp, log_init,
+                            source, donor, has_donor, threads))
   }
 
   # ATLAS caller (R/atlas.R): GOOGA-style per-gene ancestry from competitive-

@@ -15,7 +15,7 @@ engine** with two swappable axes:
 - **duration** — `geometric`, `rigidity` (a minimum-run-length prior), or `hsmm`.
 
 Those choices, plus a per-unit calling rule, express a family of named **callers**:
-`nnil`, `rtiger`, `binhmm`, and `atlas`. The package is **data-agnostic** — every
+`nnil`, `rtiger`, `binhmm`, `atlas`, and `lbimpute`. The package is **data-agnostic** — every
 function takes `(data, params)` and returns calls; pipeline scripts own file paths
 and sample lists. The whole API is one verb:
 
@@ -80,6 +80,7 @@ in emission, duration, and the input they expect.
 | **`rtiger`** | `count` (BetaBinomial) | rigidity (min run length) | allelic read counts | `r` (integer rigidity), `seed`, `threads` | [RTIGER](https://github.com/rfael0cm/RTIGER) (Julia-free port of [`faustovrz/RTIGER`](https://github.com/faustovrz/RTIGER)) |
 | **`binhmm`** | anchored Gaussian on binned alt-freq | per-bin HMM smooth | allelic read counts | `bin_size`, `cluster_method` | "Ancestry Analysis by bins" |
 | **`atlas`** | `gt` (categorical, GOOGA thresholds) | geometric | competitive-alignment recurrent/donor read counts (RNA-seq) | `atlas_thresh`, `atlas_het`, `atlas_min_reads` | GOOGA competitive alignment |
+| **`lbimpute`** | coverage-aware (LB-Impute) | distance-based (double-recomb penalty) | low-coverage allelic read counts (GBS / skim, <1×) | `err`, `genotypeerr`, `recombdist`, `drp` | [LB-Impute](https://github.com/dellaporta-laboratory/LB-Impute) (Fragoso et al. 2014) |
 
 - `nnil` — count caller pools single-read observations along a segment via a
   BetaBinomial emission (`err`, `conc`); `fit_means = TRUE` EM-fits the per-state
@@ -94,6 +95,14 @@ in emission, duration, and the input they expect.
   clustering backends available for reproduction.
 - `atlas` — a GOOGA-style caller for transcript/competitive-alignment data:
   recurrent vs donor read fractions thresholded into genotype calls, then smoothed.
+- `lbimpute` — a native port of LB-Impute (Fragoso et al. 2014) for very
+  low-coverage (<1×) biallelic populations: a coverage-aware emission (bounded by
+  `genotypeerr` so one artifactual marker can't dominate) and a distance-dependent
+  transition (recombination scales with the bp gap over `recombdist`; the
+  homozygous↔homozygous switch carries a double-recombination penalty unless
+  `drp = TRUE`, for RILs). Decoded with the engine's full-chromosome Viterbi —
+  the optimal path that LB-Impute's windowed forward/reverse consensus
+  approximates. Emit an imputed VCF from the result with `write_vcf_impute()`.
 
 ## Related building blocks
 
@@ -101,7 +110,7 @@ in emission, duration, and the input they expect.
 `emission_gt()`, `duration_geometric()`, `duration_rigidity()`,
 `duration_hsmm()`, `design_priors()`, `fit()`, `decode()` (engine internals);
 `calibrate_r()`, `select_emission()` (calibration); `plot_fragment_sizes()`,
-`write_common_schema()` (output). See `?call_ancestry` and the package
+`write_common_schema()`, `write_vcf_impute()` (output). See `?call_ancestry` and the package
 documentation for the full reference.
 
 ## Documentation & benchmarks

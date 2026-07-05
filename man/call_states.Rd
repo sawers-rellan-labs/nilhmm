@@ -6,7 +6,7 @@
 \usage{
 call_states(
   data,
-  caller = c("nnil", "rtiger", "binhmm", "atlas"),
+  caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute"),
   design = NULL,
   rrate = 0.01,
   rigidity = NULL,
@@ -31,6 +31,9 @@ call_states(
   atlas_thresh = 0.95,
   atlas_het = 0.25,
   atlas_min_reads = 5L,
+  genotypeerr = 0.05,
+  recombdist = 1e+07,
+  drp = FALSE,
   germ = 0.05,
   gert = 0.1,
   p = 0.5,
@@ -45,7 +48,7 @@ atlas paths) or a pre-called hard-genotype column \code{g} in \verb{\{0,1,2,3\}}
 \code{\link[=read_vcf_gt]{read_vcf_gt()}}; auto-selects \code{caller = "nnil"}, \code{emission = "gt"}).
 Optionally \code{donor}.}
 
-\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}, \code{"atlas"}.}
+\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}, \code{"atlas"}, \code{"lbimpute"}.}
 
 \item{design}{Breeding-design key for priors (e.g. \code{"BC2S2"}, \code{"BC2S3"}).
 Required unless \code{f_1}/\code{f_2} are supplied.}
@@ -123,6 +126,19 @@ a parent's fraction >= \code{atlas_thresh} (0.95), HET when both parents >=
 \code{atlas_het} (0.25), and a minimum of \code{atlas_min_reads} (5) informative reads
 per gene (else missing). For \code{atlas}, \code{n_ref}/\code{n_alt} are the recurrent/donor
 competitive-alignment read counts (ambiguous excluded upstream).}
+
+\item{genotypeerr, recombdist, drp}{\code{lbimpute} caller only (Fragoso et al. 2014):
+\code{genotypeerr} is the coverage-independent genotyping-error rate (LB-Impute
+\code{genotypeerr}, default 0.05) that bounds every emission to
+\verb{[genotypeerr, 1 - genotypeerr]}; \code{err} doubles as LB-Impute's per-read
+\code{readerr} (its default is 0.05, higher than the shared \code{err = 0.01}).
+\code{recombdist} is the bp distance over which the recombination probability
+equalizes (LB-Impute \code{recombdist}, default 1e7 = ~50 cM in maize); larger
+values mean stiffer paths. \code{drp} (LB-Impute \code{-dr}): when \code{TRUE}, a
+homozygous->homozygous switch is priced as a single recombination rather
+than a double event (use for inbred / RIL populations). For \code{lbimpute},
+\code{design}/\verb{f_1,f_2} only seed the start distribution (flat if absent) and
+zero-coverage markers are kept so the distance transition sees true spacing.}
 
 \item{germ, gert, p, mr, nir}{Genotype-error rates for the \code{gt} (categorical)
 emission (Holland's nNIL model): \code{germ} error on true homozygotes, \code{gert} on
