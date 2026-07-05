@@ -34,7 +34,10 @@
 #'     related).}
 #' }
 #' The sense is taken from `attr(x, "kind")` when present, else from `method`
-#' (`vi` is a distance; `r2`/`mi` are similarities).
+#' (`vi` is a distance; `r2`/`mi` are similarities). Pass `sense` to override
+#' this inference explicitly -- e.g. `sense = "distance"` on a precomputed
+#' coordinate/cM matrix (see [position_distance()]) prunes it as a distance
+#' without abusing `method = "vi"`.
 #'
 #' @section RNG fidelity:
 #' The greedy set (`n_runs = 1`, or the first reported set) is deterministic and
@@ -51,6 +54,11 @@
 #' @param seed Seed for the stochastic runs.
 #' @param method Measure for the genotype-matrix path and for the edge sense when
 #'   `x` has no `attr(, "kind")`: one of `"r2"` (default), `"mi"`, `"vi"`.
+#' @param sense Edge/threshold sense: `"auto"` (default) infers it from
+#'   `attr(x, "kind")` then `method` (current behaviour); `"similarity"` (edge if
+#'   `>= threshold`) or `"distance"` (edge if `<= threshold`) force it, so any
+#'   precomputed matrix -- e.g. a cM distance from [position_distance()] -- can be
+#'   pruned with the correct sense regardless of `method` or attributes.
 #' @param max_markers Safety guard on the marker count (default `7000L`, the
 #'   validated scale). Selection builds/consumes an O(n^2) markers x markers
 #'   matrix, so more than `max_markers` markers errors cleanly before any large
@@ -72,8 +80,10 @@
 #' @export
 select_independent <- function(x, threshold, n_runs = 1L, seed = 1L,
                                method = c("r2", "mi", "vi"),
+                               sense = c("auto", "similarity", "distance"),
                                max_markers = 7000L, ...) {
   method <- match.arg(method)
+  sense  <- match.arg(sense)
   if (missing(threshold) || !is.numeric(threshold) || length(threshold) != 1L)
     stop("select_independent(): `threshold` must be a single number.")
 
@@ -105,6 +115,8 @@ select_independent <- function(x, threshold, n_runs = 1L, seed = 1L,
   if (nrow(sim) != ncol(sim))
     stop("select_independent(): relatedness matrix must be square.")
 
+  # `sense` overrides the inferred `kind` when set; "auto" keeps the inference.
+  if (sense != "auto") kind <- sense
   distance <- identical(kind, "distance")
   res <- fast_indep_cpp(sim, as.numeric(threshold), as.integer(n_runs),
                         as.integer(seed), distance)

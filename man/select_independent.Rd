@@ -10,6 +10,7 @@ select_independent(
   n_runs = 1L,
   seed = 1L,
   method = c("r2", "mi", "vi"),
+  sense = c("auto", "similarity", "distance"),
   max_markers = 7000L,
   ...
 )
@@ -27,6 +28,12 @@ runs and records the distinct sets found.}
 
 \item{method}{Measure for the genotype-matrix path and for the edge sense when
 \code{x} has no \code{attr(, "kind")}: one of \code{"r2"} (default), \code{"mi"}, \code{"vi"}.}
+
+\item{sense}{Edge/threshold sense: \code{"auto"} (default) infers it from
+\code{attr(x, "kind")} then \code{method} (current behaviour); \code{"similarity"} (edge if
+\verb{>= threshold}) or \code{"distance"} (edge if \verb{<= threshold}) force it, so any
+precomputed matrix -- e.g. a cM distance from \code{\link[=position_distance]{position_distance()}} -- can be
+pruned with the correct sense regardless of \code{method} or attributes.}
 
 \item{max_markers}{Safety guard on the marker count (default \code{7000L}, the
 validated scale). Selection builds/consumes an O(n^2) markers x markers
@@ -72,7 +79,10 @@ conversion.}
 related).}
 }
 The sense is taken from \code{attr(x, "kind")} when present, else from \code{method}
-(\code{vi} is a distance; \code{r2}/\code{mi} are similarities).
+(\code{vi} is a distance; \code{r2}/\code{mi} are similarities). Pass \code{sense} to override
+this inference explicitly -- e.g. \code{sense = "distance"} on a precomputed
+coordinate/cM matrix (see \code{\link[=position_distance]{position_distance()}}) prunes it as a distance
+without abusing \code{method = "vi"}.
 }
 \section{RNG fidelity}{
 
