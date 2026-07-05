@@ -61,10 +61,11 @@ test_that("method label is settable and does not change the arithmetic", {
   expect_equal(d[1, 3], 800)
 })
 
-test_that("input validation: NA, non-numeric, chr length mismatch", {
+test_that("input validation: NA, non-numeric, chr length mismatch, chr NA", {
   expect_error(position_distance(c(1, NA, 3)), "NA")
   expect_error(position_distance(letters[1:3]), "numeric")
   expect_error(position_distance(c(1, 2, 3), chr = c(1, 1)), "same length")
+  expect_error(position_distance(c(1, 2, 3), chr = c(1, NA, 2)), "`chr` contains NA")
 })
 
 test_that("cM pruning: selected set is pairwise > t and matches greedy sweep size", {

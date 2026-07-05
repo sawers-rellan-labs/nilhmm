@@ -63,6 +63,8 @@ position_distance <- function(pos, chr = NULL, method = "cm",
   if (n < 1L) stop("position_distance(): `pos` has no markers.")
   if (!is.null(chr) && length(chr) != n)
     stop("position_distance(): `chr` must have the same length as `pos`.")
+  if (!is.null(chr) && anyNA(chr))
+    stop("position_distance(): `chr` contains NA.")
   if (anyNA(pos)) stop("position_distance(): `pos` contains NA.")
   .check_marker_budget(n, max_markers, "position_distance")
 
