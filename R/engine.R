@@ -403,45 +403,14 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
     unit <- match.arg(unit)
     if (!has_counts)
       stop("call_states(): caller = 'lbimpute' needs (n_ref, n_alt) read counts")
-
-    # Transition coordinate: bp `pos` (default) or cM `cm`. Output stays bp.
-    tcol <- if (unit == "cm") "cm" else "pos"
-    if (unit == "cm" && !("cm" %in% names(data)))
-      stop("call_states(): caller = 'lbimpute' with unit = 'cm' needs a `cm` ",
-           "column of genetic (map) positions per marker")
-    tvals <- data[[tcol]]
-    if (anyNA(tvals))
-      stop("call_states(): `", tcol, "` (lbimpute transition coordinate) contains NA")
-
-    # Value-based checks (not storage type -- R literals default to double, so an
-    # is.integer test would misread the natural `c(1e6, 2e6)` bp input as cM).
-    if (unit == "bp" && any(tvals != floor(tvals)))
-      stop("call_states(): bp positions must be whole numbers ",
-           "(fractional values look like cM -- did you mean unit = 'cm'?)")
-
-    # Unit-aware recombdist default; then warn on the mismatch that silently
-    # ruins the calls (cM coords with a bp-sized recombdist collapse the whole
-    # chromosome to one segment; bp coords with a cM-sized recombdist over-split).
+    # Transition coordinate (bp `pos` / cM `cm`) + value-based validation, then the
+    # unit-aware `recombdist` default and mismatch warnings, then the start seed --
+    # all shared with caller_sweep via helpers in R/lbimpute.R.
+    tcol <- .lbimpute_tcol(data, unit)
     if (is.null(recombdist)) recombdist <- if (unit == "cm") 50 else 1e7
     if (recombdist <= 0) stop("call_states(): `recombdist` must be > 0")
-    if (unit == "cm" && recombdist > 1000)
-      warning("call_states(): unit = 'cm' but recombdist = ", recombdist,
-              " looks bp-sized; cM `recombdist` is typically ~50. ",
-              "The transition will barely relax and the path may collapse to one segment.")
-    if (unit == "bp" && recombdist < 1000)
-      warning("call_states(): unit = 'bp' but recombdist = ", recombdist,
-              " looks cM-sized; bp `recombdist` is typically ~1e7. ",
-              "The transition will over-relax and the path may over-fragment.")
-    if (unit == "cm" && max(tvals) > 1000 && all(tvals == floor(tvals)))
-      warning("call_states(): unit = 'cm' but the `cm` values are all whole and ",
-              "exceed 1000 -- they look like bp. Check the coordinate units.")
-
-    log_init <- if (!is.null(design)) {
-                  pr <- design_priors(design); log(c(1 - pr$f_1 - pr$f_2, pr$f_1, pr$f_2))
-                } else if (!is.null(f_1) && !is.null(f_2)) {
-                  if (f_1 + f_2 >= 1) stop("call_states(): `f_1` + `f_2` must be < 1")
-                  log(c(1 - f_1 - f_2, f_1, f_2))
-                } else log(rep(1 / 3, 3))          # flat start (LB-Impute default)
+    .lbimpute_warn_recombdist(recombdist, unit, data[[tcol]])
+    log_init <- .lbimpute_log_init(design, f_1, f_2)
     return(.lbimpute_states(data, err, genotypeerr, recombdist, drp, log_init,
                             source, donor, has_donor, tcol, threads))
   }

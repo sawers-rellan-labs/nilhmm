@@ -6,7 +6,7 @@
 \usage{
 caller_sweep(
   data,
-  caller = c("rtiger", "nnil"),
+  caller = c("rtiger", "nnil", "lbimpute"),
   values,
   refit = c("none", "cold"),
   design = NULL,
@@ -20,14 +20,19 @@ caller_sweep(
   fit_means = FALSE,
   seed = 1L,
   postprocess = TRUE,
+  unit = c("bp", "cm"),
+  genotypeerr = 0.05,
+  drp = FALSE,
   source = "nilHMM",
   donor = NA_character_
 )
 }
 \arguments{
-\item{data}{Common input: \verb{name, chr, pos, n_ref, n_alt} (+ optional \code{donor}).}
+\item{data}{Common input: \verb{name, chr, pos, n_ref, n_alt} (+ optional \code{donor};
+\code{lbimpute} with \code{unit = "cm"} also needs a \code{cm} map-position column).}
 
-\item{caller}{\code{"rtiger"} (sweeps \code{rigidity}) or \code{"nnil"} (sweeps \code{rrate}).}
+\item{caller}{\code{"rtiger"} (sweeps \code{rigidity}), \code{"nnil"} (sweeps \code{rrate}), or
+\code{"lbimpute"} (sweeps \code{recombdist}).}
 
 \item{values}{Parameter grid to sweep.}
 
@@ -37,26 +42,39 @@ segmentation prior) or \code{"cold"} (fit each value from scratch -- exact per
 value, the baseline). For nnil with \code{fit_means = FALSE} the emission is
 \code{rrate}-independent, so both are identical (and exact). This sweep \emph{finds} the
 best value; for the exact final calls, refit once with \code{\link[=call_ancestry]{call_ancestry()}} at
-the chosen value.}
+the chosen value. \strong{Ignored for \code{lbimpute}}: \code{recombdist} touches only the
+transition, never the emission, so every swept value is already EXACT --
+identical to a cold \code{call_ancestry(caller = "lbimpute", recombdist = v)} (the
+emission is computed once per run and only the Viterbi transition is re-run
+over the grid, batched in C++).}
 
-\item{design, f_1, f_2}{Population priors (a design name, or explicit \code{f_1},\code{f_2}).}
+\item{design, f_1, f_2}{Population priors (a design name, or explicit \code{f_1},\code{f_2}).
+For \code{lbimpute} these only seed the start distribution (flat if absent).}
 
 \item{threads}{Fan-out width (\code{parallel::mclapply} on unix; serial otherwise).}
 
 \item{ref}{Reference value for the shared fit (default \code{median(values)},
-rounded for rtiger).}
+rounded for rtiger). Unused for \code{lbimpute} (no shared fit).}
 
-\item{min_cov}{Covered-marker filter before decoding (default \code{1L}); \code{0L} keeps all.}
+\item{min_cov}{Covered-marker filter before decoding (default \code{1L}); \code{0L} keeps
+all. \strong{No-op for \code{lbimpute}}, which keeps zero-coverage markers (flat
+emission) so the distance transition sees true marker spacing.}
 
-\item{err, conc, fit_means}{nnil count-emission parameters (fixed across the grid).}
+\item{err, conc, fit_means}{nnil count-emission parameters (fixed across the grid).
+\code{err} is also LB-Impute's per-read error (\code{readerr}).}
 
 \item{seed, postprocess}{rtiger fit seed and border post-processing.}
+
+\item{unit, genotypeerr, drp}{\code{lbimpute} only: \code{unit} is the transition coordinate
+(\code{"bp"} physical / \code{"cm"} genetic map; output stays bp), \code{genotypeerr} the
+emission floor/ceiling, \code{drp} the single-vs-double homozygous-switch cost.
+Same validation/mismatch warnings as \code{\link[=call_states]{call_states()}}.}
 
 \item{source, donor}{Output labels.}
 }
 \value{
 A common-schema segment table with an added column named for the swept
-parameter (\code{rigidity} or \code{rrate}) tagging each value's calls.
+parameter (\code{rigidity}, \code{rrate}, or \code{recombdist}) tagging each value's calls.
 }
 \description{
 Fit the emission once (rtiger: the joint EM; nnil: per-sample means, or nothing

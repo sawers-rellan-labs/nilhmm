@@ -66,7 +66,13 @@ a numeric `tpos` and is unit-agnostic). `recombdist` shares the coordinate's uni
 (unit-aware default 1e7 bp / 50 cM) and a validation layer warns on unit/`recombdist`
 mismatches. Output coordinates are always bp. `write_vcf_impute()` (in `io.R`)
 emits LB-Impute's imputed-VCF deliverable from the per-marker states — optional
-and decoupled from the engine.
+and decoupled from the engine. `read_counts(format = "vcf_ad")` reads per-sample
+allelic depths from a biallelic VCF's `AD` field (e.g. the LB-Impute example data).
+`caller_sweep(caller = "lbimpute", values = <recombdist grid>)` calibrates
+`recombdist`; it is **exact per value** (recombdist touches only the transition,
+so the emission is computed once per run and only the Viterbi transition is
+re-run over the grid, batched in C++ via `lb_viterbi_sweep_cpp`) — every swept
+value equals a cold `call_ancestry(caller = "lbimpute", recombdist = v)`.
 
 ### Downstream utilities (not callers)
 

@@ -134,3 +134,69 @@ IntegerVector lb_viterbi_cpp(NumericVector log_init, NumericMatrix log_emit,
   for (int t = T - 1; t > 0; --t) path[t - 1] = psi(t, path[t]);
   return path;
 }
+
+//' Batched LB-Impute Viterbi over a recombdist grid (shared emission)
+//'
+//' For calibration: `recombdist` affects only the transition, never the emission,
+//' so the (memoized) emission matrix is computed once per run and only the Viterbi
+//' transition is re-run for each grid value -- inside C++, avoiding per-value
+//' R<->C++ marshaling. Column `k` is **bit-identical** to
+//' [lb_viterbi_cpp()] called with `recombdist = recombdists[k]`, so a sweep value
+//' equals a cold `call_ancestry(caller = "lbimpute", recombdist = v)`.
+//'
+//' @param log_init Length-3 log initial-state probabilities (REF/HET/ALT).
+//' @param log_emit T x 3 log emissions (from [lb_emission_loglik_cpp()]).
+//' @param tpos Numeric length-T transition coordinate, non-decreasing (bp or cM).
+//' @param recombdists Numeric grid of recombdist values (same units as `tpos`).
+//' @param drp If `TRUE`, a homozygous->homozygous switch costs a single
+//'   recombination rather than a double event.
+//' @return A T x length(recombdists) integer matrix of state paths (0/1/2);
+//'   column k is the decode at `recombdists[k]`.
+//' @keywords internal
+// [[Rcpp::export]]
+IntegerMatrix lb_viterbi_sweep_cpp(NumericVector log_init, NumericMatrix log_emit,
+                                   NumericVector tpos, NumericVector recombdists,
+                                   bool drp) {
+  const int T = log_emit.nrow();
+  const int V = recombdists.size();
+  if (log_emit.ncol() != 3) stop("lb_viterbi_sweep_cpp: log_emit must be T x 3");
+  if (log_init.size() != 3) stop("lb_viterbi_sweep_cpp: log_init must have length 3");
+  if (tpos.size() != T) stop("lb_viterbi_sweep_cpp: length(tpos) must equal nrow(log_emit)");
+
+  IntegerMatrix paths(T, V);
+  if (T == 0 || V == 0) return paths;
+
+  NumericMatrix delta(T, 3);
+  IntegerMatrix psi(T, 3);
+  double lt[3][3];
+  for (int vi = 0; vi < V; ++vi) {
+    const double recombdist = recombdists[vi];
+    if (recombdist <= 0.0) stop("lb_viterbi_sweep_cpp: recombdist must be > 0");
+    for (int k = 0; k < 3; ++k) { delta(0, k) = log_init[k] + log_emit(0, k); psi(0, k) = 0; }
+    for (int t = 1; t < T; ++t) {
+      double d = tpos[t] - tpos[t - 1];
+      if (d < 0) stop("lb_viterbi_sweep_cpp: `tpos` must be non-decreasing");
+      const double e  = std::exp(-d / recombdist);
+      const double lps = std::log(0.5 * (1.0 + e));
+      const double lpr = std::log(0.5 * (1.0 - e));
+      const double lhh = drp ? lpr : (2.0 * lpr);
+      lt[0][0] = lps; lt[0][1] = lpr; lt[0][2] = lhh;   // from REF
+      lt[1][0] = lpr; lt[1][1] = lps; lt[1][2] = lpr;   // from HET
+      lt[2][0] = lhh; lt[2][1] = lpr; lt[2][2] = lps;   // from ALT
+      for (int k = 0; k < 3; ++k) {
+        double best = R_NegInf; int arg = 0;
+        for (int j = 0; j < 3; ++j) {
+          double v = delta(t - 1, j) + lt[j][k];
+          if (v > best) { best = v; arg = j; }
+        }
+        delta(t, k) = best + log_emit(t, k);
+        psi(t, k) = arg;
+      }
+    }
+    double best = R_NegInf; int last = 0;
+    for (int k = 0; k < 3; ++k) if (delta(T - 1, k) > best) { best = delta(T - 1, k); last = k; }
+    paths(T - 1, vi) = last;
+    for (int t = T - 1; t > 0; --t) paths(t - 1, vi) = psi(t, paths(t, vi));
+  }
+  return paths;
+}

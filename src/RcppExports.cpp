@@ -95,6 +95,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// lb_viterbi_sweep_cpp
+IntegerMatrix lb_viterbi_sweep_cpp(NumericVector log_init, NumericMatrix log_emit, NumericVector tpos, NumericVector recombdists, bool drp);
+RcppExport SEXP _nilHMM_lb_viterbi_sweep_cpp(SEXP log_initSEXP, SEXP log_emitSEXP, SEXP tposSEXP, SEXP recombdistsSEXP, SEXP drpSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type log_init(log_initSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type log_emit(log_emitSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type tpos(tposSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type recombdists(recombdistsSEXP);
+    Rcpp::traits::input_parameter< bool >::type drp(drpSEXP);
+    rcpp_result_gen = Rcpp::wrap(lb_viterbi_sweep_cpp(log_init, log_emit, tpos, recombdists, drp));
+    return rcpp_result_gen;
+END_RCPP
+}
 // pairwise_distance_cpp
 NumericMatrix pairwise_distance_cpp(NumericMatrix geno, int method, int base);
 RcppExport SEXP _nilHMM_pairwise_distance_cpp(SEXP genoSEXP, SEXP methodSEXP, SEXP baseSEXP) {
@@ -318,6 +333,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_interp_geno_cpp", (DL_FUNC) &_nilHMM_interp_geno_cpp, 4},
     {"_nilHMM_lb_emission_loglik_cpp", (DL_FUNC) &_nilHMM_lb_emission_loglik_cpp, 4},
     {"_nilHMM_lb_viterbi_cpp", (DL_FUNC) &_nilHMM_lb_viterbi_cpp, 5},
+    {"_nilHMM_lb_viterbi_sweep_cpp", (DL_FUNC) &_nilHMM_lb_viterbi_sweep_cpp, 5},
     {"_nilHMM_pairwise_distance_cpp", (DL_FUNC) &_nilHMM_pairwise_distance_cpp, 3},
     {"_nilHMM_rtiger_getlogpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_getlogpsi_cpp, 4},
     {"_nilHMM_rtiger_productpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_productpsi_cpp, 2},

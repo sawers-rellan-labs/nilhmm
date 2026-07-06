@@ -124,6 +124,28 @@ lb_viterbi_cpp <- function(log_init, log_emit, tpos, recombdist, drp) {
     .Call(`_nilHMM_lb_viterbi_cpp`, log_init, log_emit, tpos, recombdist, drp)
 }
 
+#' Batched LB-Impute Viterbi over a recombdist grid (shared emission)
+#'
+#' For calibration: `recombdist` affects only the transition, never the emission,
+#' so the (memoized) emission matrix is computed once per run and only the Viterbi
+#' transition is re-run for each grid value -- inside C++, avoiding per-value
+#' R<->C++ marshaling. Column `k` is **bit-identical** to
+#' [lb_viterbi_cpp()] called with `recombdist = recombdists[k]`, so a sweep value
+#' equals a cold `call_ancestry(caller = "lbimpute", recombdist = v)`.
+#'
+#' @param log_init Length-3 log initial-state probabilities (REF/HET/ALT).
+#' @param log_emit T x 3 log emissions (from [lb_emission_loglik_cpp()]).
+#' @param tpos Numeric length-T transition coordinate, non-decreasing (bp or cM).
+#' @param recombdists Numeric grid of recombdist values (same units as `tpos`).
+#' @param drp If `TRUE`, a homozygous->homozygous switch costs a single
+#'   recombination rather than a double event.
+#' @return A T x length(recombdists) integer matrix of state paths (0/1/2);
+#'   column k is the decode at `recombdists[k]`.
+#' @keywords internal
+lb_viterbi_sweep_cpp <- function(log_init, log_emit, tpos, recombdists, drp) {
+    .Call(`_nilHMM_lb_viterbi_sweep_cpp`, log_init, log_emit, tpos, recombdists, drp)
+}
+
 #' Pairwise marker relatedness matrix (r2 / MI / VI)
 #'
 #' Build a symmetric markers x markers relatedness matrix from a

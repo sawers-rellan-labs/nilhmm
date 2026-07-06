@@ -189,6 +189,78 @@ test_that("ragged input (per-sample marker subsets) decodes correctly", {
   expect_equal(seg$state[seg$name == "B"], 2L)        # B: single ALT segment
 })
 
+test_that("lb_viterbi_sweep_cpp column k == lb_viterbi_cpp at recombdists[k]", {
+  n <- 40L
+  nref <- c(rep(8L, 20), rep(0L, 20)); nalt <- c(rep(0L, 20), rep(8L, 20))
+  em  <- lb_emission_loglik_cpp(nref, nalt, 0.01, 0.05)
+  pos <- as.numeric(seq_len(n) * 1e5L)
+  li  <- log(rep(1/3, 3))
+  grid <- c(5e5, 1e6, 5e6, 1e7, 5e7)
+  sw <- lb_viterbi_sweep_cpp(li, em, pos, grid, FALSE)
+  expect_equal(dim(sw), c(n, length(grid)))
+  for (k in seq_along(grid))
+    expect_equal(sw[, k], lb_viterbi_cpp(li, em, pos, grid[k], FALSE), info = as.character(grid[k]))
+})
+
+test_that("lb_viterbi_sweep_cpp guards: non-decreasing tpos, empty grid", {
+  em <- lb_emission_loglik_cpp(c(5L, 5L), c(0L, 0L), 0.05, 0.05)
+  expect_error(lb_viterbi_sweep_cpp(log(rep(1/3, 3)), em, c(2, 1), 1e7, FALSE), "non-decreasing")
+  z <- lb_viterbi_sweep_cpp(log(rep(1/3, 3)), em, c(1, 2), numeric(0), FALSE)
+  expect_equal(dim(z), c(2L, 0L))
+})
+
+test_that("caller_sweep(lbimpute) == cold call_ancestry per value (bp and cm)", {
+  set.seed(3)
+  pos <- seq_len(50L) * 1e5L
+  cohort <- do.call(rbind, lapply(1:6, function(s) {
+    st <- rep(sample(0:2, 3, replace = TRUE), c(20, 15, 15))
+    nr <- ifelse(st == 2, 0L, ifelse(st == 1, 4L, 8L)) + rpois(50, 0.3)
+    na <- ifelse(st == 0, 0L, ifelse(st == 1, 4L, 8L)) + rpois(50, 0.3)
+    data.frame(name = paste0("S", s), donor = paste0("d", s %% 2), chr = 1L,
+               pos = pos, cm = pos * 5e-6, n_ref = nr, n_alt = na)
+  }))
+  for (u in c("bp", "cm")) {
+    grid <- if (u == "cm") c(20, 50, 100) else c(5e6, 1e7, 2e7)
+    sw <- caller_sweep(cohort, caller = "lbimpute", values = grid, unit = u)
+    expect_true("recombdist" %in% names(sw))
+    for (v in grid) {
+      got  <- sw[sw$recombdist == v, setdiff(names(sw), "recombdist"), drop = FALSE]
+      cold <- call_ancestry(cohort, caller = "lbimpute", recombdist = v, unit = u)
+      rownames(got) <- NULL; rownames(cold) <- NULL
+      expect_equal(got, cold, info = paste(u, v))     # exact per value
+    }
+  }
+})
+
+test_that("caller_sweep(lbimpute) edge cases: empty, single marker, all-zero coverage", {
+  li_grid <- c(5e6, 1e7)
+  # empty data -> empty segment table (graceful, like call_ancestry)
+  empty <- data.frame(name = character(), chr = integer(), pos = integer(),
+                      n_ref = integer(), n_alt = integer())
+  e <- caller_sweep(empty, caller = "lbimpute", values = li_grid)
+  expect_equal(nrow(e), 0L)
+  # single-marker sample + an all-zero-coverage sample
+  d <- data.frame(name = c("one", "zed", "zed"), chr = 1L,
+                  pos = c(1e5, 1e5, 2e5), n_ref = c(8L, 0L, 0L), n_alt = c(0L, 0L, 0L))
+  sw <- caller_sweep(d, caller = "lbimpute", values = li_grid)
+  expect_equal(sort(unique(sw$recombdist)), sort(li_grid))
+  expect_true(all(c("one", "zed") %in% sw$name))
+  for (v in li_grid) {                                # still exact vs cold on odd shapes
+    got  <- sw[sw$recombdist == v, setdiff(names(sw), "recombdist"), drop = FALSE]
+    cold <- call_ancestry(d, caller = "lbimpute", recombdist = v)
+    rownames(got) <- NULL; rownames(cold) <- NULL
+    expect_equal(got, cold, info = as.character(v))
+  }
+})
+
+test_that("caller_sweep(lbimpute) rejects non-positive recombdist and honours warnings", {
+  d <- data.frame(name = "A", chr = 1L, pos = c(1e5, 2e5),
+                  n_ref = c(5L, 5L), n_alt = c(0L, 0L))
+  expect_error(caller_sweep(d, caller = "lbimpute", values = c(1e7, -1)), "must be > 0")
+  expect_warning(caller_sweep(d, caller = "lbimpute", values = c(50, 1e7), unit = "bp"),
+                 "over-relax")     # 50 is cM-sized for a bp sweep
+})
+
 test_that("write_vcf_impute rejects duplicate (name, chr, pos) rows", {
   st <- data.frame(name = "NIL1", chr = 1L, pos = c(1e5, 1e5),
                    state = c(0L, 2L))

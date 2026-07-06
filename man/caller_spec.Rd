@@ -60,7 +60,7 @@ fraction, missing rate, non-informative-marker rate.}
 }
 }
 \examples{
-caller_spec("nnil", r = 1e-4)          # count emission + geometric duration
+caller_spec("nnil", rrate = 1e-4)      # count emission + geometric duration
 caller_spec("rtiger", rigidity = 5)    # count emission + rigidity duration
 str(caller_spec("atlas"))              # gt emission + geometric duration
 }
