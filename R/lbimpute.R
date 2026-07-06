@@ -128,6 +128,11 @@
 # source/donor/name/chr/pos frame, in sorted order) and `states` (an n x V integer
 # matrix; column k is the decode at recombdists[k]). Memory is O(n_markers x
 # n_values); calibration grids are small.
+#
+# TODO(memory): the n_markers x n_values state matrix is held whole. Fine for
+# golden-section refinement (a few values per iteration); for a very wide grid over
+# the full cohort at once, chunk `recombdists` (loop caller_sweep over value blocks
+# and rbind) or stream to_segments per column instead of materializing all columns.
 .lbimpute_sweep <- function(data, err, errg, recombdists, drp, log_init,
                             source, donor, has_donor, tcol = "pos", threads = 1L) {
   recombdists <- as.numeric(recombdists)
