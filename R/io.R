@@ -10,11 +10,15 @@
 #' TSV->counts adapter covers the wideseq-thinned BRB inputs (cf. the Python
 #' `agent/brb_nilhmm_counts.py`).
 #'
-#' @param path A count TSV file, or a directory of them.
+#' @param path A count TSV file (or directory of them) for `format = "tsv"`; a
+#'   single `.vcf`/`.vcf.gz` for `format = "vcf_ad"`.
 #' @param format One of `"tsv"` (the `chr pos ref n_ref alt n_alt` headerless
-#'   layout used by the skim/BRB counts), `"gatk_table"`, `"vcf_ad"`.
-#' @param name Optional sample name for a single file; defaults to the file's
-#'   basename with extensions stripped.
+#'   layout used by the skim/BRB counts), `"vcf_ad"` (per-sample allelic depths
+#'   from a biallelic VCF's `AD` FORMAT field -- e.g. the LB-Impute example data
+#'   and GATK/bcftools output), or `"gatk_table"` (not yet implemented).
+#' @param name Optional sample name for a single `tsv` file; defaults to the
+#'   file's basename with extensions stripped. Ignored for `vcf_ad` (sample names
+#'   come from the VCF `#CHROM` header).
 #' @return A long observation table: `name, chr, pos, n_ref, n_alt`.
 #' @examples
 #' # Headerless "chr pos ref n_ref alt n_alt" TSV, as produced upstream.
@@ -24,10 +28,22 @@
 #'              ref = "A", n_ref = c(8, 5, 0), alt = "T", n_alt = c(0, 3, 7)),
 #'   f, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
 #' read_counts(f, name = "NIL1")
+#'
+#' # Biallelic VCF with a GT:AD FORMAT: AD = "n_ref,n_alt" per sample.
+#' v <- tempfile(fileext = ".vcf")
+#' writeLines(c(
+#'   "##fileformat=VCFv4.2",
+#'   "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNIL1\tNIL2",
+#'   "1\t100000\t.\tA\tT\t.\t.\t.\tGT:AD\t0/0:8,0\t0/1:4,5",
+#'   "1\t200000\t.\tC\tG\t.\t.\t.\tGT:AD\t1/1:0,7\t./.:."), v)
+#' read_counts(v, format = "vcf_ad")
 #' @export
 read_counts <- function(path, format = c("tsv", "gatk_table", "vcf_ad"), name = NULL) {
   format <- match.arg(format)
-  if (format != "tsv") stop("read_counts(): only format='tsv' is implemented (Task 4)")
+  if (format == "vcf_ad") return(.read_counts_vcf_ad(path))
+  if (format == "gatk_table")
+    stop("read_counts(): format = 'gatk_table' is not yet implemented; ",
+         "use 'tsv' or 'vcf_ad'.")
 
   if (dir.exists(path)) {
     files <- list.files(path, pattern = "\\.tsv(\\.gz)?$", full.names = TRUE)
@@ -59,6 +75,60 @@ read_counts <- function(path, format = c("tsv", "gatk_table", "vcf_ad"), name = 
     n_alt = as.integer(d$n_alt),
     stringsAsFactors = FALSE
   )
+}
+
+# Read per-sample allelic depths from a biallelic VCF's AD FORMAT field into the
+# common (name, chr, pos, n_ref, n_alt) table. AD is "n_ref,n_alt" (GATK/bcftools);
+# a missing/`.` field or absent alt becomes 0. The AD position within FORMAT is
+# located per record (usually constant -> a vectorized fast path); multiallelic AD
+# keeps only the first ALT (biallelic assumption). Sample names come from #CHROM.
+.read_counts_vcf_ad <- function(path) {
+  con <- if (grepl("\\.gz$", path)) gzfile(path, "rt") else file(path, "rt")
+  on.exit(close(con))
+  repeat {                                          # skip ## meta to the #CHROM header
+    ln <- readLines(con, n = 1L)
+    if (!length(ln)) stop("read_counts(vcf_ad): no #CHROM header found in ", path)
+    if (startsWith(ln, "#CHROM")) break
+  }
+  hdr <- strsplit(sub("^#", "", ln), "\t", fixed = TRUE)[[1]]
+  if (length(hdr) < 10L) stop("read_counts(vcf_ad): VCF has no sample (FORMAT) columns")
+  snames <- hdr[10:length(hdr)]
+  body <- utils::read.table(con, sep = "\t", header = FALSE, quote = "",
+                            comment.char = "", stringsAsFactors = FALSE, colClasses = "character")
+  if (!nrow(body)) stop("read_counts(vcf_ad): VCF has no records")
+  chr <- as.integer(sub("^chr", "", body[[1]])); pos <- as.integer(body[[2]])
+
+  # AD index within the colon-delimited FORMAT (col 9), per record.
+  ai <- vapply(strsplit(body[[9]], ":", fixed = TRUE),
+               function(x) { m <- match("AD", x); if (is.na(m)) NA_integer_ else m }, integer(1))
+  if (all(is.na(ai))) stop("read_counts(vcf_ad): no `AD` field found in the FORMAT column")
+  k_const <- length(unique(ai)) == 1L && !anyNA(ai)   # constant FORMAT -> fast vectorized path
+
+  # extract the k-th ':'-field of each sample cell (k scalar when FORMAT is constant).
+  kth_field <- function(col, k) {
+    if (length(k) == 1L)
+      sub(sprintf("^(?:[^:]*:){%d}([^:]*).*", k - 1L), "\\1", col, perl = TRUE)
+    else
+      vapply(seq_along(col), function(r) {
+        p <- strsplit(col[r], ":", fixed = TRUE)[[1]]
+        if (is.na(k[r]) || k[r] > length(p)) NA_character_ else p[k[r]]
+      }, character(1))
+  }
+  ad_to_counts <- function(ad) {
+    r <- sub(",.*", "", ad)                          # before first comma
+    a <- sub(",.*", "", sub("^[^,]*,?", "", ad))     # first ALT depth (drops extra alt cols)
+    nref <- suppressWarnings(as.integer(r)); nalt <- suppressWarnings(as.integer(a))
+    nref[is.na(nref)] <- 0L; nalt[is.na(nalt)] <- 0L  # "." / missing / GT-only -> 0
+    list(n_ref = nref, n_alt = nalt)
+  }
+  k_use <- if (k_const) ai[1] else ai
+  parts <- lapply(seq_along(snames), function(j) {
+    cnt <- ad_to_counts(kth_field(body[[9L + j]], k_use))
+    data.frame(name = snames[j], chr = chr, pos = pos,
+               n_ref = cnt$n_ref, n_alt = cnt$n_alt, stringsAsFactors = FALSE)
+  })
+  if (requireNamespace("data.table", quietly = TRUE))
+    as.data.frame(data.table::rbindlist(parts)) else do.call(rbind, parts)
 }
 
 #' Read hard genotype calls (VCF GT) into the engine's observation table

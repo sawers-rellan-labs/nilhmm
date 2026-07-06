@@ -7,13 +7,17 @@
 read_counts(path, format = c("tsv", "gatk_table", "vcf_ad"), name = NULL)
 }
 \arguments{
-\item{path}{A count TSV file, or a directory of them.}
+\item{path}{A count TSV file (or directory of them) for \code{format = "tsv"}; a
+single \code{.vcf}/\code{.vcf.gz} for \code{format = "vcf_ad"}.}
 
 \item{format}{One of \code{"tsv"} (the \verb{chr pos ref n_ref alt n_alt} headerless
-layout used by the skim/BRB counts), \code{"gatk_table"}, \code{"vcf_ad"}.}
+layout used by the skim/BRB counts), \code{"vcf_ad"} (per-sample allelic depths
+from a biallelic VCF's \code{AD} FORMAT field -- e.g. the LB-Impute example data
+and GATK/bcftools output), or \code{"gatk_table"} (not yet implemented).}
 
-\item{name}{Optional sample name for a single file; defaults to the file's
-basename with extensions stripped.}
+\item{name}{Optional sample name for a single \code{tsv} file; defaults to the
+file's basename with extensions stripped. Ignored for \code{vcf_ad} (sample names
+come from the VCF \verb{#CHROM} header).}
 }
 \value{
 A long observation table: \verb{name, chr, pos, n_ref, n_alt}.
@@ -33,4 +37,13 @@ write.table(
              ref = "A", n_ref = c(8, 5, 0), alt = "T", n_alt = c(0, 3, 7)),
   f, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
 read_counts(f, name = "NIL1")
+
+# Biallelic VCF with a GT:AD FORMAT: AD = "n_ref,n_alt" per sample.
+v <- tempfile(fileext = ".vcf")
+writeLines(c(
+  "##fileformat=VCFv4.2",
+  "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNIL1\tNIL2",
+  "1\t100000\t.\tA\tT\t.\t.\t.\tGT:AD\t0/0:8,0\t0/1:4,5",
+  "1\t200000\t.\tC\tG\t.\t.\t.\tGT:AD\t1/1:0,7\t./.:."), v)
+read_counts(v, format = "vcf_ad")
 }
