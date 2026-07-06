@@ -8,21 +8,30 @@ interpolate_genotype(
   geno,
   obs,
   target,
-  mode = c("continuous", "step", "round")
+  mode = c("continuous", "step", "round"),
+  coord = "cm"
 )
 }
 \arguments{
 \item{geno}{Numeric matrix, \code{nrow(geno) == nrow(obs)}, column = sample;
 COMPLETE (no \code{NA}). Values are the alt-allele dosage in \verb{[0, 2]}.}
 
-\item{obs}{\code{data.frame(chr, cm)} aligned row-for-row to \code{geno}, sorted by
-\verb{(chr, cm)} with \code{cm} strictly increasing within each chromosome.}
+\item{obs}{\code{data.frame} with columns \code{chr} and the coordinate column named by
+\code{coord} (default \code{cm}), aligned row-for-row to \code{geno}, sorted by
+\verb{(chr, coord)} with \code{coord} strictly increasing within each chromosome.}
 
-\item{target}{\code{data.frame(chr, cm)} of the target grid, sorted by \verb{(chr, cm)}.
-\code{cm} may repeat (tied positions allowed); each row yields one output row, and
-markers sharing a cM get identical genotypes (see Details).}
+\item{target}{\code{data.frame} with columns \code{chr} and the coordinate column named
+by \code{coord}, sorted by \verb{(chr, coord)}. The coordinate may repeat (tied
+positions allowed); each row yields one output row, and markers sharing a
+coordinate get identical genotypes (see Details).}
 
 \item{mode}{One of \code{"continuous"} (Tian), \code{"step"} (Chen/TeoNAM), \code{"round"}.}
+
+\item{coord}{Name of the coordinate column to interpolate along; default
+\code{"cm"} (genetic distance). Use e.g. \code{"bp"} for physical-distance
+interpolation -- appropriate when interpolating in cM would be circular, such
+as building a native genetic map from bp positions. The coordinate is just
+the axis to interpolate along; the arithmetic is unit-agnostic.}
 }
 \value{
 Numeric matrix \code{nrow(target)} x \code{ncol(geno)}; rownames from \code{target}
@@ -78,4 +87,9 @@ obs <- data.frame(chr = 1L, cm = c(0, 1))
 geno <- matrix(c(0, 2), nrow = 2, dimnames = list(NULL, "S1"))
 target <- data.frame(chr = 1L, cm = c(0, 0.5, 1))
 interpolate_genotype(geno, obs, target, "continuous")  # 0, 1, 2
+
+# Interpolate along physical distance (bp) instead of cM.
+obs_bp    <- data.frame(chr = 1L, bp = c(1e6, 3e6))
+target_bp <- data.frame(chr = 1L, bp = c(1e6, 2e6, 3e6))
+interpolate_genotype(geno, obs_bp, target_bp, "continuous", coord = "bp")  # 0, 1, 2
 }

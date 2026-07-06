@@ -137,3 +137,37 @@ test_that("validation: NA, mismatched nrow, and unsorted obs are rejected", {
     interpolate_genotype(geno, obs_bad, target, "step"),
     "sorted|strictly increasing")
 })
+
+test_that("coord = 'bp' is identical to the same data with the column named cm", {
+  set.seed(1)
+  # a two-chromosome block with a mix of REF/HET/ALT so all modes are exercised
+  obs_bp <- data.frame(chr = c(1L, 1L, 1L, 2L, 2L), bp = c(1e6, 3e6, 7e6, 2e6, 9e6))
+  geno   <- matrix(sample(0:2, 5 * 3, replace = TRUE), nrow = 5,
+                   dimnames = list(NULL, c("A", "B", "C")))
+  target_bp <- data.frame(chr = c(1L, 1L, 1L, 1L, 2L, 2L, 2L),
+                          bp = c(1e6, 2e6, 5e6, 7e6, 2e6, 2e6, 9e6))  # incl a tied target
+  # rename the bp column to cm -> default coord must give the identical result
+  obs_cm    <- setNames(obs_bp,    sub("^bp$", "cm", names(obs_bp)))
+  target_cm <- setNames(target_bp, sub("^bp$", "cm", names(target_bp)))
+  for (mode in c("continuous", "step", "round")) {
+    a <- interpolate_genotype(geno, obs_bp, target_bp, mode, coord = "bp")
+    b <- interpolate_genotype(geno, obs_cm, target_cm, mode)  # default coord = "cm"
+    expect_equal(a, b, info = mode)
+  }
+})
+
+test_that("coord errors: missing coord column and non-increasing coord within a chr", {
+  geno <- matrix(c(0, 1, 2), nrow = 3, dimnames = list(NULL, "S1"))
+  obs  <- data.frame(chr = 1L, bp = c(1e6, 2e6, 3e6))
+  target <- data.frame(chr = 1L, bp = c(1e6, 2e6))
+  # obs/target lack the requested coord column
+  expect_error(interpolate_genotype(geno, obs, target, "step", coord = "cm"),
+               "columns `chr` and `cm`")
+  # non-strictly-increasing coord within a chromosome
+  obs_bad <- data.frame(chr = 1L, bp = c(1e6, 1e6, 3e6))  # tied bp
+  expect_error(interpolate_genotype(geno, obs_bad, target, "step", coord = "bp"),
+               "sorted|strictly increasing")
+  # coord must be a single column name
+  expect_error(interpolate_genotype(geno, obs, target, "step", coord = c("bp", "cm")),
+               "single column name")
+})

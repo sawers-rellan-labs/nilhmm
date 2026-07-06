@@ -52,12 +52,19 @@
 #'
 #' @param geno Numeric matrix, `nrow(geno) == nrow(obs)`, column = sample;
 #'   COMPLETE (no `NA`). Values are the alt-allele dosage in `[0, 2]`.
-#' @param obs `data.frame(chr, cm)` aligned row-for-row to `geno`, sorted by
-#'   `(chr, cm)` with `cm` strictly increasing within each chromosome.
-#' @param target `data.frame(chr, cm)` of the target grid, sorted by `(chr, cm)`.
-#'   `cm` may repeat (tied positions allowed); each row yields one output row, and
-#'   markers sharing a cM get identical genotypes (see Details).
+#' @param obs `data.frame` with columns `chr` and the coordinate column named by
+#'   `coord` (default `cm`), aligned row-for-row to `geno`, sorted by
+#'   `(chr, coord)` with `coord` strictly increasing within each chromosome.
+#' @param target `data.frame` with columns `chr` and the coordinate column named
+#'   by `coord`, sorted by `(chr, coord)`. The coordinate may repeat (tied
+#'   positions allowed); each row yields one output row, and markers sharing a
+#'   coordinate get identical genotypes (see Details).
 #' @param mode One of `"continuous"` (Tian), `"step"` (Chen/TeoNAM), `"round"`.
+#' @param coord Name of the coordinate column to interpolate along; default
+#'   `"cm"` (genetic distance). Use e.g. `"bp"` for physical-distance
+#'   interpolation -- appropriate when interpolating in cM would be circular, such
+#'   as building a native genetic map from bp positions. The coordinate is just
+#'   the axis to interpolate along; the arithmetic is unit-agnostic.
 #' @return Numeric matrix `nrow(target)` x `ncol(geno)`; rownames from `target`
 #'   (if any), colnames from `geno`.
 #' @examples
@@ -65,36 +72,44 @@
 #' geno <- matrix(c(0, 2), nrow = 2, dimnames = list(NULL, "S1"))
 #' target <- data.frame(chr = 1L, cm = c(0, 0.5, 1))
 #' interpolate_genotype(geno, obs, target, "continuous")  # 0, 1, 2
+#'
+#' # Interpolate along physical distance (bp) instead of cM.
+#' obs_bp    <- data.frame(chr = 1L, bp = c(1e6, 3e6))
+#' target_bp <- data.frame(chr = 1L, bp = c(1e6, 2e6, 3e6))
+#' interpolate_genotype(geno, obs_bp, target_bp, "continuous", coord = "bp")  # 0, 1, 2
 #' @export
 interpolate_genotype <- function(geno, obs, target,
-                                 mode = c("continuous", "step", "round")) {
+                                 mode = c("continuous", "step", "round"),
+                                 coord = "cm") {
   mode <- match.arg(mode)
   mode_int <- match(mode, c("continuous", "step", "round")) - 1L  # 0/1/2
+  if (!is.character(coord) || length(coord) != 1L)
+    stop("interpolate_genotype(): `coord` must be a single column name.")
 
   geno <- as.matrix(geno)
   if (!is.numeric(geno)) storage.mode(geno) <- "double"
   if (anyNA(geno))
     stop("interpolate_genotype(): `geno` must be complete (no NA).")
-  if (!all(c("chr", "cm") %in% names(obs)))
-    stop("interpolate_genotype(): `obs` must have columns `chr` and `cm`.")
-  if (!all(c("chr", "cm") %in% names(target)))
-    stop("interpolate_genotype(): `target` must have columns `chr` and `cm`.")
+  if (!all(c("chr", coord) %in% names(obs)))
+    stop("interpolate_genotype(): `obs` must have columns `chr` and `", coord, "`.")
+  if (!all(c("chr", coord) %in% names(target)))
+    stop("interpolate_genotype(): `target` must have columns `chr` and `", coord, "`.")
   if (nrow(geno) != nrow(obs))
     stop("interpolate_genotype(): nrow(geno) (", nrow(geno),
          ") must equal nrow(obs) (", nrow(obs), ").")
 
-  # obs must be sorted by (chr, cm) and strictly increasing in cm within a chr.
-  ord <- order(obs$chr, obs$cm)
+  # obs must be sorted by (chr, coord) and strictly increasing in coord within a chr.
+  ord <- order(obs$chr, obs[[coord]])
   if (!identical(ord, seq_len(nrow(obs))))
-    stop("interpolate_genotype(): `obs` must be sorted by (chr, cm).")
+    stop("interpolate_genotype(): `obs` must be sorted by (chr, ", coord, ").")
   for (ch in unique(obs$chr)) {
-    cm_ch <- obs$cm[obs$chr == ch]
-    if (any(diff(cm_ch) <= 0))
-      stop("interpolate_genotype(): `obs$cm` must be strictly increasing within ",
-           "chromosome ", ch, " (collapse tied positions upstream).")
+    c_ch <- obs[[coord]][obs$chr == ch]
+    if (any(diff(c_ch) <= 0))
+      stop("interpolate_genotype(): `obs$", coord, "` must be strictly increasing ",
+           "within chromosome ", ch, " (collapse tied positions upstream).")
   }
-  if (!identical(order(target$chr, target$cm), seq_len(nrow(target))))
-    stop("interpolate_genotype(): `target` must be sorted by (chr, cm).")
+  if (!identical(order(target$chr, target[[coord]]), seq_len(nrow(target))))
+    stop("interpolate_genotype(): `target` must be sorted by (chr, ", coord, ").")
 
   # Empty target grid -> a 0-row matrix with geno's columns (rbind of no blocks
   # would be NULL and break the colnames<- assignment below).
@@ -113,9 +128,9 @@ interpolate_genotype <- function(geno, obs, target,
       stop("interpolate_genotype(): target chromosome ", ch,
            " has no observed markers in `obs`.")
     blocks[[i]] <- interp_geno_cpp(
-      obs_cm    = as.numeric(obs$cm[orows]),
+      obs_cm    = as.numeric(obs[[coord]][orows]),
       G         = geno[orows, , drop = FALSE],
-      target_cm = as.numeric(target$cm[trows]),
+      target_cm = as.numeric(target[[coord]][trows]),
       mode      = mode_int
     )
   }
