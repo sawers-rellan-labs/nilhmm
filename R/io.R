@@ -102,17 +102,27 @@ read_counts <- function(path, format = c("tsv", "gatk_table", "vcf_ad"), name = 
   ai <- vapply(strsplit(body[[9]], ":", fixed = TRUE),
                function(x) { m <- match("AD", x); if (is.na(m)) NA_integer_ else m }, integer(1))
   if (all(is.na(ai))) stop("read_counts(vcf_ad): no `AD` field found in the FORMAT column")
+  if (anyNA(ai))
+    warning("read_counts(vcf_ad): ", sum(is.na(ai)), " record(s) have no AD field in ",
+            "FORMAT; their genotypes are read as 0 counts.")
   k_const <- length(unique(ai)) == 1L && !anyNA(ai)   # constant FORMAT -> fast vectorized path
 
-  # extract the k-th ':'-field of each sample cell (k scalar when FORMAT is constant).
+  # Extract the k-th ':'-field of each sample cell (k scalar when FORMAT is
+  # constant). Both paths guard truncated cells (fewer than k fields) -> NA, so a
+  # cell missing AD never falls through to an earlier (possibly comma-bearing, e.g.
+  # PL "0,255,255") field being misread as AD.
   kth_field <- function(col, k) {
-    if (length(k) == 1L)
-      sub(sprintf("^(?:[^:]*:){%d}([^:]*).*", k - 1L), "\\1", col, perl = TRUE)
-    else
+    if (length(k) == 1L) {
+      field  <- sub(sprintf("^(?:[^:]*:){%d}([^:]*).*", k - 1L), "\\1", col, perl = TRUE)
+      ncolon <- nchar(col) - nchar(gsub(":", "", col, fixed = TRUE))
+      field[ncolon < (k - 1L)] <- NA_character_       # k-th field absent (truncated cell)
+      field
+    } else {
       vapply(seq_along(col), function(r) {
         p <- strsplit(col[r], ":", fixed = TRUE)[[1]]
         if (is.na(k[r]) || k[r] > length(p)) NA_character_ else p[k[r]]
       }, character(1))
+    }
   }
   ad_to_counts <- function(ad) {
     r <- sub(",.*", "", ad)                          # before first comma

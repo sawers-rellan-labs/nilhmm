@@ -55,6 +55,28 @@ test_that("multiallelic AD keeps only the first ALT (biallelic assumption)", {
   expect_equal(n2$n_ref, 0L); expect_equal(n2$n_alt, 4L)
 })
 
+test_that("truncated cell missing AD is NA -> 0,0, never misreads a comma field (e.g. PL)", {
+  # AD is the 3rd field; PL (comma-bearing) is the 2nd. NIL2's cell is truncated
+  # (GT:PL only, AD absent) -- must NOT read PL's "255" as n_alt.
+  f <- write_vcf(vcf_lines(c(
+    "1\t100000\t.\tA\tT\t.\t.\t.\tGT:PL:AD\t0/1:0,30,255:6,4\t0/1:0,255,255")))
+  d <- read_counts(f, format = "vcf_ad")
+  n1 <- d[d$name == "NIL1", ]; n2 <- d[d$name == "NIL2", ]
+  expect_equal(n1$n_ref, 6L); expect_equal(n1$n_alt, 4L)     # real AD parsed
+  expect_equal(n2$n_ref, 0L); expect_equal(n2$n_alt, 0L)     # truncated -> 0,0 (not 255)
+})
+
+test_that("records with no AD in FORMAT warn and read as 0 counts (not silent)", {
+  f <- write_vcf(vcf_lines(c(
+    "1\t100000\t.\tA\tT\t.\t.\t.\tGT:AD\t0/1:5,4\t1/1:0,7",
+    "1\t200000\t.\tA\tT\t.\t.\t.\tGT:DP\t0/0:8\t0/1:9")))   # 2nd record lacks AD
+  expect_warning(d <- read_counts(f, format = "vcf_ad"), "no AD field")
+  r2 <- d[d$pos == 200000L, ]
+  expect_true(all(r2$n_ref == 0L) && all(r2$n_alt == 0L))
+  r1 <- d[d$name == "NIL1" & d$pos == 100000L, ]             # AD-present record still parsed
+  expect_equal(r1$n_ref, 5L); expect_equal(r1$n_alt, 4L)
+})
+
 test_that("errors: no AD in FORMAT, no #CHROM header", {
   f <- write_vcf(vcf_lines("1\t100000\t.\tA\tT\t.\t.\t.\tGT:DP\t0/0:8\t0/1:9"))
   expect_error(read_counts(f, format = "vcf_ad"), "AD")
