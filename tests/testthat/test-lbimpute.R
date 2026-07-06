@@ -143,6 +143,52 @@ test_that("write_vcf_impute emits a valid biallelic GT VCF", {
   expect_match(body[2], "GT\t1/1\t0/0")               # marker 2: NIL1 ALT, NIL2 REF
 })
 
+test_that("vectorized decode matches a naive per-sequence reference (bp and cM)", {
+  set.seed(11)
+  n_samp <- 12L; pos <- seq_len(60L) * 1e5L
+  cohort <- do.call(rbind, lapply(seq_len(n_samp), function(s) {
+    st <- rep(sample(0:2, 3, replace = TRUE), times = c(20, 20, 20))
+    nr <- ifelse(st == 2, 0L, ifelse(st == 1, 4L, 8L)) + rpois(60, 0.3)
+    na <- ifelse(st == 0, 0L, ifelse(st == 1, 4L, 8L)) + rpois(60, 0.3)
+    data.frame(name = paste0("S", s), donor = paste0("d", s %% 3), chr = 1L,
+               pos = pos, cm = pos * 5e-6, n_ref = nr, n_alt = na)
+  }))
+  li <- log(rep(1/3, 3))
+  # naive reference: independently decode each (name, chr) sequence.
+  naive <- function(tc, rd) {
+    parts <- lapply(split(cohort, cohort$name), function(dn) {
+      do.call(rbind, lapply(split(dn, dn$chr), function(dc) {
+        dc <- dc[order(dc$pos), ]
+        em <- lb_emission_loglik_cpp(dc$n_ref, dc$n_alt, 0.01, 0.05)
+        st <- lb_viterbi_cpp(li, em, as.numeric(dc[[tc]]), rd, FALSE)
+        data.frame(donor = dc$donor, name = dc$name, chr = dc$chr, pos = dc$pos,
+                   state = as.integer(st), stringsAsFactors = FALSE)
+      }))
+    })
+    ref <- do.call(rbind, parts)
+    ref[order(ref$donor, ref$name, ref$chr, ref$pos), c("name", "chr", "pos", "state")]
+  }
+  for (tc in c("pos", "cm")) {
+    rd <- if (tc == "cm") 50 else 1e7
+    got <- nilHMM:::.lbimpute_states(cohort, 0.01, 0.05, rd, FALSE, li,
+                                     "nilHMM", NA_character_, has_donor = TRUE, tcol = tc)
+    ref <- naive(tc, rd)
+    rownames(got) <- NULL; rownames(ref) <- NULL
+    expect_equal(got[, c("name", "chr", "pos", "state")], ref, info = tc)
+  }
+})
+
+test_that("ragged input (per-sample marker subsets) decodes correctly", {
+  # sample B is missing marker 2 -- a non-rectangular cohort. A all REF, B all ALT.
+  ragged <- data.frame(
+    name = c("A", "A", "A", "B", "B"),
+    chr = 1L, pos = c(1e5, 2e5, 3e5, 1e5, 3e5),
+    n_ref = c(8L, 8L, 8L, 0L, 0L), n_alt = c(0L, 0L, 0L, 8L, 8L))
+  seg <- call_ancestry(ragged, caller = "lbimpute")
+  expect_equal(seg$state[seg$name == "A"], 0L)        # A: single REF segment
+  expect_equal(seg$state[seg$name == "B"], 2L)        # B: single ALT segment
+})
+
 test_that("write_vcf_impute rejects duplicate (name, chr, pos) rows", {
   st <- data.frame(name = "NIL1", chr = 1L, pos = c(1e5, 1e5),
                    state = c(0L, 2L))

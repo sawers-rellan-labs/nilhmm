@@ -12,43 +12,72 @@
 # transition is per-marker (distance-based), not the single time-homogeneous
 # matrix the count/gt callers share.
 
-# Per (sample, chromosome) decode. `data` has name, chr, pos, n_ref, n_alt
-# (+ optional donor, + `tcol` for the transition coordinate). Output coordinates
-# are always bp (`pos`); the transition decays over `tcol` (bp `pos` or cM `cm`).
-# Returns per-marker state rows (source, donor, name, chr, pos, state).
+# Decode per (sample, chromosome). Output coordinates are always bp (`pos`); the
+# transition decays over `tcol` (bp `pos` or cM `cm`). Returns per-marker state
+# rows (source, donor, name, chr, pos, state).
+#
+# Perf: sort ONCE by (donor, name, chr, pos), then decode over contiguous vector
+# slices and assemble a single output data.frame -- avoiding the per-(sample,chr)
+# data.frame split/subset/rbind that profiling showed dominated wall-clock (the
+# same vectorized-loop win used for to_segments). The C++ decode itself was ~10%
+# of the old runtime; the R marshaling was the rest.
 .lbimpute_states <- function(data, err, errg, recombdist, drp, log_init,
                              source, donor, has_donor, tcol = "pos", threads = 1L) {
-  by_name <- split(data, data$name, drop = TRUE)
+  n <- nrow(data)
+  if (n == 0L)
+    return(data.frame(source = character(), donor = character(), name = character(),
+                      chr = integer(), pos = integer(), state = integer(),
+                      stringsAsFactors = FALSE))
 
-  one_sample <- function(nm) {
-    dn <- by_name[[nm]]
-    donor_nm <- if (has_donor) dn$donor[1] else donor
-    do.call(rbind, lapply(split(dn, dn$chr, drop = TRUE), function(dc) {
-      dc <- dc[order(dc$pos), , drop = FALSE]           # order by bp; the map (cm) is monotonic with it
-      nref <- as.integer(dc$n_ref); nalt <- as.integer(dc$n_alt)
-      # memoize the emission over DISTINCT (n_ref, n_alt) pairs, index back (the
-      # count-emission trick in emissions.R): read depths repeat heavily.
-      base <- max(nref + nalt) + 1L
-      key  <- as.double(nref) * base + nalt
-      u    <- unique(key)
-      em_u <- lb_emission_loglik_cpp(as.integer(u %/% base), as.integer(u %% base), err, errg)
-      em   <- em_u[match(key, u), , drop = FALSE]
-      tpos <- as.numeric(dc[[tcol]])                    # transition coordinate (bp or cM)
-      path <- lb_viterbi_cpp(log_init, em, tpos, recombdist, drp)
-      data.frame(source = source, donor = donor_nm, name = nm,
-                 chr = as.integer(dc$chr[1]), pos = as.integer(dc$pos),
-                 state = as.integer(path), stringsAsFactors = FALSE)
-    }))
+  # One global sort into decode+output order. donor is constant within a name, so
+  # (name, chr) runs stay contiguous under this key -- and the result needs no
+  # re-sort (it already matches the common (donor, name, chr, pos) order).
+  # Sort on INTEGER factor codes with radix: a character multi-key order() over a
+  # cohort-sized table is O(n log n) string-compares and profiled at ~70% of the
+  # runtime; radix on integer codes is linear and drops it to noise. Factor levels
+  # sort in the session locale, matching the previous character ordering.
+  name_c <- as.integer(factor(data$name))
+  chr_i  <- as.integer(data$chr)
+  pos_i  <- as.integer(data$pos)
+  ord <- if (has_donor)
+           order(as.integer(factor(data$donor)), name_c, chr_i, pos_i, method = "radix")
+         else order(name_c, chr_i, pos_i, method = "radix")
+  nm    <- data$name[ord]
+  chr   <- chr_i[ord]
+  pos   <- pos_i[ord]
+  nref  <- as.integer(data$n_ref[ord])
+  nalt  <- as.integer(data$n_alt[ord])
+  tpos  <- as.numeric(data[[tcol]][ord])
+  dncol <- if (has_donor) as.character(data$donor[ord]) else rep(donor, n)
+
+  # Run starts where (name, chr) changes -> one Viterbi sequence per run.
+  starts <- which(c(TRUE, nm[-1] != nm[-n] | chr[-1] != chr[-n]))
+  ends   <- c(starts[-1] - 1L, n)
+
+  decode_run <- function(g) {
+    i <- starts[g]:ends[g]
+    r <- nref[i]; a <- nalt[i]
+    # memoize emission over DISTINCT (n_ref, n_alt) pairs (read depths repeat).
+    base <- max(a) + 1L                       # base > max(nalt) so key is invertible
+    key  <- as.double(r) * base + a
+    u    <- unique(key)
+    em_u <- lb_emission_loglik_cpp(as.integer(u %/% base), as.integer(u %% base), err, errg)
+    em   <- em_u[match(key, u), , drop = FALSE]
+    lb_viterbi_cpp(log_init, em, tpos[i], recombdist, drp)   # integer states for this run
   }
 
-  nms <- names(by_name)
-  per <- if (threads > 1L && .Platform$OS.type == "unix")
-           parallel::mclapply(nms, one_sample, mc.cores = threads)
-         else lapply(nms, one_sample)
-  bad <- vapply(per, function(x) inherits(x, "try-error") || is.null(x), logical(1))
-  if (any(bad)) stop("call_states(): lbimpute decode failed for sample(s): ",
-                     paste(nms[bad], collapse = ", "))
-  states <- if (requireNamespace("data.table", quietly = TRUE))
-              as.data.frame(data.table::rbindlist(per)) else do.call(rbind, per)
-  states[order(states$donor, states$name, states$chr, states$pos), , drop = FALSE]
+  gs <- seq_along(starts)
+  runs <- if (threads > 1L && .Platform$OS.type == "unix")
+            parallel::mclapply(gs, decode_run, mc.cores = threads)
+          else lapply(gs, decode_run)
+  bad <- vapply(runs, function(x) inherits(x, "try-error") || is.null(x), logical(1))
+  if (any(bad)) {
+    who <- unique(paste(nm[starts[bad]], chr[starts[bad]], sep = ":"))
+    stop("call_states(): lbimpute decode failed for (name:chr): ", paste(who, collapse = ", "))
+  }
+  # runs are in sorted-group order, so unlist rebuilds the full state vector aligned
+  # to (nm, chr, pos); one data.frame, no per-group rbind.
+  state <- unlist(runs, use.names = FALSE)
+  data.frame(source = source, donor = dncol, name = nm, chr = chr, pos = pos,
+             state = as.integer(state), stringsAsFactors = FALSE)
 }
