@@ -75,6 +75,21 @@ test_that("a target exactly on an observed cM returns the observed value", {
   }
 })
 
+test_that("tied target cM is allowed: every marker imputed, twins share genotypes", {
+  # Centromeric plateau: two target markers at the SAME cM (m2a, m2b). The target
+  # grid need NOT be unique in cM -- each marker still gets its own output row, and
+  # the twins receive an identical genotype vector (perfect LD in the map).
+  obs  <- data.frame(chr = 1L, cm = c(0, 1, 2))
+  geno <- matrix(c(0, 0, 2, 0, 0, 2), ncol = 2, dimnames = list(NULL, c("S1", "S2")))
+  target <- data.frame(chr = 1L, cm = c(0.0, 1.0, 1.0, 2.0),
+                       row.names = c("m1", "m2a", "m2b", "m3"))
+  for (mode in c("continuous", "step", "round")) {
+    out <- interpolate_genotype(geno, obs, target, mode)
+    expect_equal(nrow(out), nrow(target), info = mode)          # nothing dropped
+    expect_equal(unname(out["m2a", ]), unname(out["m2b", ]), info = mode)  # twins identical
+  }
+})
+
 test_that("no interpolation bleeds across a chromosome boundary", {
   obs <- data.frame(chr = c(1L, 1L, 2L, 2L), cm = c(0, 1, 0, 1))
   # chr1: 0 -> 0 ; chr2: 2 -> 2. A midpoint must stay within its own chr.

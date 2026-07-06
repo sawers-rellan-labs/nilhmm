@@ -34,6 +34,19 @@
 #' families -- interpolating each family's dense block onto the shared grid -- and
 #' `cbind` the results; that loop lives in the consumer pipeline, not here.
 #'
+#' Tied target positions: `obs$cm` must be strictly increasing (source flanks
+#' must be distinct), but **`target$cm` may repeat** -- the target grid does NOT
+#' need unique cM. Every target row gets its own output row, so pass the full
+#' marker set to densify all of it; do not pre-collapse to unique cM (that
+#' silently drops markers). Two target markers at the same cM are, by the map, at
+#' one genetic location (zero modelled recombination between them, i.e. perfect
+#' LD), so they receive an **identical genotype vector** -- deterministic, and
+#' correct for the interpolation model, not a bug. This is common in
+#' recombination-cold centromeric regions (a whole Mb mapping to one cM). If a
+#' downstream step needs non-duplicate columns, thin the twins there
+#' ([select_independent()] on an `r2`/[position_distance()] matrix); interpolation
+#' cannot manufacture sub-cM resolution the map lacks.
+#'
 #' `geno` columns are assumed COMPLETE (no `NA`) -- true for imputed truth and for
 #' HMM-caller output. There is no `NA`-aware flanking search.
 #'
@@ -42,6 +55,8 @@
 #' @param obs `data.frame(chr, cm)` aligned row-for-row to `geno`, sorted by
 #'   `(chr, cm)` with `cm` strictly increasing within each chromosome.
 #' @param target `data.frame(chr, cm)` of the target grid, sorted by `(chr, cm)`.
+#'   `cm` may repeat (tied positions allowed); each row yields one output row, and
+#'   markers sharing a cM get identical genotypes (see Details).
 #' @param mode One of `"continuous"` (Tian), `"step"` (Chen/TeoNAM), `"round"`.
 #' @return Numeric matrix `nrow(target)` x `ncol(geno)`; rownames from `target`
 #'   (if any), colnames from `geno`.

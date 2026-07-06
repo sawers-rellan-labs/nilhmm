@@ -18,7 +18,9 @@ COMPLETE (no \code{NA}). Values are the alt-allele dosage in \verb{[0, 2]}.}
 \item{obs}{\code{data.frame(chr, cm)} aligned row-for-row to \code{geno}, sorted by
 \verb{(chr, cm)} with \code{cm} strictly increasing within each chromosome.}
 
-\item{target}{\code{data.frame(chr, cm)} of the target grid, sorted by \verb{(chr, cm)}.}
+\item{target}{\code{data.frame(chr, cm)} of the target grid, sorted by \verb{(chr, cm)}.
+\code{cm} may repeat (tied positions allowed); each row yields one output row, and
+markers sharing a cM get identical genotypes (see Details).}
 
 \item{mode}{One of \code{"continuous"} (Tian), \code{"step"} (Chen/TeoNAM), \code{"round"}.}
 }
@@ -54,6 +56,19 @@ The function densifies \strong{one dense block} to a target grid. For block-spar
 per-family data (each family genotyped on its own marker subset), loop over
 families -- interpolating each family's dense block onto the shared grid -- and
 \code{cbind} the results; that loop lives in the consumer pipeline, not here.
+
+Tied target positions: \code{obs$cm} must be strictly increasing (source flanks
+must be distinct), but \strong{\code{target$cm} may repeat} -- the target grid does NOT
+need unique cM. Every target row gets its own output row, so pass the full
+marker set to densify all of it; do not pre-collapse to unique cM (that
+silently drops markers). Two target markers at the same cM are, by the map, at
+one genetic location (zero modelled recombination between them, i.e. perfect
+LD), so they receive an \strong{identical genotype vector} -- deterministic, and
+correct for the interpolation model, not a bug. This is common in
+recombination-cold centromeric regions (a whole Mb mapping to one cM). If a
+downstream step needs non-duplicate columns, thin the twins there
+(\code{\link[=select_independent]{select_independent()}} on an \code{r2}/\code{\link[=position_distance]{position_distance()}} matrix); interpolation
+cannot manufacture sub-cM resolution the map lacks.
 
 \code{geno} columns are assumed COMPLETE (no \code{NA}) -- true for imputed truth and for
 HMM-caller output. There is no \code{NA}-aware flanking search.
