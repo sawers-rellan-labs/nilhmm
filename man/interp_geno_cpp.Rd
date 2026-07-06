@@ -16,10 +16,13 @@ COMPLETE (no NA); values are the alt/teosinte-allele dosage in 0 to 2.}
 
 \item{mode}{Interpolation mode: 0 = continuous dosage ramp (Tian 2011),
 1 = step / nearest flanking value (\code{w < 0.5 ? vL : vR}, tie \code{w == 0.5} -> vR;
-Chen/TeoNAM), 2 = round(continuous) to 0/1/2.}
+Chen/TeoNAM densification), 2 = round(continuous) to 0/1/2, 3 = Chen 2019
+composite-map rule (concordant flanks fill, discordant flanks or chromosome
+ends -> NA; distance-independent).}
 }
 \value{
-Numeric M x n matrix of interpolated genotypes.
+Numeric M x n matrix of interpolated genotypes. Mode 3 may contain NA
+(discordant flanks / chromosome ends); modes 0-2 never introduce NA.
 }
 \description{
 Linear flanking-marker interpolation in genetic distance for one chromosome.

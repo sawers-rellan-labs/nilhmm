@@ -171,3 +171,59 @@ test_that("coord errors: missing coord column and non-increasing coord within a 
   expect_error(interpolate_genotype(geno, obs, target, "step", coord = c("bp", "cm")),
                "single column name")
 })
+
+test_that("chen2019: concordant flanks fill, discordant flanks -> NA, ends -> NA", {
+  obs    <- data.frame(chr = 1L, cm = c(0, 2))
+  target <- data.frame(chr = 1L, cm = c(-1, 0, 1, 2, 3))
+  # column "concord": flanks 0/0; column "discord": flanks 0/2
+  geno   <- matrix(c(0, 0,  0, 2), nrow = 2, dimnames = list(NULL, c("concord", "discord")))
+  out <- interpolate_genotype(geno, obs, target, "chen2019")
+
+  # concord column: end NA, obs0 -> 0, mid concordant -> 0, obs2 -> 0, end NA
+  expect_equal(out[, "concord"], c(NA, 0, 0, 0, NA))
+  # discord column: end NA, obs0 -> 0, mid discordant -> NA, obs2 -> 2, end NA
+  expect_equal(out[, "discord"], c(NA, 0, NA, 2, NA))
+  # ends are NA regardless of concordance (cm -1 and cm 3, both columns)
+  expect_true(all(is.na(out[c(1, 5), ])))
+  # exact-position targets return the observed value (cm 0 and cm 2)
+  expect_equal(unname(out[2, ]), c(0, 0))   # cm 0
+  expect_equal(unname(out[4, ]), c(0, 2))   # cm 2
+})
+
+test_that("chen2019: concordance is column-wise within one call", {
+  obs    <- data.frame(chr = 1L, cm = c(0, 10))
+  target <- data.frame(chr = 1L, cm = c(5))
+  geno   <- matrix(c(2, 2,  0, 2,  1, 0), nrow = 2,
+                   dimnames = list(NULL, c("cc", "dd", "ee")))  # 2/2, 0/2, 1/0
+  out <- interpolate_genotype(geno, obs, target, "chen2019")
+  expect_equal(unname(out[1, "cc"]), 2)      # concordant -> fill
+  expect_true(is.na(out[1, "dd"]))           # discordant -> NA
+  expect_true(is.na(out[1, "ee"]))           # discordant -> NA
+})
+
+test_that("chen2019: chromosome ends NA, no cross-chromosome bleed", {
+  obs    <- data.frame(chr = c(1L, 1L, 2L, 2L), cm = c(0, 5, 0, 5))
+  target <- data.frame(chr = c(1L, 1L, 2L, 2L), cm = c(-2, 2, 2, 9))
+  geno   <- matrix(c(0, 0, 2, 2), nrow = 4, dimnames = list(NULL, "S"))  # chr1 0/0, chr2 2/2
+  out <- interpolate_genotype(geno, obs, target, "chen2019")
+  expect_true(is.na(out[1, 1]))              # chr1 before first -> NA
+  expect_equal(unname(out[2, 1]), 0)         # chr1 between concordant 0/0 -> 0
+  expect_equal(unname(out[3, 1]), 2)         # chr2 between concordant 2/2 -> 2 (not chr1's 0)
+  expect_true(is.na(out[4, 1]))              # chr2 past last -> NA
+})
+
+test_that("chen2019 addition is purely additive: continuous/step/round unchanged", {
+  # A discordant 0<->2 gap: the distance-based modes still fill (never NA), proving
+  # the mode-3 NA path did not leak into modes 0/1/2.
+  obs    <- data.frame(chr = 1L, cm = c(0, 2))
+  target <- data.frame(chr = 1L, cm = c(-1, 0.5, 1, 1.5, 3))
+  geno   <- matrix(c(0, 2), nrow = 2, dimnames = list(NULL, "S"))
+  cont <- interpolate_genotype(geno, obs, target, "continuous")
+  expect_equal(unname(cont[, 1]), c(0, 0.5, 1, 1.5, 2))   # ramp + rule=2 clamped ends
+  expect_false(anyNA(cont))
+  step <- interpolate_genotype(geno, obs, target, "step")
+  expect_equal(unname(step[, 1]), c(0, 0, 2, 2, 2))       # nearest flank (tie w=0.5 -> vR); never a fabricated 1
+  expect_false(anyNA(step))
+  rnd <- interpolate_genotype(geno, obs, target, "round")
+  expect_false(anyNA(rnd))
+})

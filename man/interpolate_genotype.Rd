@@ -8,7 +8,7 @@ interpolate_genotype(
   geno,
   obs,
   target,
-  mode = c("continuous", "step", "round"),
+  mode = c("continuous", "step", "round", "chen2019"),
   coord = "cm"
 )
 }
@@ -25,7 +25,10 @@ by \code{coord}, sorted by \verb{(chr, coord)}. The coordinate may repeat (tied
 positions allowed); each row yields one output row, and markers sharing a
 coordinate get identical genotypes (see Details).}
 
-\item{mode}{One of \code{"continuous"} (Tian), \code{"step"} (Chen/TeoNAM), \code{"round"}.}
+\item{mode}{One of \code{"continuous"} (Tian 2011 dosage ramp), \code{"step"}, \code{"round"}
+(all three = distance-based JLM/GWAS densification), or \code{"chen2019"} (the
+composite genetic-map rule: concordant flanks fill, discordant flanks or
+chromosome ends -> \code{NA}; see Details).}
 
 \item{coord}{Name of the coordinate column to interpolate along; default
 \code{"cm"} (genetic distance). Use e.g. \code{"bp"} for physical-distance
@@ -35,7 +38,9 @@ the axis to interpolate along; the arithmetic is unit-agnostic.}
 }
 \value{
 Numeric matrix \code{nrow(target)} x \code{ncol(geno)}; rownames from \code{target}
-(if any), colnames from \code{geno}.
+(if any), colnames from \code{geno}. Modes \code{continuous}/\code{step}/\code{round} never
+introduce \code{NA}; mode \code{chen2019} returns \code{NA} at discordant-flank targets and
+chromosome ends.
 }
 \description{
 Densifies a complete genotype block onto a common target marker grid by
@@ -59,6 +64,17 @@ form -- fabricates no het across a \verb{0<->2} gap.}
 \item{\code{round}}{\code{round(continuous)} to 0/1/2; fabricates a het band across a
 \verb{0<->2} gap (width proportional to the cM gap) -- provided to demonstrate
 that artifact.}
+\item{\code{chen2019}}{the composite genetic-MAP construction rule of Chen et al.
+2019 (TeoNAM): \emph{"the missing genotypes were imputed according to the
+flanking markers. If the flanking markers had same genotypes, the missing
+genotype was imputed as the same with flanking markers, or otherwise left
+as missing."} So concordant flanks fill; \strong{discordant flanks -> NA}; and
+targets past the terminal observed marker (chromosome ends) -> \strong{NA} (no
+rule=2 clamping). Order-based: the coordinate only locates the flanks, no
+distance weight enters the decision. Use this for MAP construction; use
+\code{continuous}/\code{step}/\code{round} for the Tian 2011 JLM/GWAS densification, which
+imputes by the genetic distance of the flanking markers. Unlike the other
+three modes, \code{chen2019} \strong{can emit \code{NA}}.}
 }
 
 The function densifies \strong{one dense block} to a target grid. For block-sparse
@@ -92,4 +108,16 @@ interpolate_genotype(geno, obs, target, "continuous")  # 0, 1, 2
 obs_bp    <- data.frame(chr = 1L, bp = c(1e6, 3e6))
 target_bp <- data.frame(chr = 1L, bp = c(1e6, 2e6, 3e6))
 interpolate_genotype(geno, obs_bp, target_bp, "continuous", coord = "bp")  # 0, 1, 2
+
+# Chen 2019 composite-map rule: concordant flanks fill, discordant/ends -> NA.
+obs2    <- data.frame(chr = 1L, cm = c(0, 2))
+geno2   <- matrix(c(0, 0,  0, 2), nrow = 2,
+                  dimnames = list(NULL, c("concord", "discord")))
+target2 <- data.frame(chr = 1L, cm = c(0, 1, 2, 3))
+interpolate_genotype(geno2, obs2, target2, "chen2019")
+#            concord discord
+# cm0 (obs)        0       0
+# cm1 (mid)        0      NA   # discordant flanks -> NA
+# cm2 (obs)        0       2
+# cm3 (end)       NA      NA   # chromosome end -> NA
 }

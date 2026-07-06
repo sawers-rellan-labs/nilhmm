@@ -26,8 +26,11 @@ using namespace Rcpp;
 //' @param target_cm Numeric cM of the target grid, ascending, length M.
 //' @param mode Interpolation mode: 0 = continuous dosage ramp (Tian 2011),
 //'   1 = step / nearest flanking value (`w < 0.5 ? vL : vR`, tie `w == 0.5` -> vR;
-//'   Chen/TeoNAM), 2 = round(continuous) to 0/1/2.
-//' @return Numeric M x n matrix of interpolated genotypes.
+//'   Chen/TeoNAM densification), 2 = round(continuous) to 0/1/2, 3 = Chen 2019
+//'   composite-map rule (concordant flanks fill, discordant flanks or chromosome
+//'   ends -> NA; distance-independent).
+//' @return Numeric M x n matrix of interpolated genotypes. Mode 3 may contain NA
+//'   (discordant flanks / chromosome ends); modes 0-2 never introduce NA.
 //' @keywords internal
 // [[Rcpp::export]]
 NumericMatrix interp_geno_cpp(NumericVector obs_cm,
@@ -40,6 +43,30 @@ NumericMatrix interp_geno_cpp(NumericVector obs_cm,
 
   NumericMatrix out(M, n);
   if (k == 0 || M == 0) return out;   // nothing to interpolate onto / from
+
+  // mode 3 = Chen 2019 composite-map rule: concordant flanks -> fill, discordant
+  // OR chromosome ends -> NA. Order-based; the coordinate only locates flanks (no
+  // distance weight). Unlike modes 0/1/2 this can EMIT NA (ends are not clamped).
+  if (mode == 3) {
+    std::vector<int> lf(M), rf(M);                 // flank indices; lf==rf -> exact obs; lf<0 -> end
+    for (int m = 0; m < M; ++m) {
+      const double t = target_cm[m];
+      if (t < obs_cm[0] || t > obs_cm[k - 1]) { lf[m] = -1; rf[m] = -1; continue; }  // end -> NA
+      NumericVector::iterator up = std::upper_bound(obs_cm.begin(), obs_cm.end(), t);
+      int r = (int)(up - obs_cm.begin());          // first obs strictly greater than t
+      if (r > 0 && obs_cm[r - 1] == t) { lf[m] = r - 1; rf[m] = r - 1; }  // exact observed marker
+      else { lf[m] = r - 1; rf[m] = r; }                                   // strictly between l, r
+    }
+    for (int i = 0; i < n; ++i) {
+      for (int m = 0; m < M; ++m) {
+        if (lf[m] < 0) { out(m, i) = NA_REAL; continue; }             // chromosome end
+        if (lf[m] == rf[m]) { out(m, i) = G(lf[m], i); continue; }    // exact observed value
+        const double vL = G(lf[m], i), vR = G(rf[m], i);
+        out(m, i) = (vL == vR) ? vL : NA_REAL;                        // concordant fill, else NA
+      }
+    }
+    return out;
+  }
 
   // Precompute (jj, w) once: shared across every sample.
   std::vector<int> jj(M);

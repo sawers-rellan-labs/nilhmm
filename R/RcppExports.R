@@ -67,8 +67,11 @@ forward_backward_cpp <- function(log_init, log_trans, log_emit) {
 #' @param target_cm Numeric cM of the target grid, ascending, length M.
 #' @param mode Interpolation mode: 0 = continuous dosage ramp (Tian 2011),
 #'   1 = step / nearest flanking value (`w < 0.5 ? vL : vR`, tie `w == 0.5` -> vR;
-#'   Chen/TeoNAM), 2 = round(continuous) to 0/1/2.
-#' @return Numeric M x n matrix of interpolated genotypes.
+#'   Chen/TeoNAM densification), 2 = round(continuous) to 0/1/2, 3 = Chen 2019
+#'   composite-map rule (concordant flanks fill, discordant flanks or chromosome
+#'   ends -> NA; distance-independent).
+#' @return Numeric M x n matrix of interpolated genotypes. Mode 3 may contain NA
+#'   (discordant flanks / chromosome ends); modes 0-2 never introduce NA.
 #' @keywords internal
 interp_geno_cpp <- function(obs_cm, G, target_cm, mode) {
     .Call(`_nilHMM_interp_geno_cpp`, obs_cm, G, target_cm, mode)
