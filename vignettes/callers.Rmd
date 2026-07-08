@@ -1,0 +1,135 @@
+---
+title: "The callers: one example each"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{The callers: one example each}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+set.seed(1)
+```
+
+nilHMM ships six named callers. They all share the 3-state REF/HET/ALT chain and
+the breeding-design priors, and all return the same segment schema — so you can
+run several on the same data and compare directly. They differ in the **emission**
+model, the **duration** prior, and the **input** they expect. This vignette runs
+one minimal example of each on self-contained synthetic data.
+
+```{r setup}
+library(nilHMM)
+```
+
+## Synthetic data
+
+We build one small backcross-ish cohort carrying **both** allelic read counts
+(`n_ref`/`n_alt`, for the count callers) and a hard genotype `g` in `{0,1,2,3}`
+(for the genotype callers), from a shared truth track.
+
+```{r sim}
+sim <- function(n = 8L, m = 300L, n_chr = 2L, depth = 6, err = 0.01, miss = 0.05) {
+  chr <- rep(seq_len(n_chr), each = m)
+  pos <- as.integer(rep(seq_len(m), n_chr) * 1e5)
+  do.call(rbind, lapply(seq_len(n), function(s) {
+    truth <- integer(length(chr))
+    for (ch in seq_len(n_chr)) {
+      idx <- which(chr == ch); w <- sample(20:60, 1L); s0 <- sample(idx, 1L)
+      blk <- s0:min(max(idx), s0 + w); truth[blk] <- 2L; truth[blk[1]] <- 1L
+    }
+    d  <- rpois(length(chr), depth)
+    na <- rbinom(length(chr), d, c(err, 0.5, 1 - err)[truth + 1L])
+    g  <- truth; g[d == 0L | runif(length(chr)) < miss] <- 3L
+    data.frame(name = sprintf("NIL%02d", s), family = "F1", chr = chr, pos = pos,
+               n_ref = d - na, n_alt = na, g = as.integer(g))
+  }))
+}
+d <- sim()
+counts <- d[, c("name", "chr", "pos", "n_ref", "n_alt")]
+gt     <- d[, c("name", "chr", "pos", "g")]
+```
+
+## `nnil` — count and genotype
+
+Holland's nNIL caller. With allelic counts it pools single-read observations along
+a segment via a BetaBinomial emission (`err`, `conc`; `fit_means = TRUE` EM-fits
+the per-state alt fractions). Given only a called genotype `g`, it switches to the
+categorical genotype emission automatically.
+
+```{r nnil}
+nnil_count <- call_ancestry(counts, caller = "nnil", design = "BC2S2",
+                            rrate = 1e-4, err = 0.01)
+nnil_gt    <- call_ancestry(gt, caller = "nnil", design = "BC2S2")  # g-only -> gt emission
+nrow(nnil_count); nrow(nnil_gt)
+```
+
+## `rtiger` — rigidity segmentation
+
+A Julia-free port of the RTIGER rigidity HMM (EM + Viterbi + border re-placement).
+`rigidity` is the integer minimum run length.
+
+```{r rtiger}
+rt <- call_ancestry(counts, caller = "rtiger", design = "BC2S2",
+                    rigidity = 5L, seed = 1L)
+head(rt, 3)
+```
+
+## `binhmm` — per-bin calling
+
+Bins the genome (default 1 Mb) and calls per-bin state with an anchored 3-state
+Gaussian-emission HMM. Good for noisy or uneven coverage.
+
+```{r binhmm}
+bh <- call_ancestry(counts, caller = "binhmm", design = "BC2S2", bin_size = 5e6)
+head(bh, 3)
+```
+
+## `atlas` — competitive-alignment (GOOGA)
+
+For transcript / competitive-alignment data: `n_ref`/`n_alt` are the recurrent and
+donor read counts, thresholded into genotype calls (GOOGA style) then smoothed.
+
+```{r atlas}
+at <- call_ancestry(counts, caller = "atlas", design = "BC2S2",
+                    atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L)
+head(at, 3)
+```
+
+## `lbimpute` — very low coverage
+
+A native port of LB-Impute (Fragoso et al. 2014) for `<1×` biallelic populations: a
+coverage-aware emission bounded by `genotypeerr`, and a distance-dependent
+transition (recombination scales with the marker gap over `recombdist`). No design
+priors needed.
+
+```{r lbimpute}
+lb <- call_ancestry(counts, caller = "lbimpute", recombdist = 1e7, genotypeerr = 0.05)
+head(lb, 3)
+```
+
+## `fsfhap` — full-sib families
+
+A port of TASSEL's FSFHap. Unlike the per-line callers it **pools each family**, so
+it needs a `family` grouping and a called genotype `g`. See `vignette("fsfhap")`
+for the full workflow (HapMap + pedigree input, design routing, parallelism).
+
+```{r fsfhap}
+fam <- d[, c("name", "family", "chr", "pos", "g")]
+# (a real family needs enough segregating markers; see vignette("fsfhap"))
+```
+
+## Comparing callers
+
+Because the output schema is shared, comparison is a table join away — e.g. how
+many segments and which states each caller produced on the same counts:
+
+```{r compare}
+summ <- function(x) c(segments = nrow(x), states = length(unique(x$state)))
+rbind(nnil = summ(nnil_count), rtiger = summ(rt), binhmm = summ(bh),
+      atlas = summ(at), lbimpute = summ(lb))
+```
+
+For per-caller parameters and lineage, see `?call_ancestry` and the README caller
+table.
+```

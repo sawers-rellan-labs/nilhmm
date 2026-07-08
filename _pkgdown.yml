@@ -7,21 +7,24 @@ home:
   title: nilHMM — duration-aware HMM ancestry caller for NILs
   description: >-
     A single duration-aware 3-state (REF/HET/ALT) HMM engine with swappable
-    emission and duration layers, expressing the nnil, rtiger, binhmm, and atlas
-    ancestry callers.
+    emission and duration layers, expressing a family of named ancestry callers:
+    nnil, rtiger, binhmm, atlas, lbimpute, and fsfhap.
 
 reference:
   - title: Calling ancestry
-    desc: The top-level API and the named callers.
+    desc: The top-level API, the named-caller registry, and parameter sweeps.
     contents:
       - call_ancestry
+      - call_states
       - caller_spec
+      - caller_sweep
 
   - title: Engine
-    desc: Fit emission/transition parameters and decode the state path.
+    desc: Fit parameters, decode the state path, and collapse to segments.
     contents:
       - fit
       - decode
+      - to_segments
 
   - title: Emissions
     desc: The swappable emission axis (count / gt) and the depth-regime selector.
@@ -38,11 +41,26 @@ reference:
       - duration_hsmm
 
   - title: Input / output
-    desc: Readers for the observation table and the common-schema writer.
+    desc: Readers that normalise formats to the observation table, and the writers.
     contents:
       - read_counts
       - read_vcf_gt
+      - read_hapmap
+      - read_plink
+      - read_pedigree
       - write_common_schema
+      - write_vcf_impute
+
+  - title: Genotype calling & downstream utilities
+    desc: >-
+      A linkage-free genotype caller and helpers for the QTL-mapping pipeline
+      (genotype densification, LD-based marker thinning).
+    contents:
+      - call_gl
+      - interpolate_genotype
+      - pairwise_distance
+      - select_independent
+      - position_distance
 
   - title: Design priors & calibration
     desc: Breeding-design priors, the fragment-size Null, and r calibration.
@@ -57,3 +75,12 @@ reference:
   - title: Plotting
     contents:
       - plot_fragment_sizes
+
+articles:
+  - title: Guides
+    navbar: ~
+    contents:
+      - nilHMM
+      - callers
+      - engine
+      - fsfhap

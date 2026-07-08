@@ -18,3 +18,5 @@
 ^nilHMM.*\.tar\.gz$
 ^nilHMM\.Rcheck$
 ^benchmarks$
+^doc$
+^Meta$

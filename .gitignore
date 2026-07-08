@@ -201,3 +201,5 @@ agent/
 
 # Benchmark harness outputs (the harness itself is tracked in benchmarks/).
 benchmarks/benchmark_fsfhap_out/
+/doc/
+/Meta/

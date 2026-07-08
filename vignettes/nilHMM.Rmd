@@ -1,0 +1,132 @@
+---
+title: "Getting started with nilHMM"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with nilHMM}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 3)
+set.seed(1)
+```
+
+**nilHMM** calls ancestry — donor introgressions — in Near-Isogenic Lines and
+related backcross/full-sib populations from sequencing data. Under the hood it is
+a single **duration-aware 3-state (REF / HET / ALT) HMM engine** with two swappable
+axes (emission × duration); their combinations, plus breeding-design priors,
+express a family of named callers (`nnil`, `rtiger`, `binhmm`, `atlas`,
+`lbimpute`, `fsfhap`). This vignette covers the common workflow; see
+`vignette("callers")` to choose a caller, `vignette("engine")` for the internals,
+and `vignette("fsfhap")` for full-sib families.
+
+```{r setup}
+library(nilHMM)
+```
+
+## The one-verb API
+
+Everything funnels through a single call:
+
+```r
+call_ancestry(data, caller = ..., design = ..., ...)
+```
+
+`data` is a tidy long table the readers produce; `caller` picks the model;
+`design` supplies the breeding-design priors. The package is **data-agnostic** —
+functions take `(data, params)` and never touch file paths, so you own where data
+comes from and where results go.
+
+## A worked example
+
+We need an observation table. In practice you read one with `read_counts()` (a
+`chr pos ref n_ref alt n_alt` TSV or a directory of them), `read_vcf_gt()`,
+`read_hapmap()`, or `read_plink()`. Here we simulate a small cohort of allelic
+read counts so the vignette is self-contained: six lines, two chromosomes, each
+carrying one donor (ALT) introgression block on a REF background.
+
+```{r simulate}
+sim_counts <- function(n = 6L, m = 300L, n_chr = 2L, depth = 6, err = 0.01) {
+  chr <- rep(seq_len(n_chr), each = m)
+  pos <- as.integer(rep(seq_len(m), n_chr) * 1e5)
+  do.call(rbind, lapply(seq_len(n), function(s) {
+    truth <- integer(length(chr))                        # 0 REF / 1 HET / 2 ALT
+    for (ch in seq_len(n_chr)) {
+      idx <- which(chr == ch); w <- sample(20:60, 1L); s0 <- sample(idx, 1L)
+      blk <- s0:min(max(idx), s0 + w); truth[blk] <- 2L; truth[blk[1]] <- 1L
+    }
+    d  <- rpois(length(chr), depth)
+    na <- rbinom(length(chr), d, c(err, 0.5, 1 - err)[truth + 1L])
+    data.frame(name = sprintf("NIL%02d", s), chr = chr, pos = pos,
+               n_ref = d - na, n_alt = na)
+  }))
+}
+counts <- sim_counts()
+head(counts)
+```
+
+Call ancestry with the `nnil` count caller and BC2S2 design priors:
+
+```{r call}
+calls <- call_ancestry(counts, caller = "nnil", design = "BC2S2",
+                       rrate = 1e-4, err = 0.01)
+head(calls)
+```
+
+## The common segment schema
+
+Every caller returns the same tidy **segment** table, so results are directly
+comparable across callers and populations:
+
+| column | meaning |
+|---|---|
+| `source` | free label for the run/method |
+| `donor` | donor/taxon label (per line if the input carries one) |
+| `name` | sample identifier |
+| `chr` | chromosome |
+| `start_bp`, `end_bp` | segment bounds (bp) |
+| `state` | `REF` (0, recurrent hom), `HET` (1), or `ALT` (2, donor hom) |
+
+```{r schema}
+table(calls$state)
+```
+
+Numeric states are `0 = REF`, `1 = HET`, `2 = ALT`. A quick karyotype-style view
+of one line's introgressions (base graphics, no extra packages):
+
+```{r plot}
+one <- calls[calls$name == "NIL01", ]
+cols <- c("0" = "grey85", "1" = "goldenrod", "2" = "firebrick")
+plot(NA, xlim = c(0, max(one$end_bp)), ylim = c(0.5, max(one$chr) + 0.5),
+     xlab = "position (bp)", ylab = "chromosome", yaxt = "n",
+     main = "NIL01 ancestry")
+axis(2, at = sort(unique(one$chr)))
+with(one, rect(start_bp, chr - 0.3, end_bp, chr + 0.3,
+               col = cols[as.character(state)], border = NA))
+legend("topright", fill = cols, legend = c("REF", "HET", "ALT"), bty = "n")
+```
+
+## Which caller?
+
+All callers share the REF/HET/ALT chain and the design priors; they differ in the
+emission model, the duration prior, and the input they expect.
+
+| caller | input | when |
+|---|---|---|
+| `nnil` | allelic counts, or called `GT` | general-purpose NILs (low-cov skim or saturated GT) |
+| `rtiger` | allelic counts | minimum-run-length (rigidity) segmentation |
+| `binhmm` | allelic counts | per-bin calling for noisy/uneven coverage |
+| `atlas` | recurrent/donor counts | competitive-alignment RNA-seq (GOOGA) |
+| `lbimpute` | very low-cov counts (<1×) | GBS/skim imputation (LB-Impute) |
+| `fsfhap` | called `GT` + a `family` | full-sib families (TASSEL FSFHap) |
+
+`vignette("callers")` gives a runnable example for each.
+
+## Next steps
+
+- **Choosing and comparing callers:** `vignette("callers")`
+- **The engine (emission × duration, custom callers):** `vignette("engine")`
+- **Full-sib families (HapMap/pedigree → fsfhap):** `vignette("fsfhap")`
+- Function reference: `?call_ancestry`, `?read_counts`, `?to_segments`.
+```

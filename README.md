@@ -51,8 +51,8 @@ calls <- call_ancestry(
   read_counts("path/to/sample_counts.tsv"),
   caller = "nnil",     # Holland's nNIL count caller
   design = "BC2S2",    # breeding-design priors (f_1, f_2)
-  r   = 1e-4,          # recombination / geometric self-transition
-  err = 0.01           # baseline read error for the count emission
+  rrate = 1e-4,        # recombination / geometric self-transition
+  err   = 0.01         # baseline read error for the count emission
 )
 
 # calls is the common segment schema:

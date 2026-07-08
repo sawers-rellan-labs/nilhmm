@@ -8,9 +8,12 @@ Description: A unified R + Rcpp reimplementation of the nilHMM ancestry-calling
     family for Near-Isogenic Lines from sequencing data. A single
     duration-aware 3-state (REF/HET/ALT) HMM engine with swappable emission
     models (count / gt) and duration layers (geometric / rigidity / hsmm)
-    expresses the nnil and rtiger callers, alongside the binhmm bin/cluster
-    caller. The package is data-agnostic: functions take (data, params) and
-    return calls; pipeline scripts own paths and sample lists.
+    expresses a family of named callers: nnil (Holland's nNIL), rtiger (a
+    Julia-free RTIGER port), binhmm (bin/cluster), atlas (GOOGA thresholds),
+    lbimpute (an LB-Impute port for very low coverage), and fsfhap (a TASSEL
+    FSFHap port for full-sib families). The package is data-agnostic: functions
+    take (data, params) and return calls in a common segment schema; pipeline
+    scripts own paths and sample lists.
 License: MIT + file LICENSE
 URL: https://github.com/sawers-rellan-labs/nilhmm,
     https://sawers-rellan-labs.github.io/nilhmm/
@@ -37,7 +40,7 @@ Suggests:
     ggpubr,
     GenomicRanges,
     rebmix
-LazyData: true
+VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
