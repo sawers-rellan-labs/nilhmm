@@ -87,37 +87,30 @@ returns a fitted model.
 runs Viterbi and returns one **state per observation** (coordinate-free:
 `0/1/2`).
 
-We simulate one line with
-[**simcross**](https://cran.r-project.org/package=simcross) (a BC2S2
-backcross of a donor **B** onto a recurrent parent **A**, on an 80 cM
-chromosome) and layer read counts, so the observations come from a real
-recombination track:
+We use
+[`simulate_nil()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_nil.md)
+(a BC2S2 backcross of a donor **B** onto a recurrent parent **A**, on
+chromosome 1 of the bundled map) and
+[`simulate_counts()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_counts.md),
+so the observations come from a real recombination track:
 
 ``` r
 
-library(simcross)
-map <- seq(0, 80, length.out = 24)
-rec <- create_parent(80, 1); don <- create_parent(80, 2)
-bc2s2 <- function() {
-  ind <- cross(rec, don)                       # F1
-  for (b in 1:2) ind <- cross(ind, rec)        # two backcrosses to recurrent
-  for (s in 1:2) ind <- cross(ind, ind)        # two selfings
-  ind
-}
-G <- convert2geno(lapply(1:12, function(i) bc2s2()), map) - 1L   # lines x markers, 0/1/2
-g <- G[which.max(rowMeans(G == 2L)), ]                           # the line with the most donor
-depth <- rpois(length(g), 8)
-obs   <- data.frame(n = depth, a = rbinom(length(g), depth, c(0.01, 0.5, 0.99)[g + 1L]))
+# a BC2S2 cohort on chromosome 1; take the line with the most donor as our example
+truth <- simulate_nil("BC2S2", n = 12, chr = 1, n_markers = 24, donor = "B", seed = 7)
+line  <- truth[truth$name == names(which.max(tapply(truth$state == 2L, truth$name, mean))), ]
+obs   <- simulate_counts(line, depth = 8, seed = 7)
+o     <- data.frame(n = obs$n_ref + obs$n_alt, a = obs$n_alt)    # fit()/decode(): n = depth, a = alt
 
-model <- fit(obs, emission_count(err = 0.01),
+model <- fit(o, emission_count(err = 0.01),
              duration_geometric(1e-4), priors = design_priors("BC2S2"))
-rbind(simulated = g, decoded = decode(model, obs))               # decode recovers the track
+rbind(simulated = line$state, decoded = decode(model, o))        # decode recovers the track
 #>           [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11] [,12] [,13]
-#> simulated    2    2    2    2    2    0    0    0    0     0     0     0     0
-#> decoded      2    2    2    2    2    0    0    0    0     0     0     0     0
+#> simulated    0    0    2    2    2    2    0    0    0     0     0     0     0
+#> decoded      0    0    2    2    2    2    0    0    0     0     0     0     0
 #>           [,14] [,15] [,16] [,17] [,18] [,19] [,20] [,21] [,22] [,23] [,24]
-#> simulated     0     0     2     2     2     2     0     0     0     0     0
-#> decoded       0     0     2     2     2     2     0     0     0     0     0
+#> simulated     0     2     2     0     0     0     1     0     0     0     0
+#> decoded       0     2     2     0     0     0     0     0     0     0     0
 ```
 
 ## Coordinates back on: `to_segments()`
@@ -131,15 +124,15 @@ is the second half of
 
 ``` r
 
-states <- data.frame(name = "S1", donor = "B", chr = 1L,
-                     pos = as.integer(map * 1e6),      # cM map -> bp coordinates
-                     state = decode(model, obs))
+states <- data.frame(name = "S1", donor = "B", chr = line$chr, pos = line$pos,
+                     state = decode(model, o))
 to_segments(states)
-#>   source donor name chr start_bp   end_bp state
-#> 1 nilHMM     B   S1   1        0 13913043     2
-#> 2 nilHMM     B   S1   1 17391304 48695652     0
-#> 3 nilHMM     B   S1   1 52173913 62608695     2
-#> 4 nilHMM     B   S1   1 66086956 80000000     0
+#>   source donor name chr  start_bp    end_bp state
+#> 1 nilHMM     B   S1   1     37410  13441118     0
+#> 2 nilHMM     B   S1   1  26844826  67055950     2
+#> 3 nilHMM     B   S1   1  80459657 174285612     0
+#> 4 nilHMM     B   S1   1 187689320 201093028     2
+#> 5 nilHMM     B   S1   1 214496736 308322690     0
 ```
 
 ## Swapping an axis
@@ -155,10 +148,10 @@ otherwise emit as spurious one-marker segments.
 
 ``` r
 
-rigid <- fit(obs, emission_count(err = 0.01),
+rigid <- fit(o, emission_count(err = 0.01),
              duration_rigidity(rigidity = 4L), priors = design_priors("BC2S2"))
-decode(rigid, obs)
-#>  [1] 2 2 2 2 2 0 0 0 0 0 0 0 0 0 0 2 2 2 2 0 0 0 0 0
+decode(rigid, o)
+#>  [1] 1 1 1 1 1 1 0 0 0 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0
 ```
 
 Or keep the duration and swap the **emission** to the categorical

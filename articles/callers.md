@@ -14,43 +14,21 @@ library(nilHMM)
 
 ## Synthetic data
 
-We build one small BC2S2 cohort (donor **B** crossed onto a recurrent
-parent **A**) with
-[**simcross**](https://cran.r-project.org/package=simcross) (real
-meiosis and recombination on a genetic map), then layer allelic read
-counts. The result carries **both** the counts (`n_ref`/`n_alt`, for the
-count callers) and a hard genotype `g` in `{0,1,2,3}` (for the genotype
-callers), from the same simulated genotypes.
+[`simulate_nil()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_nil.md)
+builds a BC2S2 cohort (donor **B** on recurrent parent **A**) on the
+bundled maize map — the **truth** — and
+[`simulate_counts()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_counts.md)
+degrades it to observed data carrying **both** allelic counts
+(`n_ref`/`n_alt`, for the count callers) and a hard genotype `g` in
+`{0,1,2,3}` (for the genotype callers):
 
 ``` r
 
-library(simcross)
-
-sim_cohort <- function(n = 8L, m = 150L, n_chr = 2L, L = 100,
-                       nbc = 2L, nself = 2L, depth = 6, err = 0.01, miss = 0.05) {
-  rec <- create_parent(L, 1); don <- create_parent(L, 2)
-  one_line <- function() {
-    ind <- cross(rec, don)                                # F1
-    for (b in seq_len(nbc))   ind <- cross(ind, rec)      # backcross to recurrent
-    for (s in seq_len(nself)) ind <- cross(ind, ind)      # selfing
-    ind
-  }
-  map <- seq(0, L, length.out = m)
-  do.call(rbind, lapply(seq_len(n_chr), function(ch) {
-    g <- as.vector(convert2geno(lapply(seq_len(n), function(i) one_line()), map)) - 1L
-    N <- length(g); p_alt <- c(err, 0.5, 1 - err)[g + 1L]
-    d <- rpois(N, depth); na <- rbinom(N, d, p_alt)
-    g_obs <- g; g_obs[d == 0L | runif(N) < miss] <- 3L
-    data.frame(name = rep(sprintf("NIL%02d", seq_len(n)), times = m),
-               donor = "B", family = "B", chr = ch,
-               pos = rep(as.integer(map * 1e6), each = n),
-               n_ref = d - na, n_alt = na, g = as.integer(g_obs),
-               truth = as.integer(g))                       # noise-free simcross state
-  }))
-}
-d <- sim_cohort()   # donor B (ALT) on recurrent A (REF)
-counts <- d[, c("name", "donor", "chr", "pos", "n_ref", "n_alt")]
-gt     <- d[, c("name", "donor", "chr", "pos", "g")]
+truth <- simulate_nil("BC2S2", n = 8, chr = 1:2, n_markers = 300, donor = "B",
+                      names = sprintf("NIL%02d", 1:8), seed = 1)
+obs   <- simulate_counts(truth, depth = 6, seed = 1)
+counts <- obs[c("name", "donor", "chr", "pos", "n_ref", "n_alt")]
+gt     <- obs[c("name", "donor", "chr", "pos", "g")]
 ```
 
 ## `nnil` — count and genotype
@@ -67,8 +45,8 @@ nnil_count <- call_ancestry(counts, caller = "nnil", design = "BC2S2",
                             rrate = 1e-4, err = 0.01)
 nnil_gt    <- call_ancestry(gt, caller = "nnil", design = "BC2S2")  # g-only -> gt emission
 nrow(nnil_count); nrow(nnil_gt)
-#> [1] 31
-#> [1] 32
+#> [1] 50
+#> [1] 51
 ```
 
 ## `rtiger` — rigidity segmentation
@@ -82,9 +60,9 @@ rt <- call_ancestry(counts, caller = "rtiger", design = "BC2S2",
                     rigidity = 5L, seed = 1L)
 head(rt, 3)
 #>   source donor  name chr start_bp    end_bp state
-#> 1 nilHMM     B NIL01   1        0 100000000     0
-#> 2 nilHMM     B NIL01   2        0  90604026     0
-#> 3 nilHMM     B NIL01   2 91275167 100000000     2
+#> 1 nilHMM     B NIL01   1    37410  27727705     2
+#> 2 nilHMM     B NIL01   1 29573725 308322690     0
+#> 3 nilHMM     B NIL01   2    98554 223047189     0
 ```
 
 ## `binhmm` — per-bin calling
@@ -97,9 +75,9 @@ Bins the genome (default 1 Mb) and calls per-bin state with an anchored
 bh <- call_ancestry(counts, caller = "binhmm", design = "BC2S2", bin_size = 5e6)
 head(bh, 3)
 #>   source donor  name chr start_bp    end_bp state
-#> 1 nilHMM     B NIL01   1        0 100000000     0
-#> 2 nilHMM     B NIL01   2        0  89932885     0
-#> 3 nilHMM     B NIL01   2 90604026 100000000     2
+#> 1 nilHMM     B NIL01   1    37410  29573725     2
+#> 2 nilHMM     B NIL01   1 31419744 308322690     0
+#> 3 nilHMM     B NIL01   2    98554 243484148     0
 ```
 
 ## `atlas` — competitive-alignment (GOOGA)
@@ -114,9 +92,9 @@ at <- call_ancestry(counts, caller = "atlas", design = "BC2S2",
                     atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L)
 head(at, 3)
 #>   source donor  name chr start_bp    end_bp state
-#> 1 nilHMM     B NIL01   1        0 100000000     0
-#> 2 nilHMM     B NIL01   2        0  90604026     0
-#> 3 nilHMM     B NIL01   2 91275167 100000000     2
+#> 1 nilHMM     B NIL01   1    37410  27727705     2
+#> 2 nilHMM     B NIL01   1 29573725 308322690     0
+#> 3 nilHMM     B NIL01   2    98554 243484148     0
 ```
 
 ## `lbimpute` — very low coverage
@@ -131,9 +109,9 @@ over `recombdist`). No design priors needed.
 lb <- call_ancestry(counts, caller = "lbimpute", recombdist = 1e7, genotypeerr = 0.05)
 head(lb, 3)
 #>   source donor  name chr start_bp    end_bp state
-#> 1 nilHMM     B NIL01   1        0 100000000     0
-#> 2 nilHMM     B NIL01   2        0  90604026     0
-#> 3 nilHMM     B NIL01   2 91275167 100000000     2
+#> 1 nilHMM     B NIL01   1    37410  27727705     2
+#> 2 nilHMM     B NIL01   1 29573725 308322690     0
+#> 3 nilHMM     B NIL01   2    98554 223047189     0
 ```
 
 ## `fsfhap` — full-sib families
@@ -146,7 +124,7 @@ parallelism).
 
 ``` r
 
-fam <- d[, c("name", "family", "chr", "pos", "g")]
+fam <- transform(gt, family = donor)          # a family grouping on the genotype table
 # (a real family needs enough segregating markers; see vignette("fsfhap"))
 ```
 
@@ -162,11 +140,11 @@ summ <- function(x) c(segments = nrow(x), states = length(unique(x$state)))
 rbind(nnil = summ(nnil_count), rtiger = summ(rt), binhmm = summ(bh),
       atlas = summ(at), lbimpute = summ(lb))
 #>          segments states
-#> nnil           31      3
-#> rtiger         31      3
-#> binhmm         25      3
-#> atlas          30      3
-#> lbimpute       32      3
+#> nnil           50      3
+#> rtiger         48      3
+#> binhmm         32      2
+#> atlas          48      3
+#> lbimpute       51      3
 ```
 
 ### Chromosome painting
@@ -178,10 +156,13 @@ blocks. Each row is a NIL, each column a chromosome, and within a cell
 the tracks are stacked as bands (REF gold / HET green / ALT purple),
 with the noise-free truth on top.
 
-The truth is just
+The truth track is just
 [`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md)
-on the simulated genotype *before* the depth and missingness were added
-(the `truth` column).
+on the
+[`simulate_nil()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_nil.md)
+table (its `state` is the noise-free donor mosaic, before
+[`simulate_counts()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_counts.md)
+added depth and missingness).
 [`paint_calls()`](https://sawers-rellan-labs.github.io/nilhmm/reference/paint_calls.md)
 then stacks it above the callers: `rbind` each track’s segments with a
 column naming it, and pass that column as `track` (its levels stack
@@ -194,12 +175,11 @@ tracks <- list("nnil (count)" = nnil_count, "nnil (gt)" = nnil_gt,
 comparison <- do.call(rbind, Map(function(seg, m) { seg$method <- m; seg },
                                  tracks, names(tracks)))
 
-# simcross ground truth (noise-free) as the top track
-truth <- to_segments(data.frame(name = d$name, donor = d$donor,
-                                 chr = d$chr, pos = d$pos, state = d$truth))
-truth$method <- "truth (simcross)"
+# simcross ground truth (the simulate_nil() table) as the top track
+truth_seg <- to_segments(truth)
+truth_seg$method <- "truth (simcross)"
 
-comparison <- rbind(truth, comparison)
+comparison <- rbind(truth_seg, comparison)
 comparison$method <- factor(comparison$method,
                             levels = c("truth (simcross)", names(tracks)))
 paint_calls(comparison, track = "method", samples = sprintf("NIL%02d", 1:4))

@@ -83,20 +83,14 @@ fall out of the crossing scheme.
 
 ``` r
 
-library(simcross)
-sim_family <- function(donor, n_lines = 20L, m = 500L, L = 100, nself = 4L, miss = 0.1) {
-  rec <- create_parent(L, 1); don <- create_parent(L, 2)  # recurrent A x this donor
-  one_line <- function() {
-    ind <- cross(cross(rec, don), rec)                  # F1 -> backcross to recurrent (BC1)
-    for (s in seq_len(nself)) ind <- cross(ind, ind)    # four selfings -> BC1S4
-    ind
-  }
-  map <- seq(0, L, length.out = m)
-  g <- as.vector(convert2geno(lapply(seq_len(n_lines), function(i) one_line()), map)) - 1L
-  g[runif(length(g)) < miss] <- 3L                      # skeleton missingness
-  data.frame(name = rep(sprintf("%s_L%02d", donor, seq_len(n_lines)), times = m),
-             donor = donor, family = donor, chr = 1L,
-             pos = rep(as.integer(map * 1e6), each = n_lines), g = as.integer(g))
+# one BC1S4 family per donor: simulate the truth, then observe genotypes (with
+# missingness), and tag the family grouping. 20 lines x 500 markers on chr 1.
+sim_family <- function(donor) {
+  tr  <- simulate_nil("BC1S4", n = 20, chr = 1, n_markers = 500, donor = donor,
+                      names = sprintf("%s_L%02d", donor, 1:20))
+  obs <- simulate_counts(tr, depth = 8, p_missing = 0.1)
+  data.frame(name = obs$name, donor = obs$donor, family = donor,
+             chr = obs$chr, pos = obs$pos, g = obs$g)
 }
 fam <- do.call(rbind, lapply(c("B1", "B2", "B3"), sim_family))
 
@@ -104,15 +98,15 @@ calls <- call_ancestry(fam, caller = "fsfhap", design = "BC1S4")
 table(donor = calls$donor, state = calls$state)         # per-family state counts
 #>      state
 #> donor  0  1  2
-#>    B1 27  8 21
-#>    B2 31  7 18
-#>    B3 42  7 34
+#>    B1 48  7 33
+#>    B2 50 10 41
+#>    B3 51 12 39
 head(calls, 4)
-#>   source donor   name chr start_bp    end_bp state
-#> 1 nilHMM    B1 B1_L01   1        0  16432865     0
-#> 2 nilHMM    B1 B1_L01   1 16633266  45891783     2
-#> 3 nilHMM    B1 B1_L01   1 46092184 100000000     0
-#> 4 nilHMM    B1 B1_L02   1        0   5410821     2
+#>   source donor   name chr  start_bp    end_bp state
+#> 1 nilHMM    B1 B1_L01   1     37410  26603076     2
+#> 2 nilHMM    B1 B1_L01   1  28456494 199588804     0
+#> 3 nilHMM    B1 B1_L01   1 206384672 222447633     2
+#> 4 nilHMM    B1 B1_L01   1 223683245 308322690     0
 ```
 
 ## Parallelism
