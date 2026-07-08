@@ -305,11 +305,24 @@ Breeding-design priors, the fragment-size Null, and r calibration.
 - [`fit_design_gamma()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fit_design_gamma.md)
   : Fit a design Gamma from simulated segments
 
-- [`load_map()`](https://sawers-rellan-labs.github.io/nilhmm/reference/load_map.md)
-  : Load the bundled consensus map
-
 - [`cm_to_mb()`](https://sawers-rellan-labs.github.io/nilhmm/reference/cm_to_mb.md)
   : Convert segment sizes from cM to Mb using a map
+
+## Simulation & maps
+
+Design-driven cross simulation via simcross, the bundled consensus map,
+and the marker grid used to sample it.
+
+- [`simulate_nil()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_nil.md)
+  : Simulate the true donor mosaic of a cross via simcross
+- [`simulate_counts()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_counts.md)
+  : Degrade simulated truth to observed allelic read counts
+- [`load_map()`](https://sawers-rellan-labs.github.io/nilhmm/reference/load_map.md)
+  : Load the bundled consensus map
+- [`build_marker_grid()`](https://sawers-rellan-labs.github.io/nilhmm/reference/build_marker_grid.md)
+  : Build a physical marker grid from a genetic map
+- [`maize_map_v5`](https://sawers-rellan-labs.github.io/nilhmm/reference/maize_map_v5.md)
+  : B73 v5 maize consensus genetic map
 
 ## Plotting
 

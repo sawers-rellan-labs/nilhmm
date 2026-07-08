@@ -11,6 +11,7 @@
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/authors.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/index.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/news/index.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/build_marker_grid.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/calibrate_r.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/call_gl.html</loc></url>
@@ -53,6 +54,7 @@
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/lb_viterbi_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/lb_viterbi_sweep_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/load_map.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/maize_map_v5.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/nilHMM-package.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/paint_calls.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/pairwise_distance.html</loc></url>
@@ -77,6 +79,8 @@
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/rtiger_zeta_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/select_emission.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/select_independent.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_counts.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_nil.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/viterbi_batch_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/viterbi_batch_par_cpp.html</loc></url>
