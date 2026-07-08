@@ -9,14 +9,14 @@
 \arguments{
 \item{F}{Inbreeding coefficient (pedigree column 7 / \code{1 - 0.5^nself}).}
 
-\item{default}{Fallback when \code{F} is outside \link{0,1}.}
+\item{default}{Fallback when \code{F} is outside \verb{[0, 1]}.}
 }
 \value{
 The expected-heterozygosity scalar for \code{\link[=.fsfhap_impute]{.fsfhap_impute()}}.
 }
 \description{
-\code{phet = (1 - F)/2} when \code{F} in \link{0,1} (TASSEL's \code{ViterbiAlgorithmPlugin}), else
-the \code{default} fallback (TASSEL \code{probHeterozygous} = 0.07). Keeps \code{phet}
-design-derived, not a magic constant. See [\link{no-hardcoded-design-params}].
+\code{phet = (1 - F)/2} when \code{F} in \verb{[0, 1]} (TASSEL's \code{ViterbiAlgorithmPlugin}),
+else the \code{default} fallback (TASSEL \code{probHeterozygous} = 0.07). Keeps \code{phet}
+design-derived, not a magic constant (no hardcoded design parameters).
 }
 \keyword{internal}

@@ -40,7 +40,8 @@ Suggests:
     ggpubr,
     GenomicRanges,
     rebmix,
-    simcross
+    simcross,
+    withr
 VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 Config/testthat/edition: 3

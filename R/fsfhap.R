@@ -143,12 +143,12 @@
 
 #' Design-derived expected heterozygosity from the pedigree inbreeding coefficient
 #'
-#' `phet = (1 - F)/2` when `F` in [0,1] (TASSEL's `ViterbiAlgorithmPlugin`), else
-#' the `default` fallback (TASSEL `probHeterozygous` = 0.07). Keeps `phet`
-#' design-derived, not a magic constant. See [[no-hardcoded-design-params]].
+#' `phet = (1 - F)/2` when `F` in `[0, 1]` (TASSEL's `ViterbiAlgorithmPlugin`),
+#' else the `default` fallback (TASSEL `probHeterozygous` = 0.07). Keeps `phet`
+#' design-derived, not a magic constant (no hardcoded design parameters).
 #'
 #' @param F Inbreeding coefficient (pedigree column 7 / `1 - 0.5^nself`).
-#' @param default Fallback when `F` is outside [0,1].
+#' @param default Fallback when `F` is outside `[0, 1]`.
 #' @return The expected-heterozygosity scalar for [.fsfhap_impute()].
 #' @keywords internal
 .fsfhap_phet <- function(F, default = 0.07) {

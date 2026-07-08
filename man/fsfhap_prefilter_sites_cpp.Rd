@@ -30,7 +30,7 @@ Faithful port of \code{BiparentalHaplotypeFinder.preFilterSites}. Step 1 =
 result: (2) drop sites whose het fraction exceeds \code{mean + maxHetDeviation * sd}
 (sample sd over the filtered sites); (3) drop monomorphic (non-biallelic) sites;
 (4) if \code{minR2 > 0}, drop sites whose average \code{r^2} over a ±50-filtered-site window
-(hets→missing, \link{calc_rsqr}) is \verb{< minR2} (NaN pairs skipped; all-NaN average is
+(hets→missing, \code{calc_rsqr}) is \verb{< minR2} (NaN pairs skipped; all-NaN average is
 not a rejection, matching TASSEL's \code{NaN < minR2} = false).
 }
 \keyword{internal}
