@@ -107,7 +107,7 @@ chromosome, so three units — and `fsfhap` fans them out across cores with
 ```{r threads}
 identical(
   call_ancestry(fam, caller = "fsfhap", design = "BC1S4", threads = 1L),
-  call_ancestry(fam, caller = "fsfhap", design = "BC1S4", threads = 3L)
+  call_ancestry(fam, caller = "fsfhap", design = "BC1S4", threads = 2L)
 )
 ```
 
