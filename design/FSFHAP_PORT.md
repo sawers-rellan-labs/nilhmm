@@ -476,10 +476,10 @@ control" is a stated motivation and must be quantified before correctness work.
 - TASSEL side timed as in `teonam_fsfhap.R` (`system.time` around `run_pipeline.pl`,
   fixed `-Xmx`); port side timed identically. Record the JVM startup overhead
   separately (fixed cost TASSEL pays per invocation, the port avoids).
-- Output: a small table in this doc / `agent/benchmark_fsfhap.R`, refreshed as the
+- Output: a small table in this doc / `benchmarks/benchmark_fsfhap.R`, refreshed as the
   port matures.
 
-**Head-to-head captured 2026-07-07** (`agent/benchmark_fsfhap.R`, synthetic BC1S4
+**Head-to-head captured 2026-07-07** (`benchmarks/benchmark_fsfhap.R`, synthetic BC1S4
 single family; TASSEL 5.2.96, Java 17, Apple-silicon 10-core) — TASSEL vs the
 nilHMM `fsfhap` caller (BC route), **now with cross-family/chromosome parallelism**
 (`threads=`; `.fsfhap_states` fans out the independent family × chromosome units
@@ -521,7 +521,7 @@ common-schema integration.
 
 **Real-data confirmation (2026-07-07) — TeoNAM TIL01 family, full 51K genotypes.**
 Run through the env-var path `FSFHAP_HAPMAP=…/geno_gwas_51k.hmp.txt
-FSFHAP_PED=…/pedigree_TIL01.txt Rscript agent/benchmark_fsfhap.R` (the harness now
+FSFHAP_PED=…/pedigree_TIL01.txt Rscript benchmarks/benchmark_fsfhap.R` (the harness now
 loads the real genotypes via `read_hapmap`/`read_pedigree`, filtered to the
 pedigree's taxa, and derives the design from the pedigree contribution/F →
 **BC1S4**; TASSEL runs on the same HapMap + pedigree — a true head-to-head):
@@ -546,9 +546,9 @@ TASSEL pedigree):
 ```
 # single family (pedigree-driven; design derived from contribution/F)
 FSFHAP_HAPMAP=…/geno_gwas_51k.hmp.txt FSFHAP_PED=…/pedigree_TIL01.txt \
-  Rscript agent/benchmark_fsfhap.R
+  Rscript benchmarks/benchmark_fsfhap.R
 # all families (taxon-prefix grouping; design = FSFHAP_DESIGN, default BC1S4)
-FSFHAP_HAPMAP=…/geno_gwas_51k.hmp.txt Rscript agent/benchmark_fsfhap.R
+FSFHAP_HAPMAP=…/geno_gwas_51k.hmp.txt Rscript benchmarks/benchmark_fsfhap.R
 ```
 
 ### Tier 1 — Port faithfulness: stock TASSEL FSFHap parity (acceptance gate)
@@ -753,12 +753,12 @@ so Tiers 0–3 stand alone.
       `format=` overload on the VCF-specific `read_vcf_gt()`. `test-io-adapters.R` (20
       checks: IUPAC + diploid HapMap, hand-built `.bed` round-trip, pedigree both formats,
       end-to-end `read_hapmap → call_ancestry(caller="fsfhap")`). Exported + documented.
-- [x] `agent/benchmark_fsfhap.R` — Tier-0 speed harness scaffolded: small→large
+- [x] `benchmarks/benchmark_fsfhap.R` — Tier-0 speed harness scaffolded: small→large
       ladder (`xs/s/m/full`), synthetic segregating BC family generator (+true
       breakpoints, reusable as the Tier-3 seed), TASSEL Hapmap/pedigree writer,
       JVM-startup baseline separated, peak-RSS (macOS), throughput + speedup table
-      → `agent/benchmark_fsfhap_out/`. TASSEL baseline runnable now
-      (`Rscript agent/benchmark_fsfhap.R xs 1`); port side self-skips until the
+      → `benchmarks/benchmark_fsfhap_out/`. TASSEL baseline runnable now
+      (`Rscript benchmarks/benchmark_fsfhap.R xs 1`); port side self-skips until the
       caller exists. Override real data via `FSFHAP_HAPMAP`/`FSFHAP_PED`.
 - [ ] Freeze fixtures: small family slice (CI) + 2–3 families (extended), skeleton
       HapMap + pedigree + TASSEL outputs, under `tests/fixtures/` + SHA256SUMS.

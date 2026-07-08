@@ -198,3 +198,6 @@ cython_debug/
 
 # Agent scratch: ephemeral scripts, plans, and working notes (never committed).
 agent/
+
+# Benchmark harness outputs (the harness itself is tracked in benchmarks/).
+benchmarks/benchmark_fsfhap_out/

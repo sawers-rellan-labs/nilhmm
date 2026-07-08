@@ -59,7 +59,7 @@ XMX    <- Sys.getenv("TASSEL_XMX", "10g")
 # exceeds the number of independent units on a rung.
 THREADS <- { e <- Sys.getenv("FSFHAP_THREADS")
   if (nzchar(e)) as.integer(e) else max(1L, parallel::detectCores()) }
-OUTDIR <- file.path("agent", "benchmark_fsfhap_out"); dir.create(OUTDIR, FALSE, TRUE)
+OUTDIR <- file.path("benchmarks", "benchmark_fsfhap_out"); dir.create(OUTDIR, FALSE, TRUE)
 IS_MAC <- Sys.info()[["sysname"]] == "Darwin"
 
 # --- breeding design: parse BC{nbc}S{nself} -> contributions + F (no hardcode) -
