@@ -7,7 +7,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/sawers-rellan-labs/nilhmm/blob/HEAD/inst/CITATION)
+[`inst/CITATION`](https://github.com/sawers-rellan-labs/nilhmm/blob/main/inst/CITATION)
 
 Rodriguez Zapata F (2025). *nilHMM: Duration-Aware HMM Ancestry Caller
 for NIL Sequencing Data*. R package version 0.1.0,

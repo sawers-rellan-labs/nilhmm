@@ -70,38 +70,43 @@ designs route to as-yet-unported TASSEL paths.
 ## Calling on a family
 
 A real family needs enough segregating markers to phase the donor (and
-to clear FSFHap’s coverage floor), so we simulate a 24-line BC1 family
-with donor blocks summing to ~1/4 of the chromosome:
+to clear FSFHap’s coverage floor), so we simulate a 24-line **BC1S4**
+family with [**simcross**](https://cran.r-project.org/package=simcross)
+— the TeoNAM design: one backcross to the recurrent parent, then four
+selfings (`F = 0.9375`, so `phet = 0.03125`). simcross gives real
+recombination breakpoints; the donor blocks and residual heterozygosity
+fall out of the crossing scheme rather than being placed by hand.
 
 ``` r
 
-sim_family <- function(n_lines = 24L, m = 500L, donor_frac = 0.25, miss = 0.1) {
-  pos <- as.integer(seq_len(m) * 1e5)
-  do.call(rbind, lapply(seq_len(n_lines), function(l) {
-    truth <- integer(m)
-    for (b in seq_len(max(0L, rpois(1, donor_frac / 0.12)))) {
-      w <- max(2L, rpois(1, m * 0.12)); s0 <- sample(m, 1L)
-      truth[s0:min(m, s0 + w - 1L)] <- 2L
-    }
-    truth[truth == 0L & runif(m) < 0.03] <- 1L          # residual het
-    g <- truth; g[runif(m) < miss] <- 3L                # skeleton missingness
-    data.frame(name = sprintf("L%02d", l), family = "TIL01",
-               chr = 1L, pos = pos, g = as.integer(g))
-  }))
+library(simcross)
+sim_family <- function(n_lines = 24L, m = 500L, L = 100, nself = 4L, miss = 0.1) {
+  rec <- create_parent(L, 1); don <- create_parent(L, 2)
+  one_line <- function() {
+    ind <- cross(cross(rec, don), rec)                  # F1 -> backcross to recurrent (BC1)
+    for (s in seq_len(nself)) ind <- cross(ind, ind)    # four selfings -> BC1S4
+    ind
+  }
+  map <- seq(0, L, length.out = m)
+  g <- as.vector(convert2geno(lapply(seq_len(n_lines), function(i) one_line()), map)) - 1L
+  g[runif(length(g)) < miss] <- 3L                      # skeleton missingness
+  data.frame(name = rep(sprintf("L%02d", seq_len(n_lines)), times = m),
+             family = "TIL01", chr = 1L,
+             pos = rep(as.integer(map * 1e6), each = n_lines), g = as.integer(g))
 }
 fam <- sim_family()
 
 calls <- call_ancestry(fam, caller = "fsfhap", design = "BC1S4")
 head(calls, 4)
 #>   source donor name chr start_bp   end_bp state
-#> 1 nilHMM  <NA>  L01   1   900000 41700000     0
-#> 2 nilHMM  <NA>  L01   1 41800000 47400000     2
-#> 3 nilHMM  <NA>  L01   1 47500000 50000000     0
-#> 4 nilHMM  <NA>  L02   1   900000 49800000     0
+#> 1 nilHMM  <NA>  L01   1        0 16232464     0
+#> 2 nilHMM  <NA>  L01   1 16633266 45891783     2
+#> 3 nilHMM  <NA>  L01   1 46292585 98797595     0
+#> 4 nilHMM  <NA>  L02   1        0  5410821     2
 table(calls$state)
 #> 
-#>  0  2 
-#> 59 38
+#>  0  1  2 
+#> 32 11 25
 ```
 
 ## Parallelism

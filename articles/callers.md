@@ -14,29 +14,38 @@ library(nilHMM)
 
 ## Synthetic data
 
-We build one small backcross-ish cohort carrying **both** allelic read
-counts (`n_ref`/`n_alt`, for the count callers) and a hard genotype `g`
-in `{0,1,2,3}` (for the genotype callers), from a shared truth track.
+We build one small BC2S2 cohort with
+[**simcross**](https://cran.r-project.org/package=simcross) (real
+meiosis and recombination on a genetic map), then layer allelic read
+counts. The result carries **both** the counts (`n_ref`/`n_alt`, for the
+count callers) and a hard genotype `g` in `{0,1,2,3}` (for the genotype
+callers), from the same simulated genotypes.
 
 ``` r
 
-sim <- function(n = 8L, m = 300L, n_chr = 2L, depth = 6, err = 0.01, miss = 0.05) {
-  chr <- rep(seq_len(n_chr), each = m)
-  pos <- as.integer(rep(seq_len(m), n_chr) * 1e5)
-  do.call(rbind, lapply(seq_len(n), function(s) {
-    truth <- integer(length(chr))
-    for (ch in seq_len(n_chr)) {
-      idx <- which(chr == ch); w <- sample(20:60, 1L); s0 <- sample(idx, 1L)
-      blk <- s0:min(max(idx), s0 + w); truth[blk] <- 2L; truth[blk[1]] <- 1L
-    }
-    d  <- rpois(length(chr), depth)
-    na <- rbinom(length(chr), d, c(err, 0.5, 1 - err)[truth + 1L])
-    g  <- truth; g[d == 0L | runif(length(chr)) < miss] <- 3L
-    data.frame(name = sprintf("NIL%02d", s), family = "F1", chr = chr, pos = pos,
-               n_ref = d - na, n_alt = na, g = as.integer(g))
+library(simcross)
+
+sim_cohort <- function(n = 8L, m = 150L, n_chr = 2L, L = 100,
+                       nbc = 2L, nself = 2L, depth = 6, err = 0.01, miss = 0.05) {
+  rec <- create_parent(L, 1); don <- create_parent(L, 2)
+  one_line <- function() {
+    ind <- cross(rec, don)                                # F1
+    for (b in seq_len(nbc))   ind <- cross(ind, rec)      # backcross to recurrent
+    for (s in seq_len(nself)) ind <- cross(ind, ind)      # selfing
+    ind
+  }
+  map <- seq(0, L, length.out = m)
+  do.call(rbind, lapply(seq_len(n_chr), function(ch) {
+    g <- as.vector(convert2geno(lapply(seq_len(n), function(i) one_line()), map)) - 1L
+    N <- length(g); p_alt <- c(err, 0.5, 1 - err)[g + 1L]
+    d <- rpois(N, depth); na <- rbinom(N, d, p_alt)
+    g_obs <- g; g_obs[d == 0L | runif(N) < miss] <- 3L
+    data.frame(name = rep(sprintf("NIL%02d", seq_len(n)), times = m),
+               family = "F1", chr = ch, pos = rep(as.integer(map * 1e6), each = n),
+               n_ref = d - na, n_alt = na, g = as.integer(g_obs))
   }))
 }
-d <- sim()
+d <- sim_cohort()
 counts <- d[, c("name", "chr", "pos", "n_ref", "n_alt")]
 gt     <- d[, c("name", "chr", "pos", "g")]
 ```
@@ -55,8 +64,8 @@ nnil_count <- call_ancestry(counts, caller = "nnil", design = "BC2S2",
                             rrate = 1e-4, err = 0.01)
 nnil_gt    <- call_ancestry(gt, caller = "nnil", design = "BC2S2")  # g-only -> gt emission
 nrow(nnil_count); nrow(nnil_gt)
-#> [1] 46
-#> [1] 45
+#> [1] 31
+#> [1] 32
 ```
 
 ## `rtiger` — rigidity segmentation
@@ -69,10 +78,10 @@ re-placement). `rigidity` is the integer minimum run length.
 rt <- call_ancestry(counts, caller = "rtiger", design = "BC2S2",
                     rigidity = 5L, seed = 1L)
 head(rt, 3)
-#>   source donor  name chr start_bp   end_bp state
-#> 1 nilHMM  <NA> NIL01   1   100000 16500000     0
-#> 2 nilHMM  <NA> NIL01   1 16600000 16700000     1
-#> 3 nilHMM  <NA> NIL01   1 16800000 19000000     2
+#>   source donor  name chr start_bp    end_bp state
+#> 1 nilHMM  <NA> NIL01   1        0 100000000     0
+#> 2 nilHMM  <NA> NIL01   2        0  90604026     0
+#> 3 nilHMM  <NA> NIL01   2 91275167 100000000     2
 ```
 
 ## `binhmm` — per-bin calling
@@ -84,10 +93,10 @@ Bins the genome (default 1 Mb) and calls per-bin state with an anchored
 
 bh <- call_ancestry(counts, caller = "binhmm", design = "BC2S2", bin_size = 5e6)
 head(bh, 3)
-#>   source donor  name chr start_bp   end_bp state
-#> 1 nilHMM  <NA> NIL01   1   100000 30000000     0
-#> 2 nilHMM  <NA> NIL01   2   100000 30000000     0
-#> 3 nilHMM  <NA> NIL02   1   100000 30000000     0
+#>   source donor  name chr start_bp    end_bp state
+#> 1 nilHMM  <NA> NIL01   1        0 100000000     0
+#> 2 nilHMM  <NA> NIL01   2        0  89932885     0
+#> 3 nilHMM  <NA> NIL01   2 90604026 100000000     2
 ```
 
 ## `atlas` — competitive-alignment (GOOGA)
@@ -101,10 +110,10 @@ style) then smoothed.
 at <- call_ancestry(counts, caller = "atlas", design = "BC2S2",
                     atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L)
 head(at, 3)
-#>   source donor  name chr start_bp   end_bp state
-#> 1 nilHMM  <NA> NIL01   1   100000 16700000     0
-#> 2 nilHMM  <NA> NIL01   1 16800000 19000000     2
-#> 3 nilHMM  <NA> NIL01   1 19100000 30000000     0
+#>   source donor  name chr start_bp    end_bp state
+#> 1 nilHMM  <NA> NIL01   1        0 100000000     0
+#> 2 nilHMM  <NA> NIL01   2        0  90604026     0
+#> 3 nilHMM  <NA> NIL01   2 91275167 100000000     2
 ```
 
 ## `lbimpute` — very low coverage
@@ -118,10 +127,10 @@ over `recombdist`). No design priors needed.
 
 lb <- call_ancestry(counts, caller = "lbimpute", recombdist = 1e7, genotypeerr = 0.05)
 head(lb, 3)
-#>   source donor  name chr start_bp   end_bp state
-#> 1 nilHMM  <NA> NIL01   1   100000 16500000     0
-#> 2 nilHMM  <NA> NIL01   1 16600000 16700000     1
-#> 3 nilHMM  <NA> NIL01   1 16800000 19000000     2
+#>   source donor  name chr start_bp    end_bp state
+#> 1 nilHMM  <NA> NIL01   1        0 100000000     0
+#> 2 nilHMM  <NA> NIL01   2        0  90604026     0
+#> 3 nilHMM  <NA> NIL01   2 91275167 100000000     2
 ```
 
 ## `fsfhap` — full-sib families
@@ -150,11 +159,11 @@ summ <- function(x) c(segments = nrow(x), states = length(unique(x$state)))
 rbind(nnil = summ(nnil_count), rtiger = summ(rt), binhmm = summ(bh),
       atlas = summ(at), lbimpute = summ(lb))
 #>          segments states
-#> nnil           46      3
-#> rtiger         59      3
-#> binhmm         17      2
-#> atlas          45      2
-#> lbimpute       60      3
+#> nnil           31      3
+#> rtiger         31      3
+#> binhmm         25      3
+#> atlas          30      3
+#> lbimpute       32      3
 ```
 
 For per-caller parameters and lineage, see

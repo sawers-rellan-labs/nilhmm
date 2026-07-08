@@ -31,7 +31,7 @@
       <ul class="navbar-nav me-auto">
 <li class="nav-item"><a class="nav-link" href="../articles/nilHMM.html">Get started</a></li>
 <li class="nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
-<li class="nav-item dropdown">
+<li class="active nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/callers.html">The callers: one example each</a></li>
@@ -39,6 +39,7 @@
     <li><a class="dropdown-item" href="../articles/fsfhap.html">Full-sib families with the fsfhap caller</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -61,7 +62,7 @@
       <h1>Full-sib families with the fsfhap caller</h1>
             
       
-      <small class="dont-index">Source: <a href="https://github.com/sawers-rellan-labs/nilhmm/blob/HEAD/vignettes/fsfhap.Rmd" class="external-link"><code>vignettes/fsfhap.Rmd</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/sawers-rellan-labs/nilhmm/blob/main/vignettes/fsfhap.Rmd" class="external-link"><code>vignettes/fsfhap.Rmd</code></a></small>
       <div class="d-none name"><code>fsfhap.Rmd</code></div>
     </div>
 
@@ -129,36 +130,42 @@ to as-yet-unported TASSEL paths.</p>
 <h2 id="calling-on-a-family">Calling on a family<a class="anchor" aria-label="anchor" href="#calling-on-a-family"></a>
 </h2>
 <p>A real family needs enough segregating markers to phase the donor
-(and to clear FSFHap’s coverage floor), so we simulate a 24-line BC1
-family with donor blocks summing to ~1/4 of the chromosome:</p>
+(and to clear FSFHap’s coverage floor), so we simulate a 24-line
+<strong>BC1S4</strong> family with <a href="https://cran.r-project.org/package=simcross" class="external-link"><strong>simcross</strong></a>
+— the TeoNAM design: one backcross to the recurrent parent, then four
+selfings (<code>F = 0.9375</code>, so <code>phet = 0.03125</code>).
+simcross gives real recombination breakpoints; the donor blocks and
+residual heterozygosity fall out of the crossing scheme rather than
+being placed by hand.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">sim_family</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">n_lines</span> <span class="op">=</span> <span class="fl">24L</span>, <span class="va">m</span> <span class="op">=</span> <span class="fl">500L</span>, <span class="va">donor_frac</span> <span class="op">=</span> <span class="fl">0.25</span>, <span class="va">miss</span> <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">pos</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1e5</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_lines</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">l</span><span class="op">)</span> <span class="op">{</span></span>
-<span>    <span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">integer</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span></span>
-<span>    <span class="kw">for</span> <span class="op">(</span><span class="va">b</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fl">0L</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Poisson.html" class="external-link">rpois</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">donor_frac</span> <span class="op">/</span> <span class="fl">0.12</span><span class="op">)</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>      <span class="va">w</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">max</a></span><span class="op">(</span><span class="fl">2L</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Poisson.html" class="external-link">rpois</a></span><span class="op">(</span><span class="fl">1</span>, <span class="va">m</span> <span class="op">*</span> <span class="fl">0.12</span><span class="op">)</span><span class="op">)</span>; <span class="va">s0</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/sample.html" class="external-link">sample</a></span><span class="op">(</span><span class="va">m</span>, <span class="fl">1L</span><span class="op">)</span></span>
-<span>      <span class="va">truth</span><span class="op">[</span><span class="va">s0</span><span class="op">:</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="va">m</span>, <span class="va">s0</span> <span class="op">+</span> <span class="va">w</span> <span class="op">-</span> <span class="fl">1L</span><span class="op">)</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">2L</span></span>
-<span>    <span class="op">}</span></span>
-<span>    <span class="va">truth</span><span class="op">[</span><span class="va">truth</span> <span class="op">==</span> <span class="fl">0L</span> <span class="op">&amp;</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="op">&lt;</span> <span class="fl">0.03</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">1L</span>          <span class="co"># residual het</span></span>
-<span>    <span class="va">g</span> <span class="op">&lt;-</span> <span class="va">truth</span>; <span class="va">g</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="va">m</span><span class="op">)</span> <span class="op">&lt;</span> <span class="va">miss</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">3L</span>                <span class="co"># skeleton missingness</span></span>
-<span>    <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"L%02d"</span>, <span class="va">l</span><span class="op">)</span>, family <span class="op">=</span> <span class="st">"TIL01"</span>,</span>
-<span>               chr <span class="op">=</span> <span class="fl">1L</span>, pos <span class="op">=</span> <span class="va">pos</span>, g <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">g</span><span class="op">)</span><span class="op">)</span></span>
-<span>  <span class="op">}</span><span class="op">)</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://kbroman.org/simcross/" class="external-link">simcross</a></span><span class="op">)</span></span>
+<span><span class="va">sim_family</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">n_lines</span> <span class="op">=</span> <span class="fl">24L</span>, <span class="va">m</span> <span class="op">=</span> <span class="fl">500L</span>, <span class="va">L</span> <span class="op">=</span> <span class="fl">100</span>, <span class="va">nself</span> <span class="op">=</span> <span class="fl">4L</span>, <span class="va">miss</span> <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/simcross/man/create_parent.html" class="external-link">create_parent</a></span><span class="op">(</span><span class="va">L</span>, <span class="fl">1</span><span class="op">)</span>; <span class="va">don</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/simcross/man/create_parent.html" class="external-link">create_parent</a></span><span class="op">(</span><span class="va">L</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span>  <span class="va">one_line</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
+<span>    <span class="va">ind</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/simcross/man/cross.html" class="external-link">cross</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/simcross/man/cross.html" class="external-link">cross</a></span><span class="op">(</span><span class="va">rec</span>, <span class="va">don</span><span class="op">)</span>, <span class="va">rec</span><span class="op">)</span>                  <span class="co"># F1 -&gt; backcross to recurrent (BC1)</span></span>
+<span>    <span class="kw">for</span> <span class="op">(</span><span class="va">s</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">nself</span><span class="op">)</span><span class="op">)</span> <span class="va">ind</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/simcross/man/cross.html" class="external-link">cross</a></span><span class="op">(</span><span class="va">ind</span>, <span class="va">ind</span><span class="op">)</span>    <span class="co"># four selfings -&gt; BC1S4</span></span>
+<span>    <span class="va">ind</span></span>
+<span>  <span class="op">}</span></span>
+<span>  <span class="va">map</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">L</span>, length.out <span class="op">=</span> <span class="va">m</span><span class="op">)</span></span>
+<span>  <span class="va">g</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/simcross/man/convert2geno.html" class="external-link">convert2geno</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_lines</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="fu">one_line</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>, <span class="va">map</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1L</span></span>
+<span>  <span class="va">g</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">g</span><span class="op">)</span><span class="op">)</span> <span class="op">&lt;</span> <span class="va">miss</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">3L</span>                      <span class="co"># skeleton missingness</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"L%02d"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_lines</span><span class="op">)</span><span class="op">)</span>, times <span class="op">=</span> <span class="va">m</span><span class="op">)</span>,</span>
+<span>             family <span class="op">=</span> <span class="st">"TIL01"</span>, chr <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>             pos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">map</span> <span class="op">*</span> <span class="fl">1e6</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">n_lines</span><span class="op">)</span>, g <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">g</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="va">fam</span> <span class="op">&lt;-</span> <span class="fu">sim_family</span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">fam</span>, caller <span class="op">=</span> <span class="st">"fsfhap"</span>, design <span class="op">=</span> <span class="st">"BC1S4"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">calls</span>, <span class="fl">4</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   source donor name chr start_bp   end_bp state</span></span>
-<span><span class="co">#&gt; 1 nilHMM  &lt;NA&gt;  L01   1   900000 41700000     0</span></span>
-<span><span class="co">#&gt; 2 nilHMM  &lt;NA&gt;  L01   1 41800000 47400000     2</span></span>
-<span><span class="co">#&gt; 3 nilHMM  &lt;NA&gt;  L01   1 47500000 50000000     0</span></span>
-<span><span class="co">#&gt; 4 nilHMM  &lt;NA&gt;  L02   1   900000 49800000     0</span></span>
+<span><span class="co">#&gt; 1 nilHMM  &lt;NA&gt;  L01   1        0 16232464     0</span></span>
+<span><span class="co">#&gt; 2 nilHMM  &lt;NA&gt;  L01   1 16633266 45891783     2</span></span>
+<span><span class="co">#&gt; 3 nilHMM  &lt;NA&gt;  L01   1 46292585 98797595     0</span></span>
+<span><span class="co">#&gt; 4 nilHMM  &lt;NA&gt;  L02   1        0  5410821     2</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">calls</span><span class="op">$</span><span class="va">state</span><span class="op">)</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  0  2 </span></span>
-<span><span class="co">#&gt; 59 38</span></span></code></pre></div>
+<span><span class="co">#&gt;  0  1  2 </span></span>
+<span><span class="co">#&gt; 32 11 25</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="parallelism">Parallelism<a class="anchor" aria-label="anchor" href="#parallelism"></a>

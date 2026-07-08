@@ -23,6 +23,7 @@
     <li><a class="dropdown-item" href="articles/engine.html">The engine: one chain, two swappable axes</a></li>
     <li><a class="dropdown-item" href="articles/fsfhap.html">Full-sib families with the fsfhap caller</a></li>
   </ul></li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/sawers-rellan-labs/nilhmm/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -35,7 +36,7 @@
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>CLAUDE.md</h1>
-      <small class="dont-index">Source: <a href="https://github.com/sawers-rellan-labs/nilhmm/blob/HEAD/CLAUDE.md" class="external-link"><code>CLAUDE.md</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/sawers-rellan-labs/nilhmm/blob/main/CLAUDE.md" class="external-link"><code>CLAUDE.md</code></a></small>
     </div>
 
 <div id="claudemd" class="section level1">
@@ -128,11 +129,11 @@
 </ul></div>
 <div class="section level2">
 <h2 id="c--build-workflow">C++ / build workflow<a class="anchor" aria-label="anchor" href="#c--build-workflow"></a></h2>
-<ul><li>Rcpp bindings are generated — <strong>never hand-edit</strong> <code>src/RcppExports.cpp</code> or <code>R/RcppExports.R</code>. After adding/changing a <code>// [[Rcpp::export]]</code> function, run <code><a href="https://rdrr.io/pkg/Rcpp/man/compileAttributes.html" class="external-link">Rcpp::compileAttributes()</a></code> then <code><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">devtools::document()</a></code>.</li>
+<ul><li>Rcpp bindings are generated — <strong>never hand-edit</strong> <code>src/RcppExports.cpp</code> or <code>R/RcppExports.R</code>. After adding/changing a <code>// [[Rcpp::export]]</code> function, run <code><a href="https://rdrr.io/pkg/Rcpp/man/compileAttributes.html" class="external-link">Rcpp::compileAttributes()</a></code> then <code>devtools::document()</code>.</li>
 <li>C++ style (see <code>src/segments.cpp</code>): <code>#include &lt;Rcpp.h&gt;</code>, <code>using namespace Rcpp;</code>, <code>//'</code> roxygen with <code>@param</code>/<code>@return</code>/<code>@keywords internal</code>, <code>// [[Rcpp::export]]</code>, <code>*_cpp</code> naming. Process <strong>one chromosome at a time</strong>; markers must be sorted.</li>
 <li>
 <code>Makevars</code> links the TBB runtime via <code><a href="https://rdrr.io/pkg/RcppParallel/man/flags.html" class="external-link">RcppParallel::RcppParallelLibs()</a></code> (<code>SystemRequirements: GNU make</code>). <code>nilHMM-package.R</code> imports RcppParallel first so the bundled TBB loads before nilHMM’s DLL (otherwise <code>dlopen</code> fails on clean install).</li>
-<li>Typical dev loop: <code><a href="https://devtools.r-lib.org/reference/load_all.html" class="external-link">devtools::load_all()</a></code> → <code><a href="https://devtools.r-lib.org/reference/test.html" class="external-link">devtools::test()</a></code> → <code><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">devtools::document()</a></code> → <code>R CMD check</code>. <code><a href="https://rdrr.io/pkg/Rcpp/man/compileAttributes.html" class="external-link">Rcpp::compileAttributes()</a></code> after C++ changes.</li>
+<li>Typical dev loop: <code>devtools::load_all()</code> → <code>devtools::test()</code> → <code>devtools::document()</code> → <code>R CMD check</code>. <code><a href="https://rdrr.io/pkg/Rcpp/man/compileAttributes.html" class="external-link">Rcpp::compileAttributes()</a></code> after C++ changes.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="design-constraints">Design constraints<a class="anchor" aria-label="anchor" href="#design-constraints"></a></h2>

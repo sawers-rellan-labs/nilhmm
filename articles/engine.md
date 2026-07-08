@@ -87,15 +87,36 @@ returns a fitted model.
 runs Viterbi and returns one **state per observation** (coordinate-free:
 `0/1/2`).
 
+We simulate one line with
+[**simcross**](https://cran.r-project.org/package=simcross) (a BC2S2
+backcross on an 80 cM chromosome) and layer read counts, so the
+observations come from a real recombination track:
+
 ``` r
 
-# one sample, one chromosome: REF ... a short ALT run ... REF
-obs <- data.frame(n = rep(8L, 12),
-                  a = c(0, 1, 0, 0, 7, 8, 6, 7, 0, 1, 0, 0))
+library(simcross)
+map <- seq(0, 80, length.out = 24)
+rec <- create_parent(80, 1); don <- create_parent(80, 2)
+bc2s2 <- function() {
+  ind <- cross(rec, don)                       # F1
+  for (b in 1:2) ind <- cross(ind, rec)        # two backcrosses to recurrent
+  for (s in 1:2) ind <- cross(ind, ind)        # two selfings
+  ind
+}
+G <- convert2geno(lapply(1:12, function(i) bc2s2()), map) - 1L   # lines x markers, 0/1/2
+g <- G[which.max(rowMeans(G == 2L)), ]                           # the line with the most donor
+depth <- rpois(length(g), 8)
+obs   <- data.frame(n = depth, a = rbinom(length(g), depth, c(0.01, 0.5, 0.99)[g + 1L]))
+
 model <- fit(obs, emission_count(err = 0.01),
              duration_geometric(1e-4), priors = design_priors("BC2S2"))
-decode(model, obs)
-#>  [1] 0 0 0 0 2 2 2 2 0 0 0 0
+rbind(simulated = g, decoded = decode(model, obs))               # decode recovers the track
+#>           [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11] [,12] [,13]
+#> simulated    2    2    2    2    2    0    0    0    0     0     0     0     0
+#> decoded      2    2    2    2    2    0    0    0    0     0     0     0     0
+#>           [,14] [,15] [,16] [,17] [,18] [,19] [,20] [,21] [,22] [,23] [,24]
+#> simulated     0     0     2     2     2     2     0     0     0     0     0
+#> decoded       0     0     2     2     2     2     0     0     0     0     0
 ```
 
 ## Coordinates back on: `to_segments()`
@@ -110,13 +131,14 @@ is the second half of
 ``` r
 
 states <- data.frame(name = "S1", chr = 1L,
-                     pos = seq_len(nrow(obs)) * 1e5L,
+                     pos = as.integer(map * 1e6),      # cM map -> bp coordinates
                      state = decode(model, obs))
 to_segments(states)
-#>   source donor name chr start_bp  end_bp state
-#> 1 nilHMM  <NA>   S1   1   100000  400000     0
-#> 2 nilHMM  <NA>   S1   1   500000  800000     2
-#> 3 nilHMM  <NA>   S1   1   900000 1200000     0
+#>   source donor name chr start_bp   end_bp state
+#> 1 nilHMM  <NA>   S1   1        0 13913043     2
+#> 2 nilHMM  <NA>   S1   1 17391304 48695652     0
+#> 3 nilHMM  <NA>   S1   1 52173913 62608695     2
+#> 4 nilHMM  <NA>   S1   1 66086956 80000000     0
 ```
 
 ## Swapping an axis
@@ -124,15 +146,18 @@ to_segments(states)
 Because the axes are independent, changing the caller’s behaviour is a
 matter of swapping one spec. Keep the same count emission but replace
 the geometric duration with a **rigidity** prior (minimum run length 4)
-— the RTIGER-style segmentation — and the shorter, noisier runs get
-absorbed:
+— the RTIGER-style segmentation. Rigidity enforces a minimum run length,
+so it resists short state changes; on this clean, well-covered line the
+call is essentially unchanged, but on noisy low-coverage data it
+suppresses the single-marker flicker that a geometric prior would
+otherwise emit as spurious one-marker segments.
 
 ``` r
 
 rigid <- fit(obs, emission_count(err = 0.01),
              duration_rigidity(rigidity = 4L), priors = design_priors("BC2S2"))
 decode(rigid, obs)
-#>  [1] 0 0 0 0 2 2 2 2 0 0 0 0
+#>  [1] 2 2 2 2 2 0 0 0 0 0 0 0 0 0 0 2 2 2 2 0 0 0 0 0
 ```
 
 Or keep the duration and swap the **emission** to the categorical

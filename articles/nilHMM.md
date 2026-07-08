@@ -42,36 +42,50 @@ We need an observation table. In practice you read one with
 [`read_hapmap()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_hapmap.md),
 or
 [`read_plink()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_plink.md).
-Here we simulate a small cohort of allelic read counts so the vignette
-is self-contained: six lines, two chromosomes, each carrying one donor
-(ALT) introgression block on a REF background.
+Here we simulate a small cohort with
+[**simcross**](https://cran.r-project.org/package=simcross) (real
+meiosis and recombination on a genetic map) and then layer allelic read
+counts on top — so the introgression blocks come from genuine crossovers
+rather than hand-placed segments. We build a BC2S2 cohort (two
+backcrosses, two selfings): six lines, two chromosomes.
 
 ``` r
 
-sim_counts <- function(n = 6L, m = 300L, n_chr = 2L, depth = 6, err = 0.01) {
-  chr <- rep(seq_len(n_chr), each = m)
-  pos <- as.integer(rep(seq_len(m), n_chr) * 1e5)
-  do.call(rbind, lapply(seq_len(n), function(s) {
-    truth <- integer(length(chr))                        # 0 REF / 1 HET / 2 ALT
-    for (ch in seq_len(n_chr)) {
-      idx <- which(chr == ch); w <- sample(20:60, 1L); s0 <- sample(idx, 1L)
-      blk <- s0:min(max(idx), s0 + w); truth[blk] <- 2L; truth[blk[1]] <- 1L
-    }
-    d  <- rpois(length(chr), depth)
-    na <- rbinom(length(chr), d, c(err, 0.5, 1 - err)[truth + 1L])
-    data.frame(name = sprintf("NIL%02d", s), chr = chr, pos = pos,
-               n_ref = d - na, n_alt = na)
+library(simcross)
+
+# simulate one BC(nbc)S(nself) family and layer read counts. Chromosomes assort
+# independently, so we simulate each separately. Returns a long observation table
+# with allelic counts (n_ref/n_alt) and a hard genotype g in {0 REF,1 HET,2 ALT,3 NA}.
+sim_cohort <- function(n = 6L, m = 150L, n_chr = 2L, L = 100,
+                       nbc = 2L, nself = 2L, depth = 6, err = 0.01, miss = 0.05) {
+  rec <- create_parent(L, 1); don <- create_parent(L, 2)      # inbred recurrent / donor
+  one_line <- function() {
+    ind <- cross(rec, don)                                    # F1
+    for (b in seq_len(nbc))   ind <- cross(ind, rec)          # backcross to recurrent
+    for (s in seq_len(nself)) ind <- cross(ind, ind)          # selfing
+    ind
+  }
+  map <- seq(0, L, length.out = m)
+  do.call(rbind, lapply(seq_len(n_chr), function(ch) {
+    g <- as.vector(convert2geno(lapply(seq_len(n), function(i) one_line()), map)) - 1L
+    N <- length(g); p_alt <- c(err, 0.5, 1 - err)[g + 1L]
+    d <- rpois(N, depth); na <- rbinom(N, d, p_alt)
+    g_obs <- g; g_obs[d == 0L | runif(N) < miss] <- 3L
+    data.frame(name = rep(sprintf("NIL%02d", seq_len(n)), times = m),
+               chr = ch, pos = rep(as.integer(map * 1e6), each = n),
+               n_ref = d - na, n_alt = na, g = as.integer(g_obs))
   }))
 }
-counts <- sim_counts()
+cohort <- sim_cohort()
+counts <- cohort[, c("name", "chr", "pos", "n_ref", "n_alt")]
 head(counts)
-#>    name chr    pos n_ref n_alt
-#> 1 NIL01   1 100000     6     1
-#> 2 NIL01   1 200000     2     0
-#> 3 NIL01   1 300000     4     0
-#> 4 NIL01   1 400000     4     0
-#> 5 NIL01   1 500000     7     0
-#> 6 NIL01   1 600000     5     0
+#>    name chr pos n_ref n_alt
+#> 1 NIL01   1   0     7     0
+#> 2 NIL02   1   0     7     0
+#> 3 NIL03   1   0     8     0
+#> 4 NIL04   1   0     3     0
+#> 5 NIL05   1   0     3     0
+#> 6 NIL06   1   0     4     0
 ```
 
 Call ancestry with the `nnil` count caller and BC2S2 design priors:
@@ -81,13 +95,13 @@ Call ancestry with the `nnil` count caller and BC2S2 design priors:
 calls <- call_ancestry(counts, caller = "nnil", design = "BC2S2",
                        rrate = 1e-4, err = 0.01)
 head(calls)
-#>   source donor  name chr start_bp   end_bp state
-#> 1 nilHMM  <NA> NIL01   1   100000 16600000     0
-#> 2 nilHMM  <NA> NIL01   1 16700000 19000000     2
-#> 3 nilHMM  <NA> NIL01   1 19100000 30000000     0
-#> 4 nilHMM  <NA> NIL01   2   100000 29800000     0
-#> 5 nilHMM  <NA> NIL01   2 29900000 30000000     1
-#> 6 nilHMM  <NA> NIL02   1   100000  2100000     0
+#>   source donor  name chr start_bp    end_bp state
+#> 1 nilHMM  <NA> NIL01   1        0 100000000     0
+#> 2 nilHMM  <NA> NIL01   2        0 100000000     0
+#> 3 nilHMM  <NA> NIL02   1        0  57718120     0
+#> 4 nilHMM  <NA> NIL02   1 58389261  91946308     1
+#> 5 nilHMM  <NA> NIL02   1 92617449 100000000     0
+#> 6 nilHMM  <NA> NIL02   2        0 100000000     0
 ```
 
 ## The common segment schema
@@ -109,7 +123,7 @@ directly comparable across callers and populations:
 table(calls$state)
 #> 
 #>  0  1  2 
-#> 22  1 11
+#> 16  3  2
 ```
 
 Numeric states are `0 = REF`, `1 = HET`, `2 = ALT`. A quick
