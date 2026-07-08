@@ -125,7 +125,7 @@ across cores with `threads` (bit-identical to serial):
 
 identical(
   call_ancestry(fam, caller = "fsfhap", design = "BC1S4", threads = 1L),
-  call_ancestry(fam, caller = "fsfhap", design = "BC1S4", threads = 3L)
+  call_ancestry(fam, caller = "fsfhap", design = "BC1S4", threads = 2L)
 )
 #> [1] TRUE
 ```
