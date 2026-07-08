@@ -517,8 +517,39 @@ cohort gives `mclapply` more independent units to fill all cores (here a single
 family caps units at n_chr = 10). Memory: TASSEL ~0.5 GB peak; the port is lighter
 (no JVM heap; `mclapply` forks are copy-on-write). **Net: the port is now faster
 than TASSEL both single- and multi-threaded**, on top of dependency removal +
-common-schema integration. (Caveat: synthetic data; re-run on real TeoNAM via
-`FSFHAP_HAPMAP`/`FSFHAP_PED`, where cross-family all-missing sites may shift timings.)
+common-schema integration.
+
+**Real-data confirmation (2026-07-07) — TeoNAM TIL01 family, full 51K genotypes.**
+Run through the env-var path `FSFHAP_HAPMAP=…/geno_gwas_51k.hmp.txt
+FSFHAP_PED=…/pedigree_TIL01.txt Rscript agent/benchmark_fsfhap.R` (the harness now
+loads the real genotypes via `read_hapmap`/`read_pedigree`, filtered to the
+pedigree's taxa, and derives the design from the pedigree contribution/F →
+**BC1S4**; TASSEL runs on the same HapMap + pedigree — a true head-to-head):
+
+| dataset | taxa × markers (chr) | units | cells | TASSEL compute | port 1-thread | port 10-thread | port ÷ TASSEL |
+|---|---|---|---|---|---|---|---|
+| TIL01 (1 family) | 220 × 51,004 (10) | 10 | 11.2M | 24.3 s (462k c/s) | 12.3 s | **4.96 s (2.26M c/s)** | **4.9×** |
+| all 5 families | 1,237 × 51,004 (10) | 50 | 63.1M | 218.5 s (289k c/s) | 78.9 s | **28.6 s (2.21M c/s)** | **7.6×** |
+
+The real numbers confirm the synthetic conclusion and are **stronger**. Single
+family (TIL01): the port is **2.0× faster single-threaded** and **4.9× on 10
+threads**, 2.5× over its own serial across 10 chromosome units. Full cohort (all
+five TeoNAM families, grouped by taxon-name prefix `^([A-Za-z]+[0-9]+)` → TIL01/
+03/11/14/25): the margin **widens to 7.6×** (28.6 s vs 218.5 s) — 50 independent
+family × chromosome units fill the cores better (2.8× self-scaling) *and* TASSEL's
+throughput degrades at scale (289k vs 462k cells/s) while the port holds steady
+(~2.2M cells/s at both scales). `read_hapmap` IO is 6–17 s (one-time, excluded from
+compute). Peak RSS: TASSEL 0.7–1.1 GB, port lighter. Reproduce via the env-var
+path (pedigree optional — falls back to taxon-prefix grouping + a synthesized
+TASSEL pedigree):
+
+```
+# single family (pedigree-driven; design derived from contribution/F)
+FSFHAP_HAPMAP=…/geno_gwas_51k.hmp.txt FSFHAP_PED=…/pedigree_TIL01.txt \
+  Rscript agent/benchmark_fsfhap.R
+# all families (taxon-prefix grouping; design = FSFHAP_DESIGN, default BC1S4)
+FSFHAP_HAPMAP=…/geno_gwas_51k.hmp.txt Rscript agent/benchmark_fsfhap.R
+```
 
 ### Tier 1 — Port faithfulness: stock TASSEL FSFHap parity (acceptance gate)
 "Does the port reproduce the reference on identical input?" — analogous to `rtiger`
