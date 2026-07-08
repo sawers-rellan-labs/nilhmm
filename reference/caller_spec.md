@@ -16,11 +16,12 @@
 ``` r
 caller_spec(
   caller = c("nnil", "rtiger", "atlas"),
-  r = 0.01,
+  rrate = 0.01,
+  rigidity = NULL,
   err = 0.01,
   conc = 20,
   fit_means = FALSE,
-  p_switch = 0.01,
+  xrate = 0.01,
   germ = 0.05,
   gert = 0.1,
   p = 0.5,
@@ -36,10 +37,15 @@ caller_spec(
 
   One of `"nnil"`, `"rtiger"`, `"atlas"`.
 
-- r:
+- rrate:
 
-  Duration hyperparameter: geometric self-transition rate for
-  `nnil`/`atlas`; integer rigidity (minimum run length) for `rtiger`.
+  Geometric callers (`nnil`/`atlas`): expected per-marker recombination
+  rate (self-stay = `1 - rrate`). Holland's nNIL sets it to
+  `2 * total_cM / (100 * n_markers)`.
+
+- rigidity:
+
+  `rtiger` only: integer minimum run length (e.g. `5`).
 
 - err:
 
@@ -53,9 +59,12 @@ caller_spec(
 
   EM-fit emission means (count emission; S10).
 
-- p_switch:
+- xrate:
 
-  Free-state switch probability for the `rtiger` rigidity tail.
+  Exit rate of the **rigidity duration**
+  ([`duration_rigidity()`](https://sawers-rellan-labs.github.io/nilhmm/reference/duration_rigidity.md)):
+  free-state (post-minimum-run) switch probability. A nilHMM construct,
+  not a RTIGER parameter.
 
 - germ, gert, p, mr, nir:
 
@@ -75,7 +84,7 @@ caller_spec(
 ## Examples
 
 ``` r
-caller_spec("nnil", r = 1e-4)          # count emission + geometric duration
+caller_spec("nnil", rrate = 1e-4)      # count emission + geometric duration
 #> $emission
 #> $type
 #> [1] "count"
@@ -102,7 +111,7 @@ caller_spec("nnil", r = 1e-4)          # count emission + geometric duration
 #> attr(,"class")
 #> [1] "nilHMM_duration_geometric" "nilHMM_duration"          
 #> 
-caller_spec("rtiger", r = 5)           # count emission + rigidity duration
+caller_spec("rtiger", rigidity = 5)    # count emission + rigidity duration
 #> $emission
 #> $type
 #> [1] "count"

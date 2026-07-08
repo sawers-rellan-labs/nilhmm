@@ -15,7 +15,14 @@
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="articles/nilHMM.html">Get started</a></li>
+<li class="nav-item"><a class="nav-link" href="reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="articles/callers.html">The callers: one example each</a></li>
+    <li><a class="dropdown-item" href="articles/engine.html">The engine: one chain, two swappable axes</a></li>
+    <li><a class="dropdown-item" href="articles/fsfhap.html">Full-sib families with the fsfhap caller</a></li>
+  </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/sawers-rellan-labs/nilhmm/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -33,248 +40,116 @@
 
 <div id="claudemd" class="section level1">
 
-<p>This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.</p>
+<p>Guidance for Claude Code (claude.ai/code) working in this repository.</p>
 <div class="section level2">
-<h2 id="project-overview">Project Overview<a class="anchor" aria-label="anchor" href="#project-overview"></a></h2>
-<p>NIL HMM is a Hidden Markov Model implementation for calling introgressions in Near Isogenic Lines (NILs) from low-coverage sequencing data. The project is specifically designed for maize genetics research, particularly the BZea population (B73 × Teosinte crosses).</p>
+<h2 id="what-this-is">What this is<a class="anchor" aria-label="anchor" href="#what-this-is"></a></h2>
+<p><strong>nilHMM</strong> (<code>Package: nilHMM</code>) is an <strong>R + Rcpp</strong> package that calls ancestry (donor introgressions) in Near-Isogenic Lines from sequencing data. It is a single <strong>duration-aware 3-state (REF / HET / ALT) HMM engine</strong> with two swappable axes, whose combinations express a family of named callers.</p>
+<blockquote>
+<p>IMPORTANT: This package is <strong>R + Rcpp</strong>, not Python. It began as a Python package (Jim Holland’s <a href="https://github.com/ncsumaize/nNIL" class="external-link">nNIL</a> methodology); that original is <strong>frozen at <code>legacy/python/</code></strong> (tag <code>python-final</code>) and is not the live code. Ignore any Python-era description — the authoritative overview is <code>README.md</code> and the design-of-record docs under <code>design/</code>.</p>
+</blockquote>
 </div>
 <div class="section level2">
-<h2 id="current-project-structure">Current Project Structure<a class="anchor" aria-label="anchor" href="#current-project-structure"></a></h2>
-<div class="section level3">
-<h3 id="python-package-nilhmm">Python Package (<code>nilhmm/</code>)<a class="anchor" aria-label="anchor" href="#python-package-nilhmm"></a></h3>
-<p>The main implementation is organized as a Python package:</p>
-<ul><li>
-<strong><code>nilhmm/core.py</code></strong>: Core HMM algorithms and state inference
-<ul><li>
-<code>introgression_hmm()</code>: Main HMM implementation with complex transition/emission matrices</li>
-<li>
-<code>call_introgressions()</code>: High-level interface with coverage-specific parameter defaults</li>
-</ul></li>
-<li>
-<strong><code>nilhmm/io.py</code></strong>: VCF file parsing and data input/output utilities
-<ul><li>
-<code>read_vcf()</code>: Converts VCF files to genotype matrices</li>
-<li>
-<code>write_results()</code>: Outputs multiple file formats for analysis</li>
-</ul></li>
-<li>
-<strong><code>nilhmm/utils.py</code></strong>: Helper functions and data validation
-<ul><li>Logging setup and utility functions</li>
-</ul></li>
-<li>
-<strong><code>nilhmm/grid_search.py</code></strong>: Parameter optimization routines
-<ul><li>
-<code>optimize_parameters()</code>: Grid search for HMM parameter tuning</li>
-</ul></li>
-</ul></div>
-<div class="section level3">
-<h3 id="command-line-scripts-scripts">Command-Line Scripts (<code>scripts/</code>)<a class="anchor" aria-label="anchor" href="#command-line-scripts-scripts"></a></h3>
-<ul><li>
-<strong><code>scripts/call_bzea_introgressions.py</code></strong>: Main command-line interface
-<ul><li>Handles argument parsing and parameter configuration</li>
-<li>Provides coverage-level parameter presets (low/medium/high)</li>
-<li>Calls <code>nilhmm.call_introgressions()</code> with user parameters</li>
-</ul></li>
-<li>
-<strong><code>scripts/parameter_tuning.py</code></strong>: Grid search parameter optimization</li>
-<li>
-<strong><code>scripts/preprocess_vcf.py</code></strong>: VCF preprocessing utilities</li>
-</ul></div>
-<div class="section level3">
-<h3 id="documentation-docs">Documentation (<code>docs/</code>)<a class="anchor" aria-label="anchor" href="#documentation-docs"></a></h3>
-<ul><li>
-<strong><code>docs/README.md</code></strong>: Detailed project documentation</li>
-<li>
-<strong><code>docs/jim_hmm_diagram.Rmd</code></strong>: R Markdown file for HMM architecture diagrams</li>
-<li>
-<strong><code>docs/package_structure.md</code></strong>: Package organization and design decisions</li>
-</ul></div>
-<div class="section level3">
-<h3 id="environment-and-configuration">Environment and Configuration<a class="anchor" aria-label="anchor" href="#environment-and-configuration"></a></h3>
-<ul><li>
-<strong><code>envs/nilhmm.yml</code></strong>: Conda environment specification</li>
-<li>
-<strong><code>requirements.txt</code></strong>: Python package dependencies</li>
-<li>
-<strong><code>setup.py</code></strong>: Package installation configuration</li>
-<li>
-<strong><code>codemcp.toml</code></strong>: Development tooling configuration</li>
-</ul></div>
-<div class="section level3">
-<h3 id="additional-files">Additional Files<a class="anchor" aria-label="anchor" href="#additional-files"></a></h3>
-<ul><li>
-<strong><code>python_hmm_diagram.Rmd</code></strong>: Python HMM implementation details and comparison with R version</li>
-<li>
-<strong><code>File_S11_callIntrogressions.py</code></strong>: Original HMM implementation (basis for <code>nilhmm/core.py</code>)</li>
-</ul></div>
+<h2 id="the-one-verb-api">The one-verb API<a class="anchor" aria-label="anchor" href="#the-one-verb-api"></a></h2>
+<div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">data</span>, caller <span class="op">=</span> <span class="va">...</span>, design <span class="op">=</span> <span class="va">...</span>, r <span class="op">=</span> <span class="va">...</span>, err <span class="op">=</span> <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<p>Everything else is a building block. The package is <strong>data-agnostic</strong>: every function takes <code>(data, params)</code> and returns calls — <strong>no hardcoded paths, sample lists, or mounts</strong>. Pipeline scripts (in the companion <code>zealhmm</code> repo, not here) own file paths, sample lists, and output locations.</p>
+<p>Output is the <strong>common segment schema</strong>: <code>source, donor, name, chr, start_bp, end_bp, state</code> with <code>state ∈ {REF, HET, ALT}</code>.</p>
 </div>
 <div class="section level2">
-<h2 id="core-hmm-architecture">Core HMM Architecture<a class="anchor" aria-label="anchor" href="#core-hmm-architecture"></a></h2>
-<p>The HMM uses a 3-state model with sophisticated mathematical foundations:</p>
-<div class="section level3">
-<h3 id="hidden-states">Hidden States<a class="anchor" aria-label="anchor" href="#hidden-states"></a></h3>
+<h2 id="architecture-one-engine-two-axes">Architecture: one engine, two axes<a class="anchor" aria-label="anchor" href="#architecture-one-engine-two-axes"></a></h2>
+<p>Numeric states: <strong>0 = REF</strong> (recurrent hom, e.g. B73), <strong>1 = HET</strong>, <strong>2 = ALT</strong> (donor hom, e.g. teosinte).</p>
 <ul><li>
-<strong>State 0</strong>: B73 homozygote (recurrent parent)</li>
+<strong>Emission</strong> — <code><a href="reference/emission_count.html">emission_count()</a></code> (BetaBinomial over ref/alt read depths; <code>err</code>, <code>conc</code>, optional <code>fit_means</code> EM) or <code><a href="reference/emission_gt.html">emission_gt()</a></code> (categorical genotype model with an explicit genotyping-error model: <code>germ, gert, p, mr, nir</code>).</li>
 <li>
-<strong>State 1</strong>: Heterozygote (B73/Teosinte)</li>
+<strong>Duration</strong> — <code><a href="reference/duration_geometric.html">duration_geometric()</a></code>, <code><a href="reference/duration_rigidity.html">duration_rigidity()</a></code> (minimum-run-length prior), or <code><a href="reference/duration_hsmm.html">duration_hsmm()</a></code>.</li>
 <li>
-<strong>State 2</strong>: Donor homozygote (Teosinte)</li>
-</ul></div>
-<div class="section level3">
-<h3 id="observable-states">Observable States<a class="anchor" aria-label="anchor" href="#observable-states"></a></h3>
-<ul><li>
-<strong>0</strong>: Major allele homozygote (minor allele count = 0)</li>
+<strong>Design priors</strong> — <code><a href="reference/design_priors.html">design_priors()</a></code> sets the state frequencies (<code>f_1</code>, <code>f_2</code>) from a breeding design (e.g. <code>"BC2S2"</code>).</li>
 <li>
-<strong>1</strong>: Heterozygote (minor allele count = 1)</li>
-<li>
-<strong>2</strong>: Minor allele homozygote (minor allele count = 2)</li>
-<li>
-<strong>3</strong>: Missing genotype call</li>
-</ul></div>
-<div class="section level3">
-<h3 id="key-mathematical-components">Key Mathematical Components<a class="anchor" aria-label="anchor" href="#key-mathematical-components"></a></h3>
-<p><strong>Transition Matrix</strong>: Uses genetics-based probabilities incorporating recombination - No recombination: P(S_t = i | S_{t-1} = i) = 1-r - Recombination transitions weighted by expected state frequencies</p>
-<p><strong>Emission Matrix</strong>: Complex 3×4 matrix incorporating multiple error sources - Genotyping errors on homozygotes vs heterozygotes - Non-informative marker effects - Missing data handling</p>
-</div>
-</div>
-<div class="section level2">
-<h2 id="key-parameters">Key Parameters<a class="anchor" aria-label="anchor" href="#key-parameters"></a></h2>
-<p>The HMM uses 8 critical parameters that must be carefully tuned:</p>
-<ul><li>
-<strong><code>nir</code></strong>: Non-informative marker rate (proportion of markers that don’t distinguish ancestry)</li>
-<li>
-<strong><code>germ</code></strong>: SNP calling error rate on true homozygotes<br></li>
-<li>
-<strong><code>gert</code></strong>: SNP calling error rate on true heterozygotes</li>
-<li>
-<strong><code>p</code></strong>: Proportion of homozygous errors resulting in heterozygous calls</li>
-<li>
-<strong><code>mr</code></strong>: Missing genotype call rate</li>
-<li>
-<strong><code>r</code></strong>: Recombination rate between adjacent markers</li>
-<li>
-<strong><code>f_1</code></strong>: Expected frequency of heterozygotes in population</li>
-<li>
-<strong><code>f_2</code></strong>: Expected frequency of donor homozygotes</li>
+<strong>Engine</strong> — <code><a href="reference/fit.html">fit()</a></code> (EM / parameter fitting) then <code><a href="reference/decode.html">decode()</a></code> (Viterbi / posteriors) → <code><a href="reference/to_segments.html">to_segments()</a></code> (RLE to the common schema).</li>
 </ul><div class="section level3">
-<h3 id="coverage-specific-parameter-defaults">Coverage-Specific Parameter Defaults<a class="anchor" aria-label="anchor" href="#coverage-specific-parameter-defaults"></a></h3>
-<p>The package provides optimized defaults for different sequencing coverage levels:</p>
+<h3 id="the-callers-all-share-the-refhetalt-chain--design-priors">The callers (all share the REF/HET/ALT chain + design priors)<a class="anchor" aria-label="anchor" href="#the-callers-all-share-the-refhetalt-chain--design-priors"></a></h3>
+<table class="table"><colgroup><col width="20%"><col width="20%"><col width="20%"><col width="20%"><col width="20%"></colgroup><thead><tr><th>caller</th>
+<th>emission</th>
+<th>duration</th>
+<th>typical input</th>
+<th>lineage</th>
+</tr></thead><tbody><tr><td><code>nnil</code></td>
+<td>
+<code>count</code> or <code>gt</code>
+</td>
+<td>geometric</td>
+<td>allelic read counts (skim/BrB) or called <code>GT</code>
+</td>
+<td>Holland nNIL</td>
+</tr><tr><td><code>rtiger</code></td>
+<td><code>count</code></td>
+<td>rigidity</td>
+<td>allelic read counts</td>
+<td>RTIGER (Julia-free port)</td>
+</tr><tr><td><code>binhmm</code></td>
+<td>anchored Gaussian on binned alt-freq</td>
+<td>per-bin HMM</td>
+<td>allelic read counts</td>
+<td>“ancestry by bins”</td>
+</tr><tr><td><code>atlas</code></td>
+<td>
+<code>gt</code> (GOOGA thresholds)</td>
+<td>geometric</td>
+<td>competitive-alignment RNA-seq counts</td>
+<td>GOOGA</td>
+</tr><tr><td><code>lbimpute</code></td>
+<td>coverage-aware (bounded by <code>genotypeerr</code>)</td>
+<td>distance-based (double-recomb penalty)</td>
+<td>very low-coverage (&lt;1×) allelic read counts</td>
+<td>LB-Impute (Fragoso 2014, native port)</td>
+</tr></tbody></table><p>See <code>README.md</code> for per-caller detail and <code><a href="reference/call_ancestry.html">?call_ancestry</a></code>. <code>lbimpute</code> is a native port of LB-Impute: it keeps LB-Impute’s coverage-aware emission and distance-dependent transition (the <code>-dr</code> double-recomb penalty is <code>drp</code>) but decodes with the engine’s full-chromosome Viterbi rather than LB-Impute’s windowed forward/reverse consensus (the optimal path that window approximates). The transition decays over a coordinate chosen by <code>unit</code>: <code>"bp"</code> (faithful, uniform genome-wide rate) or <code>"cm"</code> (map-aware — pass a <code>cm</code> column of genetic positions so local recombination rate is captured; the C++ <code>lb_viterbi_cpp</code> takes a numeric <code>tpos</code> and is unit-agnostic). <code>recombdist</code> shares the coordinate’s units (unit-aware default 1e7 bp / 50 cM) and a validation layer warns on unit/<code>recombdist</code> mismatches. Output coordinates are always bp. <code><a href="reference/write_vcf_impute.html">write_vcf_impute()</a></code> (in <code>io.R</code>) emits LB-Impute’s imputed-VCF deliverable from the per-marker states — optional and decoupled from the engine. <code>read_counts(format = "vcf_ad")</code> reads per-sample allelic depths from a biallelic VCF’s <code>AD</code> field (e.g. the LB-Impute example data). <code>caller_sweep(caller = "lbimpute", values = &lt;recombdist grid&gt;)</code> calibrates <code>recombdist</code>; it is <strong>exact per value</strong> (recombdist touches only the transition, so the emission is computed once per run and only the Viterbi transition is re-run over the grid, batched in C++ via <code>lb_viterbi_sweep_cpp</code>) — every swept value equals a cold <code>call_ancestry(caller = "lbimpute", recombdist = v)</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="downstream-utilities-not-callers">Downstream utilities (not callers)<a class="anchor" aria-label="anchor" href="#downstream-utilities-not-callers"></a></h3>
+<p>Data-agnostic helpers for the companion <code>zealhmm</code> QTL-mapping pipeline; they take <code>(data, params)</code> like everything else and hold no paths:</p>
 <ul><li>
-<strong>Low coverage (0.5-1x)</strong>: <code>nir=0.02, germ=0.08, gert=0.15, mr=0.20</code>
-</li>
+<code><a href="reference/interpolate_genotype.html">interpolate_genotype()</a></code> — densify a complete genotype block onto a target marker grid by flanking-marker interpolation in genetic distance (cM); modes <code>continuous</code> (Tian 2011), <code>step</code> (Chen/TeoNAM), <code>round</code>. Deterministic hard-call densification, <strong>not</strong> ancestry inference.</li>
 <li>
-<strong>Medium coverage (2-5x)</strong>: <code>nir=0.01, germ=0.05, gert=0.10, mr=0.10</code>
-</li>
-<li>
-<strong>High coverage (10x+)</strong>: <code>nir=0.005, germ=0.02, gert=0.05, mr=0.05</code>
-</li>
+<code><a href="reference/pairwise_distance.html">pairwise_distance()</a></code> + <code><a href="reference/select_independent.html">select_independent()</a></code> — LD-based marker thinning per chromosome: build a relatedness matrix (<code>r2</code> / <code>mi</code> / <code>vi</code>; similarity vs distance carried on <code>attr(, "kind")</code>) and select a maximal independent set (FastIndep port; the greedy set is bit-identical to the FastIndep CLI). A <code>max_markers</code> guard (default <code>7000</code>, ceiling via option <code>nilHMM.marker_hard_cap</code>) refuses oversized O(n²) matrices before allocation.</li>
 </ul></div>
 </div>
 <div class="section level2">
-<h2 id="data-flow">Data Flow<a class="anchor" aria-label="anchor" href="#data-flow"></a></h2>
-<ol style="list-style-type: decimal"><li>
-<strong>Input</strong>: VCF files with GT (genotype) field</li>
-<li>
-<strong>Processing</strong>: Convert to numeric matrix (samples × markers) via <code>nilhmm.io.read_vcf()</code>
-</li>
-<li>
-<strong>Chromosome splitting</strong>: Process each chromosome 1-10 separately</li>
-<li>
-<strong>HMM inference</strong>: Apply Viterbi algorithm per sample per chromosome via <code>nilhmm.core.introgression_hmm()</code>
-</li>
-<li>
-<strong>Output</strong>: Concatenate results across chromosomes and save via <code>nilhmm.io.write_results()</code>
-</li>
-</ol></div>
-<div class="section level2">
-<h2 id="common-development-commands">Common Development Commands<a class="anchor" aria-label="anchor" href="#common-development-commands"></a></h2>
-<div class="section level3">
-<h3 id="environment-setup">Environment Setup<a class="anchor" aria-label="anchor" href="#environment-setup"></a></h3>
-<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># Create conda environment</span></span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="ex">conda</span> env create <span class="at">-f</span> envs/nilhmm.yml</span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="ex">conda</span> activate nilhmm</span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a></span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="co"># Or install via pip</span></span>
-<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-r</span> requirements.txt</span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="package-installation">Package Installation<a class="anchor" aria-label="anchor" href="#package-installation"></a></h3>
-<div class="sourceCode" id="cb2"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># Install in development mode</span></span>
-<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="ex">pip</span> install <span class="at">-e</span> .</span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="running-the-main-pipeline">Running the Main Pipeline<a class="anchor" aria-label="anchor" href="#running-the-main-pipeline"></a></h3>
-<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="co"># Basic usage with automatic coverage detection</span></span>
-<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="ex">python</span> scripts/call_bzea_introgressions.py input_data.vcf</span>
-<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a></span>
-<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co"># Specify coverage level for parameter defaults</span></span>
-<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="ex">python</span> scripts/call_bzea_introgressions.py input_data.vcf <span class="at">--coverage</span> low</span>
-<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a></span>
-<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co"># Custom parameters</span></span>
-<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="ex">python</span> scripts/call_bzea_introgressions.py input_data.vcf <span class="dt">\</span></span>
-<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>    <span class="at">--nir</span> 0.01 <span class="at">--germ</span> 0.05 <span class="at">--gert</span> 0.10 <span class="at">--p</span> 0.5 <span class="at">--mr</span> 0.15 <span class="at">--r</span> 0.01</span>
-<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a></span>
-<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co"># Custom output prefix</span></span>
-<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="ex">python</span> scripts/call_bzea_introgressions.py input_data.vcf <span class="at">-o</span> custom_results</span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="development-tools-via-codemcp">Development Tools (via codemcp)<a class="anchor" aria-label="anchor" href="#development-tools-via-codemcp"></a></h3>
-<div class="sourceCode" id="cb4"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="co"># Format code</span></span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="ex">codemcp</span> format</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a></span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co"># Run tests with coverage</span></span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="ex">codemcp</span> test-coverage</span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a></span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co"># Lint code</span></span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="ex">codemcp</span> lint</span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co"># Check git status</span></span>
-<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="ex">codemcp</span> status</span></code></pre></div>
-</div>
-<div class="section level3">
-<h3 id="using-the-package-directly">Using the Package Directly<a class="anchor" aria-label="anchor" href="#using-the-package-directly"></a></h3>
-<div class="sourceCode" id="cb5"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="im">import</span> nilhmm</span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a></span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co"># High-level interface</span></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>results <span class="op">=</span> nilhmm.call_introgressions(</span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>    vcf_file<span class="op">=</span><span class="st">"data.vcf"</span>,</span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>    output_prefix<span class="op">=</span><span class="st">"results"</span>,</span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>    coverage_level<span class="op">=</span><span class="st">"low"</span></span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>)</span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a></span>
-<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co"># Lower-level access</span></span>
-<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>geno_matrix, marker_dict, samples, markers <span class="op">=</span> nilhmm.read_vcf(<span class="st">"data.vcf"</span>)</span>
-<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>calls <span class="op">=</span> nilhmm.introgression_hmm(geno_matrix, marker_dict)</span></code></pre></div>
-</div>
-</div>
-<div class="section level2">
-<h2 id="input-data-requirements">Input Data Requirements<a class="anchor" aria-label="anchor" href="#input-data-requirements"></a></h2>
-<p>VCF files must have: - Standard VCF format (v4.0+) - GT (genotype) field in FORMAT column - Chromosomes 1-10 (standard maize chromosomes) - Sample names in header line - Markers sorted by chromosome and position</p>
-</div>
-<div class="section level2">
-<h2 id="output-files">Output Files<a class="anchor" aria-label="anchor" href="#output-files"></a></h2>
-<p>The pipeline generates four standardized output files: 1. <strong><code>*_introgression_calls.txt</code></strong>: Raw numeric matrix 2. <strong><code>*_introgression_calls.csv</code></strong>: Labeled calls with headers 3. <strong><code>*_introgression_summary.csv</code></strong>: Per-sample summary statistics<br>
-4. <strong><code>*_marker_info.csv</code></strong>: Marker details (chr, pos, alleles)</p>
-</div>
-<div class="section level2">
-<h2 id="important-design-constraints">Important Design Constraints<a class="anchor" aria-label="anchor" href="#important-design-constraints"></a></h2>
+<h2 id="repository-layout">Repository layout<a class="anchor" aria-label="anchor" href="#repository-layout"></a></h2>
 <ul><li>
-<strong>Chromosome Processing</strong>: Each chromosome (1-10) must be processed separately due to linkage assumptions</li>
+<code>R/</code> — R layer. Entry <code>engine.R</code> (<code>call_ancestry</code>, <code>fit</code>, <code>decode</code>, <code>to_segments</code>); <code>callers.R</code> (<code>caller_spec</code> — per-caller definitions); <code>emissions.R</code> (<code>emission_count</code>/<code>emission_gt</code>); <code>duration.R</code> (<code>duration_*</code>); <code>presets_design.R</code> (<code>design_priors</code>, <code>cm_to_mb</code>) / <code>presets_regime.R</code> (<code>select_emission</code>); <code>io.R</code> (<code>read_counts</code>, <code>read_vcf_gt</code>); <code>calibrate.R</code> (<code>calibrate_r</code>); <code>sweep.R</code> (<code>caller_sweep</code>); <code>rtiger.R</code>, <code>binhmm.R</code>, <code>atlas.R</code>, <code>lbimpute.R</code>; <code>io.R</code> also holds <code>write_vcf_impute</code> (LB-Impute imputed-VCF output); <code>map.R</code> (<code>load_map</code>, stub); <code>interpolate_genotype.R</code> (genotype densification); <code>pairwise_distance.R</code> / <code>select_independent.R</code> (LD marker thinning); <code>plot.R</code>, <code>nilHMM-package.R</code>, <code>RcppExports.R</code>.</li>
 <li>
-<strong>Marker Ordering</strong>: Input markers MUST be sorted by chromosome and position for HMM to work correctly</li>
+<code>src/</code> — Rcpp engine: <code>emission_count.cpp</code>, <code>forward_backward.cpp</code>, <code>viterbi.cpp</code>, <code>viterbi_batch.cpp</code>, <code>viterbi_batch_par.cpp</code> (RcppParallel/TBB), <code>segments.cpp</code> (RLE), <code>rtiger.cpp</code>, <code>lbimpute.cpp</code> (LB-Impute emission + distance-aware Viterbi), <code>interpolate_genotype.cpp</code>, <code>fast_indep.cpp</code> (FastIndep port), <code>pairwise_distance.cpp</code> (r2/MI/VI), plus generated <code>RcppExports.cpp</code> and <code>Makevars</code>.</li>
 <li>
-<strong>Missing Data Encoding</strong>: Uses integer 3 for missing data, not NaN</li>
+<code>design/</code> — <strong>design of record</strong>: <code>architecture.md</code>, <code>Implementation.md</code>, <code>REFACTOR_R_PACKAGE.md</code>, <code>RTIGER_PORT.md</code>, <code>VALIDATION.md</code>, <code>package_structure.md</code>, <code>Zv_RTIGER_divergence.md</code>, <code>BRB_run_findings.md</code>. Read these before non-trivial changes.</li>
 <li>
-<strong>Low Coverage Optimization</strong>: Parameters specifically tuned for 0.5-1× coverage sequencing data</li>
+<code>tests/testthat/</code> + <code>tests/fixtures/baseline_pre_refactor/</code> — regression baselines (SHA256-summed CSVs from the pre-refactor code; callers must reproduce them).</li>
+<li>
+<code>calibration/</code>, <code>data-raw/</code>, <code>inst/</code>, <code>man/</code> (roxygen-generated), <code>legacy/</code> (frozen Python).</li>
 </ul></div>
 <div class="section level2">
-<h2 id="integration-notes">Integration Notes<a class="anchor" aria-label="anchor" href="#integration-notes"></a></h2>
-<p>When extending this codebase: - The HMM relies on <code>hmmlearn.MultinomialHMM</code> with custom transition/emission matrices - Parameter values significantly impact results - use grid search for optimization - All genotype matrices use samples as rows, markers as columns - The <code>marker_dict</code> maps chromosome numbers to column indices in the genotype matrix - Core functions are available through the package interface: <code>nilhmm.call_introgressions()</code>, <code>nilhmm.introgression_hmm()</code></p>
-</div>
+<h2 id="c--build-workflow">C++ / build workflow<a class="anchor" aria-label="anchor" href="#c--build-workflow"></a></h2>
+<ul><li>Rcpp bindings are generated — <strong>never hand-edit</strong> <code>src/RcppExports.cpp</code> or <code>R/RcppExports.R</code>. After adding/changing a <code>// [[Rcpp::export]]</code> function, run <code><a href="https://rdrr.io/pkg/Rcpp/man/compileAttributes.html" class="external-link">Rcpp::compileAttributes()</a></code> then <code>devtools::document()</code>.</li>
+<li>C++ style (see <code>src/segments.cpp</code>): <code>#include &lt;Rcpp.h&gt;</code>, <code>using namespace Rcpp;</code>, <code>//'</code> roxygen with <code>@param</code>/<code>@return</code>/<code>@keywords internal</code>, <code>// [[Rcpp::export]]</code>, <code>*_cpp</code> naming. Process <strong>one chromosome at a time</strong>; markers must be sorted.</li>
+<li>
+<code>Makevars</code> links the TBB runtime via <code><a href="https://rdrr.io/pkg/RcppParallel/man/flags.html" class="external-link">RcppParallel::RcppParallelLibs()</a></code> (<code>SystemRequirements: GNU make</code>). <code>nilHMM-package.R</code> imports RcppParallel first so the bundled TBB loads before nilHMM’s DLL (otherwise <code>dlopen</code> fails on clean install).</li>
+<li>Typical dev loop: <code>devtools::load_all()</code> → <code>devtools::test()</code> → <code>devtools::document()</code> → <code>R CMD check</code>. <code><a href="https://rdrr.io/pkg/Rcpp/man/compileAttributes.html" class="external-link">Rcpp::compileAttributes()</a></code> after C++ changes.</li>
+</ul></div>
 <div class="section level2">
-<h2 id="project-configuration">Project Configuration<a class="anchor" aria-label="anchor" href="#project-configuration"></a></h2>
-<p>The project uses <code>codemcp.toml</code> for configuration management, which defines: - Code formatting and linting standards (black, flake8, mypy) - Testing commands (pytest with coverage) - Git automation settings - Python version requirements (&gt;=3.8) - File ignore patterns</p>
-<p>The configuration enables automatic commits (<code>auto_commit = true</code>) and provides convenient development commands for maintaining code quality.</p>
+<h2 id="design-constraints">Design constraints<a class="anchor" aria-label="anchor" href="#design-constraints"></a></h2>
+<ul><li>
+<strong>Chromosome-separate processing</strong> (linkage assumptions); markers <strong>sorted by chr, position</strong>.</li>
+<li>
+<strong>State coding</strong> 0/1/2 = REF/HET/ALT; missing observation handled by the emission.</li>
+<li>
+<strong>Data-agnostic</strong> — keep paths/sample lists out of package functions.</li>
+<li>
+<code>rtiger</code> is a <strong>Julia-free</strong> port (no Julia needed); <code>rebmix</code> is an optional <code>Suggests</code> (bit-exact <code>binhmm</code> clustering reproduction only).</li>
+<li>
+<code><a href="reference/load_map.html">load_map()</a></code> is currently a <strong>stub</strong> (Task 4) — the bundled B73 v5 consensus map is not yet wired in.</li>
+</ul></div>
+<div class="section level2">
+<h2 id="related">Related<a class="anchor" aria-label="anchor" href="#related"></a></h2>
+<p>Companion analysis repo <code>zealhmm</code> installs nilHMM as a dependency and hosts the caller comparison and methods paper. Cite the nNIL population paper (Zhong et al. 2025, bioRxiv 10.1101/2025.01.29.635337) per <code>CITATION.cff</code>.</p>
 </div>
 </div>
 

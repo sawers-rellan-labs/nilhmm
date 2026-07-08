@@ -1,21 +1,21 @@
 # Geometric (memoryless) duration
 
-Self-transition rate `r`; the nilHMM transition. `r` is a resolution
-hyperparameter, **not** an MLE – calibrate by KS-vs-sim (memory
-`rigidity-not-mle`,
+Per-marker recombination rate `rrate` (self-stay = `1 - rrate`); the
+nilHMM transition. `rrate` is a resolution hyperparameter, **not** an
+MLE – calibrate by KS-vs-sim (memory `rigidity-not-mle`,
 [`calibrate_r()`](https://sawers-rellan-labs.github.io/nilhmm/reference/calibrate_r.md)).
 
 ## Usage
 
 ``` r
-duration_geometric(r = 0.01)
+duration_geometric(rrate = 0.01)
 ```
 
 ## Arguments
 
-- r:
+- rrate:
 
-  Self-transition / recombination rate between adjacent markers.
+  Per-marker recombination / switch rate between adjacent markers.
 
 ## Value
 
@@ -25,7 +25,7 @@ A duration spec for
 ## Examples
 
 ``` r
-duration_geometric(r = 1e-4)
+duration_geometric(rrate = 1e-4)
 #> $type
 #> [1] "geometric"
 #> 

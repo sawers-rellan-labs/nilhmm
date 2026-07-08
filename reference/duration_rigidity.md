@@ -1,7 +1,7 @@
 # Rigidity duration (RTIGER reimplementation)
 
-Enforces a hard minimum run length of `r` markers by expanding each
-state into a chain of `r` sub-states (phase-type / Erlang machinery).
+Enforces a hard minimum run length of `rigidity` markers by expanding
+each state into a chain of `rigidity` sub-states (phase-type / Erlang).
 Reimplements the subset of RTIGER we use (BetaBinomial emission +
 rigidity + Viterbi + KS-calibrated `r`); `optimize_R` is intentionally
 NOT ported (it over-rigidifies, memory
@@ -11,20 +11,21 @@ NOT ported (it over-rigidifies, memory
 ## Usage
 
 ``` r
-duration_rigidity(r = 5L, p_switch = 0.01)
+duration_rigidity(rigidity = 5L, xrate = 0.01)
 ```
 
 ## Arguments
 
-- r:
+- rigidity:
 
-  Minimum run length in markers (the rigidity, integer \>= 1).
+  Minimum run length in markers (integer \>= 1).
 
-- p_switch:
+- xrate:
 
-  Per-marker switch probability at the free (post-minimum) state – the
-  geometric tail beyond the enforced minimum run. Rigidity of 1 reduces
-  the expansion to a plain geometric transition with this switch rate.
+  Per-marker switch / exit probability at the free (post-minimum) state
+  – the geometric tail beyond the enforced minimum run. `rigidity` of 1
+  reduces the expansion to a plain geometric transition with this exit
+  rate.
 
 ## Value
 
@@ -34,7 +35,7 @@ A duration spec for
 ## Examples
 
 ``` r
-duration_rigidity(r = 5, p_switch = 2e-3)
+duration_rigidity(rigidity = 5, xrate = 2e-3)
 #> $type
 #> [1] "rigidity"
 #> 

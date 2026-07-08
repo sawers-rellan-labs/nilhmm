@@ -1,8 +1,12 @@
 pandoc: 3.8.3
 pkgdown: 2.2.0
 pkgdown_sha: ~
-articles: {}
-last_built: 2026-07-03T21:20Z
+articles:
+  callers: callers.html
+  engine: engine.html
+  fsfhap: fsfhap.html
+  nilHMM: nilHMM.html
+last_built: 2026-07-08T03:08Z
 urls:
   reference: https://sawers-rellan-labs.github.io/nilhmm/reference
   article: https://sawers-rellan-labs.github.io/nilhmm/articles

@@ -1,238 +1,192 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working
-with code in this repository.
+Guidance for Claude Code (claude.ai/code) working in this repository.
 
-## Project Overview
+## What this is
 
-NIL HMM is a Hidden Markov Model implementation for calling
-introgressions in Near Isogenic Lines (NILs) from low-coverage
-sequencing data. The project is specifically designed for maize genetics
-research, particularly the BZea population (B73 × Teosinte crosses).
+**nilHMM** (`Package: nilHMM`) is an **R + Rcpp** package that calls
+ancestry (donor introgressions) in Near-Isogenic Lines from sequencing
+data. It is a single **duration-aware 3-state (REF / HET / ALT) HMM
+engine** with two swappable axes, whose combinations express a family of
+named callers.
 
-## Current Project Structure
+> IMPORTANT: This package is **R + Rcpp**, not Python. It began as a
+> Python package (Jim Holland’s
+> [nNIL](https://github.com/ncsumaize/nNIL) methodology); that original
+> is **frozen at `legacy/python/`** (tag `python-final`) and is not the
+> live code. Ignore any Python-era description — the authoritative
+> overview is `README.md` and the design-of-record docs under `design/`.
 
-### Python Package (`nilhmm/`)
+## The one-verb API
 
-The main implementation is organized as a Python package:
+``` r
 
-- **`nilhmm/core.py`**: Core HMM algorithms and state inference
-  - `introgression_hmm()`: Main HMM implementation with complex
-    transition/emission matrices
-  - `call_introgressions()`: High-level interface with coverage-specific
-    parameter defaults
-- **`nilhmm/io.py`**: VCF file parsing and data input/output utilities
-  - `read_vcf()`: Converts VCF files to genotype matrices
-  - `write_results()`: Outputs multiple file formats for analysis
-- **`nilhmm/utils.py`**: Helper functions and data validation
-  - Logging setup and utility functions
-- **`nilhmm/grid_search.py`**: Parameter optimization routines
-  - `optimize_parameters()`: Grid search for HMM parameter tuning
-
-### Command-Line Scripts (`scripts/`)
-
-- **`scripts/call_bzea_introgressions.py`**: Main command-line interface
-  - Handles argument parsing and parameter configuration
-  - Provides coverage-level parameter presets (low/medium/high)
-  - Calls `nilhmm.call_introgressions()` with user parameters
-- **`scripts/parameter_tuning.py`**: Grid search parameter optimization
-- **`scripts/preprocess_vcf.py`**: VCF preprocessing utilities
-
-### Documentation (`docs/`)
-
-- **`docs/README.md`**: Detailed project documentation
-- **`docs/jim_hmm_diagram.Rmd`**: R Markdown file for HMM architecture
-  diagrams
-- **`docs/package_structure.md`**: Package organization and design
-  decisions
-
-### Environment and Configuration
-
-- **`envs/nilhmm.yml`**: Conda environment specification
-- **`requirements.txt`**: Python package dependencies
-- **`setup.py`**: Package installation configuration
-- **`codemcp.toml`**: Development tooling configuration
-
-### Additional Files
-
-- **`python_hmm_diagram.Rmd`**: Python HMM implementation details and
-  comparison with R version
-- **`File_S11_callIntrogressions.py`**: Original HMM implementation
-  (basis for `nilhmm/core.py`)
-
-## Core HMM Architecture
-
-The HMM uses a 3-state model with sophisticated mathematical
-foundations:
-
-### Hidden States
-
-- **State 0**: B73 homozygote (recurrent parent)
-- **State 1**: Heterozygote (B73/Teosinte)
-- **State 2**: Donor homozygote (Teosinte)
-
-### Observable States
-
-- **0**: Major allele homozygote (minor allele count = 0)
-- **1**: Heterozygote (minor allele count = 1)
-- **2**: Minor allele homozygote (minor allele count = 2)
-- **3**: Missing genotype call
-
-### Key Mathematical Components
-
-**Transition Matrix**: Uses genetics-based probabilities incorporating
-recombination - No recombination: P(S_t = i \| S\_{t-1} = i) = 1-r -
-Recombination transitions weighted by expected state frequencies
-
-**Emission Matrix**: Complex 3×4 matrix incorporating multiple error
-sources - Genotyping errors on homozygotes vs heterozygotes -
-Non-informative marker effects - Missing data handling
-
-## Key Parameters
-
-The HMM uses 8 critical parameters that must be carefully tuned:
-
-- **`nir`**: Non-informative marker rate (proportion of markers that
-  don’t distinguish ancestry)
-- **`germ`**: SNP calling error rate on true homozygotes  
-- **`gert`**: SNP calling error rate on true heterozygotes
-- **`p`**: Proportion of homozygous errors resulting in heterozygous
-  calls
-- **`mr`**: Missing genotype call rate
-- **`r`**: Recombination rate between adjacent markers
-- **`f_1`**: Expected frequency of heterozygotes in population
-- **`f_2`**: Expected frequency of donor homozygotes
-
-### Coverage-Specific Parameter Defaults
-
-The package provides optimized defaults for different sequencing
-coverage levels:
-
-- **Low coverage (0.5-1x)**: `nir=0.02, germ=0.08, gert=0.15, mr=0.20`
-- **Medium coverage (2-5x)**: `nir=0.01, germ=0.05, gert=0.10, mr=0.10`
-- **High coverage (10x+)**: `nir=0.005, germ=0.02, gert=0.05, mr=0.05`
-
-## Data Flow
-
-1.  **Input**: VCF files with GT (genotype) field
-2.  **Processing**: Convert to numeric matrix (samples × markers) via
-    `nilhmm.io.read_vcf()`
-3.  **Chromosome splitting**: Process each chromosome 1-10 separately
-4.  **HMM inference**: Apply Viterbi algorithm per sample per chromosome
-    via `nilhmm.core.introgression_hmm()`
-5.  **Output**: Concatenate results across chromosomes and save via
-    `nilhmm.io.write_results()`
-
-## Common Development Commands
-
-### Environment Setup
-
-``` bash
-# Create conda environment
-conda env create -f envs/nilhmm.yml
-conda activate nilhmm
-
-# Or install via pip
-pip install -r requirements.txt
+call_ancestry(data, caller = ..., design = ..., r = ..., err = ...)
 ```
 
-### Package Installation
+Everything else is a building block. The package is **data-agnostic**:
+every function takes `(data, params)` and returns calls — **no hardcoded
+paths, sample lists, or mounts**. Pipeline scripts (in the companion
+`zealhmm` repo, not here) own file paths, sample lists, and output
+locations.
 
-``` bash
-# Install in development mode
-pip install -e .
-```
+Output is the **common segment schema**:
+`source, donor, name, chr, start_bp, end_bp, state` with
+`state ∈ {REF, HET, ALT}`.
 
-### Running the Main Pipeline
+## Architecture: one engine, two axes
 
-``` bash
-# Basic usage with automatic coverage detection
-python scripts/call_bzea_introgressions.py input_data.vcf
+Numeric states: **0 = REF** (recurrent hom, e.g. B73), **1 = HET**, **2
+= ALT** (donor hom, e.g. teosinte).
 
-# Specify coverage level for parameter defaults
-python scripts/call_bzea_introgressions.py input_data.vcf --coverage low
+- **Emission** —
+  [`emission_count()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_count.md)
+  (BetaBinomial over ref/alt read depths; `err`, `conc`, optional
+  `fit_means` EM) or
+  [`emission_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_gt.md)
+  (categorical genotype model with an explicit genotyping-error model:
+  `germ, gert, p, mr, nir`).
+- **Duration** —
+  [`duration_geometric()`](https://sawers-rellan-labs.github.io/nilhmm/reference/duration_geometric.md),
+  [`duration_rigidity()`](https://sawers-rellan-labs.github.io/nilhmm/reference/duration_rigidity.md)
+  (minimum-run-length prior), or
+  [`duration_hsmm()`](https://sawers-rellan-labs.github.io/nilhmm/reference/duration_hsmm.md).
+- **Design priors** —
+  [`design_priors()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_priors.md)
+  sets the state frequencies (`f_1`, `f_2`) from a breeding design
+  (e.g. `"BC2S2"`).
+- **Engine** —
+  [`fit()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fit.md)
+  (EM / parameter fitting) then
+  [`decode()`](https://sawers-rellan-labs.github.io/nilhmm/reference/decode.md)
+  (Viterbi / posteriors) →
+  [`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md)
+  (RLE to the common schema).
 
-# Custom parameters
-python scripts/call_bzea_introgressions.py input_data.vcf \
-    --nir 0.01 --germ 0.05 --gert 0.10 --p 0.5 --mr 0.15 --r 0.01
+### The callers (all share the REF/HET/ALT chain + design priors)
 
-# Custom output prefix
-python scripts/call_bzea_introgressions.py input_data.vcf -o custom_results
-```
+| caller | emission | duration | typical input | lineage |
+|----|----|----|----|----|
+| `nnil` | `count` or `gt` | geometric | allelic read counts (skim/BrB) or called `GT` | Holland nNIL |
+| `rtiger` | `count` | rigidity | allelic read counts | RTIGER (Julia-free port) |
+| `binhmm` | anchored Gaussian on binned alt-freq | per-bin HMM | allelic read counts | “ancestry by bins” |
+| `atlas` | `gt` (GOOGA thresholds) | geometric | competitive-alignment RNA-seq counts | GOOGA |
+| `lbimpute` | coverage-aware (bounded by `genotypeerr`) | distance-based (double-recomb penalty) | very low-coverage (\<1×) allelic read counts | LB-Impute (Fragoso 2014, native port) |
 
-### Development Tools (via codemcp)
+See `README.md` for per-caller detail and
+[`?call_ancestry`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md).
+`lbimpute` is a native port of LB-Impute: it keeps LB-Impute’s
+coverage-aware emission and distance-dependent transition (the `-dr`
+double-recomb penalty is `drp`) but decodes with the engine’s
+full-chromosome Viterbi rather than LB-Impute’s windowed forward/reverse
+consensus (the optimal path that window approximates). The transition
+decays over a coordinate chosen by `unit`: `"bp"` (faithful, uniform
+genome-wide rate) or `"cm"` (map-aware — pass a `cm` column of genetic
+positions so local recombination rate is captured; the C++
+`lb_viterbi_cpp` takes a numeric `tpos` and is unit-agnostic).
+`recombdist` shares the coordinate’s units (unit-aware default 1e7 bp /
+50 cM) and a validation layer warns on unit/`recombdist` mismatches.
+Output coordinates are always bp.
+[`write_vcf_impute()`](https://sawers-rellan-labs.github.io/nilhmm/reference/write_vcf_impute.md)
+(in `io.R`) emits LB-Impute’s imputed-VCF deliverable from the
+per-marker states — optional and decoupled from the engine.
+`read_counts(format = "vcf_ad")` reads per-sample allelic depths from a
+biallelic VCF’s `AD` field (e.g. the LB-Impute example data).
+`caller_sweep(caller = "lbimpute", values = <recombdist grid>)`
+calibrates `recombdist`; it is **exact per value** (recombdist touches
+only the transition, so the emission is computed once per run and only
+the Viterbi transition is re-run over the grid, batched in C++ via
+`lb_viterbi_sweep_cpp`) — every swept value equals a cold
+`call_ancestry(caller = "lbimpute", recombdist = v)`.
 
-``` bash
-# Format code
-codemcp format
+### Downstream utilities (not callers)
 
-# Run tests with coverage
-codemcp test-coverage
+Data-agnostic helpers for the companion `zealhmm` QTL-mapping pipeline;
+they take `(data, params)` like everything else and hold no paths:
 
-# Lint code
-codemcp lint
+- [`interpolate_genotype()`](https://sawers-rellan-labs.github.io/nilhmm/reference/interpolate_genotype.md)
+  — densify a complete genotype block onto a target marker grid by
+  flanking-marker interpolation in genetic distance (cM); modes
+  `continuous` (Tian 2011), `step` (Chen/TeoNAM), `round`. Deterministic
+  hard-call densification, **not** ancestry inference.
+- [`pairwise_distance()`](https://sawers-rellan-labs.github.io/nilhmm/reference/pairwise_distance.md) +
+  [`select_independent()`](https://sawers-rellan-labs.github.io/nilhmm/reference/select_independent.md)
+  — LD-based marker thinning per chromosome: build a relatedness matrix
+  (`r2` / `mi` / `vi`; similarity vs distance carried on
+  `attr(, "kind")`) and select a maximal independent set (FastIndep
+  port; the greedy set is bit-identical to the FastIndep CLI). A
+  `max_markers` guard (default `7000`, ceiling via option
+  `nilHMM.marker_hard_cap`) refuses oversized O(n²) matrices before
+  allocation.
 
-# Check git status
-codemcp status
-```
+## Repository layout
 
-### Using the Package Directly
+- `R/` — R layer. Entry `engine.R` (`call_ancestry`, `fit`, `decode`,
+  `to_segments`); `callers.R` (`caller_spec` — per-caller definitions);
+  `emissions.R` (`emission_count`/`emission_gt`); `duration.R`
+  (`duration_*`); `presets_design.R` (`design_priors`, `cm_to_mb`) /
+  `presets_regime.R` (`select_emission`); `io.R` (`read_counts`,
+  `read_vcf_gt`); `calibrate.R` (`calibrate_r`); `sweep.R`
+  (`caller_sweep`); `rtiger.R`, `binhmm.R`, `atlas.R`, `lbimpute.R`;
+  `io.R` also holds `write_vcf_impute` (LB-Impute imputed-VCF output);
+  `map.R` (`load_map`, stub); `interpolate_genotype.R` (genotype
+  densification); `pairwise_distance.R` / `select_independent.R` (LD
+  marker thinning); `plot.R`, `nilHMM-package.R`, `RcppExports.R`.
+- `src/` — Rcpp engine: `emission_count.cpp`, `forward_backward.cpp`,
+  `viterbi.cpp`, `viterbi_batch.cpp`, `viterbi_batch_par.cpp`
+  (RcppParallel/TBB), `segments.cpp` (RLE), `rtiger.cpp`, `lbimpute.cpp`
+  (LB-Impute emission + distance-aware Viterbi),
+  `interpolate_genotype.cpp`, `fast_indep.cpp` (FastIndep port),
+  `pairwise_distance.cpp` (r2/MI/VI), plus generated `RcppExports.cpp`
+  and `Makevars`.
+- `design/` — **design of record**: `architecture.md`,
+  `Implementation.md`, `REFACTOR_R_PACKAGE.md`, `RTIGER_PORT.md`,
+  `VALIDATION.md`, `package_structure.md`, `Zv_RTIGER_divergence.md`,
+  `BRB_run_findings.md`. Read these before non-trivial changes.
+- `tests/testthat/` + `tests/fixtures/baseline_pre_refactor/` —
+  regression baselines (SHA256-summed CSVs from the pre-refactor code;
+  callers must reproduce them).
+- `calibration/`, `data-raw/`, `inst/`, `man/` (roxygen-generated),
+  `legacy/` (frozen Python).
 
-``` python
-import nilhmm
+## C++ / build workflow
 
-# High-level interface
-results = nilhmm.call_introgressions(
-    vcf_file="data.vcf",
-    output_prefix="results",
-    coverage_level="low"
-)
+- Rcpp bindings are generated — **never hand-edit**
+  `src/RcppExports.cpp` or `R/RcppExports.R`. After adding/changing a
+  `// [[Rcpp::export]]` function, run
+  [`Rcpp::compileAttributes()`](https://rdrr.io/pkg/Rcpp/man/compileAttributes.html)
+  then `devtools::document()`.
+- C++ style (see `src/segments.cpp`): `#include <Rcpp.h>`,
+  `using namespace Rcpp;`, `//'` roxygen with
+  `@param`/`@return`/`@keywords internal`, `// [[Rcpp::export]]`,
+  `*_cpp` naming. Process **one chromosome at a time**; markers must be
+  sorted.
+- `Makevars` links the TBB runtime via
+  [`RcppParallel::RcppParallelLibs()`](https://rdrr.io/pkg/RcppParallel/man/flags.html)
+  (`SystemRequirements: GNU make`). `nilHMM-package.R` imports
+  RcppParallel first so the bundled TBB loads before nilHMM’s DLL
+  (otherwise `dlopen` fails on clean install).
+- Typical dev loop: `devtools::load_all()` → `devtools::test()` →
+  `devtools::document()` → `R CMD check`.
+  [`Rcpp::compileAttributes()`](https://rdrr.io/pkg/Rcpp/man/compileAttributes.html)
+  after C++ changes.
 
-# Lower-level access
-geno_matrix, marker_dict, samples, markers = nilhmm.read_vcf("data.vcf")
-calls = nilhmm.introgression_hmm(geno_matrix, marker_dict)
-```
+## Design constraints
 
-## Input Data Requirements
+- **Chromosome-separate processing** (linkage assumptions); markers
+  **sorted by chr, position**.
+- **State coding** 0/1/2 = REF/HET/ALT; missing observation handled by
+  the emission.
+- **Data-agnostic** — keep paths/sample lists out of package functions.
+- `rtiger` is a **Julia-free** port (no Julia needed); `rebmix` is an
+  optional `Suggests` (bit-exact `binhmm` clustering reproduction only).
+- [`load_map()`](https://sawers-rellan-labs.github.io/nilhmm/reference/load_map.md)
+  is currently a **stub** (Task 4) — the bundled B73 v5 consensus map is
+  not yet wired in.
 
-VCF files must have: - Standard VCF format (v4.0+) - GT (genotype) field
-in FORMAT column - Chromosomes 1-10 (standard maize chromosomes) -
-Sample names in header line - Markers sorted by chromosome and position
+## Related
 
-## Output Files
-
-The pipeline generates four standardized output files: 1.
-**`*_introgression_calls.txt`**: Raw numeric matrix 2.
-**`*_introgression_calls.csv`**: Labeled calls with headers 3.
-**`*_introgression_summary.csv`**: Per-sample summary statistics  
-4. **`*_marker_info.csv`**: Marker details (chr, pos, alleles)
-
-## Important Design Constraints
-
-- **Chromosome Processing**: Each chromosome (1-10) must be processed
-  separately due to linkage assumptions
-- **Marker Ordering**: Input markers MUST be sorted by chromosome and
-  position for HMM to work correctly
-- **Missing Data Encoding**: Uses integer 3 for missing data, not NaN
-- **Low Coverage Optimization**: Parameters specifically tuned for
-  0.5-1× coverage sequencing data
-
-## Integration Notes
-
-When extending this codebase: - The HMM relies on
-`hmmlearn.MultinomialHMM` with custom transition/emission matrices -
-Parameter values significantly impact results - use grid search for
-optimization - All genotype matrices use samples as rows, markers as
-columns - The `marker_dict` maps chromosome numbers to column indices in
-the genotype matrix - Core functions are available through the package
-interface: `nilhmm.call_introgressions()`, `nilhmm.introgression_hmm()`
-
-## Project Configuration
-
-The project uses `codemcp.toml` for configuration management, which
-defines: - Code formatting and linting standards (black, flake8, mypy) -
-Testing commands (pytest with coverage) - Git automation settings -
-Python version requirements (\>=3.8) - File ignore patterns
-
-The configuration enables automatic commits (`auto_commit = true`) and
-provides convenient development commands for maintaining code quality.
+Companion analysis repo `zealhmm` installs nilHMM as a dependency and
+hosts the caller comparison and methods paper. Cite the nNIL population
+paper (Zhong et al. 2025, bioRxiv 10.1101/2025.01.29.635337) per
+`CITATION.cff`.

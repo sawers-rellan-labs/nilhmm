@@ -2,21 +2,27 @@
 
 ## Calling ancestry
 
-The top-level API and the named callers.
+The top-level API, the named-caller registry, and parameter sweeps.
 
 - [`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md)
-  : Top-level ancestry-calling API
+  : Top-level ancestry-calling API (decode + segment)
+- [`call_states()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.md)
+  : Coordinate-free ancestry decode (per-observation states)
 - [`caller_spec()`](https://sawers-rellan-labs.github.io/nilhmm/reference/caller_spec.md)
   : Resolve a named caller into emission + duration specs
+- [`caller_sweep()`](https://sawers-rellan-labs.github.io/nilhmm/reference/caller_sweep.md)
+  : Sweep a caller's segmentation parameter with an amortized fit
 
 ## Engine
 
-Fit emission/transition parameters and decode the state path.
+Fit parameters, decode the state path, and collapse to segments.
 
 - [`fit()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fit.md)
   : Fit HMM emission/transition parameters
 - [`decode()`](https://sawers-rellan-labs.github.io/nilhmm/reference/decode.md)
   : Decode the most-likely state path (Viterbi)
+- [`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md)
+  : Collapse per-unit ancestry states into genomic segments
 
 ## Emissions
 
@@ -42,15 +48,46 @@ The swappable duration axis (geometric / rigidity / hsmm).
 
 ## Input / output
 
-Readers for the observation table and the common-schema writer.
+Readers that normalise formats to the observation table, and the
+writers.
 
 - [`read_counts()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_counts.md)
   : Read allelic counts into the engine's observation table
 - [`read_vcf_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_vcf_gt.md)
   : Read hard genotype calls (VCF GT) into the engine's observation
   table
+- [`read_hapmap()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_hapmap.md)
+  : Read a TASSEL HapMap into the engine's observation table
+- [`read_plink()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_plink.md)
+  : Read a PLINK binary genotype (.bed/.bim/.fam) into the engine's
+  table
+- [`read_pedigree()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_pedigree.md)
+  : Read a pedigree (FSFHap TSV or PLINK .fam) into a family/priors
+  table
 - [`write_common_schema()`](https://sawers-rellan-labs.github.io/nilhmm/reference/write_common_schema.md)
   : Write segment calls in the common schema
+- [`write_vcf_impute()`](https://sawers-rellan-labs.github.io/nilhmm/reference/write_vcf_impute.md)
+  : Write imputed per-marker genotypes as a VCF (LB-Impute-style
+  deliverable)
+
+## Genotype calling & downstream utilities
+
+A linkage-free genotype caller and helpers for the QTL-mapping pipeline
+(genotype densification, LD-based marker thinning).
+
+- [`call_gl()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gl.md)
+  : Per-site genotype-likelihood (GL) genotype caller with a swappable
+  prior
+- [`interpolate_genotype()`](https://sawers-rellan-labs.github.io/nilhmm/reference/interpolate_genotype.md)
+  : Interpolate genotypes onto a target marker grid (Tian 2011 / Chen
+  2019)
+- [`pairwise_distance()`](https://sawers-rellan-labs.github.io/nilhmm/reference/pairwise_distance.md)
+  : Pairwise marker relatedness (r2, mutual information, or variation of
+  information)
+- [`select_independent()`](https://sawers-rellan-labs.github.io/nilhmm/reference/select_independent.md)
+  : Select a maximal independent set of markers (LD thinning)
+- [`position_distance()`](https://sawers-rellan-labs.github.io/nilhmm/reference/position_distance.md)
+  : Pairwise marker distance from map/physical coordinates
 
 ## Design priors & calibration
 

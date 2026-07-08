@@ -23,7 +23,14 @@ agent/brb_nilhmm_counts.py)."></head><body>
     </button>
 
     <div id="navbar" class="collapse navbar-collapse ms-3">
-      <ul class="navbar-nav me-auto"><li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+      <ul class="navbar-nav me-auto"><li class="nav-item"><a class="nav-link" href="../articles/nilHMM.html">Get started</a></li>
+<li class="active nav-item"><a class="nav-link" href="../reference/index.html">Reference</a></li>
+<li class="nav-item dropdown">
+  <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
+  <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/callers.html">The callers: one example each</a></li>
+    <li><a class="dropdown-item" href="../articles/engine.html">The engine: one chain, two swappable axes</a></li>
+    <li><a class="dropdown-item" href="../articles/fsfhap.html">Full-sib families with the fsfhap caller</a></li>
+  </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
 <li class="nav-item"><a class="external-link nav-link" href="https://github.com/sawers-rellan-labs/nilhmm/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
@@ -58,17 +65,21 @@ TSV-&gt;counts adapter covers the wideseq-thinned BRB inputs (cf. the Python
 
 
 <dl><dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
-<dd><p>A count TSV file, or a directory of them.</p></dd>
+<dd><p>A count TSV file (or directory of them) for <code>format = "tsv"</code>; a
+single <code>.vcf</code>/<code>.vcf.gz</code> for <code>format = "vcf_ad"</code>.</p></dd>
 
 
 <dt id="arg-format">format<a class="anchor" aria-label="anchor" href="#arg-format"></a></dt>
 <dd><p>One of <code>"tsv"</code> (the <code>chr pos ref n_ref alt n_alt</code> headerless
-layout used by the skim/BRB counts), <code>"gatk_table"</code>, <code>"vcf_ad"</code>.</p></dd>
+layout used by the skim/BRB counts), <code>"vcf_ad"</code> (per-sample allelic depths
+from a biallelic VCF's <code>AD</code> FORMAT field – e.g. the LB-Impute example data
+and GATK/bcftools output), or <code>"gatk_table"</code> (not yet implemented).</p></dd>
 
 
 <dt id="arg-name">name<a class="anchor" aria-label="anchor" href="#arg-name"></a></dt>
-<dd><p>Optional sample name for a single file; defaults to the file's
-basename with extensions stripped.</p></dd>
+<dd><p>Optional sample name for a single <code>tsv</code> file; defaults to the
+file's basename with extensions stripped. Ignored for <code>vcf_ad</code> (sample names
+come from the VCF <code>#CHROM</code> header).</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -85,10 +96,25 @@ basename with extensions stripped.</p></dd>
 <span class="r-in"><span>             ref <span class="op">=</span> <span class="st">"A"</span>, n_ref <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">8</span>, <span class="fl">5</span>, <span class="fl">0</span><span class="op">)</span>, alt <span class="op">=</span> <span class="st">"T"</span>, n_alt <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">3</span>, <span class="fl">7</span><span class="op">)</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  <span class="va">f</span>, sep <span class="op">=</span> <span class="st">"\t"</span>, row.names <span class="op">=</span> <span class="cn">FALSE</span>, col.names <span class="op">=</span> <span class="cn">FALSE</span>, quote <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">read_counts</span><span class="op">(</span><span class="va">f</span>, name <span class="op">=</span> <span class="st">"NIL1"</span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>Attempt to override column 2 of inherent type 'float64' down to 'int32' ignored. Only overrides to a higher type are currently supported. If this was intended, please coerce to the lower type afterwards.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   name chr    pos n_ref n_alt</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1 NIL1   1 100000     8     0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2 NIL1   1 200000     5     3</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 3 NIL1   1 300000     0     7</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Biallelic VCF with a GT:AD FORMAT: AD = "n_ref,n_alt" per sample.</span></span></span>
+<span class="r-in"><span><span class="va">v</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".vcf"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="st">"##fileformat=VCFv4.2"</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNIL1\tNIL2"</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"1\t100000\t.\tA\tT\t.\t.\t.\tGT:AD\t0/0:8,0\t0/1:4,5"</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"1\t200000\t.\tC\tG\t.\t.\t.\tGT:AD\t1/1:0,7\t./.:."</span><span class="op">)</span>, <span class="va">v</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">read_counts</span><span class="op">(</span><span class="va">v</span>, format <span class="op">=</span> <span class="st">"vcf_ad"</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   name chr    pos n_ref n_alt</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1 NIL1   1 100000     8     0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2 NIL1   1 200000     0     7</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3 NIL2   1 100000     4     5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4 NIL2   1 200000     0     0</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
