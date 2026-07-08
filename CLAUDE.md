@@ -155,7 +155,8 @@ they take `(data, params)` like everything else and hold no paths:
   `src/RcppExports.cpp` or `R/RcppExports.R`. After adding/changing a
   `// [[Rcpp::export]]` function, run
   [`Rcpp::compileAttributes()`](https://rdrr.io/pkg/Rcpp/man/compileAttributes.html)
-  then `devtools::document()`.
+  then
+  [`devtools::document()`](https://devtools.r-lib.org/reference/document.html).
 - C++ style (see `src/segments.cpp`): `#include <Rcpp.h>`,
   `using namespace Rcpp;`, `//'` roxygen with
   `@param`/`@return`/`@keywords internal`, `// [[Rcpp::export]]`,
@@ -166,8 +167,12 @@ they take `(data, params)` like everything else and hold no paths:
   (`SystemRequirements: GNU make`). `nilHMM-package.R` imports
   RcppParallel first so the bundled TBB loads before nilHMM’s DLL
   (otherwise `dlopen` fails on clean install).
-- Typical dev loop: `devtools::load_all()` → `devtools::test()` →
-  `devtools::document()` → `R CMD check`.
+- Typical dev loop:
+  [`devtools::load_all()`](https://devtools.r-lib.org/reference/load_all.html)
+  → [`devtools::test()`](https://devtools.r-lib.org/reference/test.html)
+  →
+  [`devtools::document()`](https://devtools.r-lib.org/reference/document.html)
+  → `R CMD check`.
   [`Rcpp::compileAttributes()`](https://rdrr.io/pkg/Rcpp/man/compileAttributes.html)
   after C++ changes.
 
