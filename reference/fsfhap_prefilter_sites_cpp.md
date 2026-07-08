@@ -6,7 +6,7 @@ with `(minMaf, 1 - minCoverage, 1.0)`. On the result: (2) drop sites
 whose het fraction exceeds `mean + maxHetDeviation * sd` (sample sd over
 the filtered sites); (3) drop monomorphic (non-biallelic) sites; (4) if
 `minR2 > 0`, drop sites whose average `r^2` over a ±50-filtered-site
-window (hets→missing, calc_rsqr) is `< minR2` (NaN pairs skipped;
+window (hets→missing, `calc_rsqr`) is `< minR2` (NaN pairs skipped;
 all-NaN average is not a rejection, matching TASSEL's `NaN < minR2` =
 false).
 

@@ -1,9 +1,9 @@
 # Design-derived expected heterozygosity from the pedigree inbreeding coefficient
 
-`phet = (1 - F)/2` when `F` in 0,1 (TASSEL's `ViterbiAlgorithmPlugin`),
-else the `default` fallback (TASSEL `probHeterozygous` = 0.07). Keeps
-`phet` design-derived, not a magic constant. See
-\[no-hardcoded-design-params\].
+`phet = (1 - F)/2` when `F` in `[0, 1]` (TASSEL's
+`ViterbiAlgorithmPlugin`), else the `default` fallback (TASSEL
+`probHeterozygous` = 0.07). Keeps `phet` design-derived, not a magic
+constant (no hardcoded design parameters).
 
 ## Usage
 
@@ -19,7 +19,7 @@ else the `default` fallback (TASSEL `probHeterozygous` = 0.07). Keeps
 
 - default:
 
-  Fallback when `F` is outside 0,1.
+  Fallback when `F` is outside `[0, 1]`.
 
 ## Value
 
