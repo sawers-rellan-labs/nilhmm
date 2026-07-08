@@ -57,9 +57,15 @@ data.frame `name, donor, chr, pos, n_ref, n_alt, g` (`g` in
 
 ``` r
 if (requireNamespace("simcross", quietly = TRUE)) {
-  truth <- simulate_nil("BC2S2", n = 2, n_chr = 2, n_markers = 100, seed = 1)
+  truth <- simulate_nil("BC2S2", n = 2, chr = 1:2, n_markers = 100, seed = 1)
   obs <- simulate_counts(truth, depth = 6, seed = 1)
   head(obs)
 }
-#> Error in simulate_nil("BC2S2", n = 2, n_chr = 2, n_markers = 100, seed = 1): unused argument (n_chr = 2)
+#>      name donor chr      pos n_ref n_alt g
+#> 1 sim0001     B   1    37410     0     4 2
+#> 2 sim0001     B   1  5642597     0     5 2
+#> 3 sim0001     B   1 11247784     1     5 2
+#> 4 sim0001     B   1 16852971     0     9 2
+#> 5 sim0001     B   1 22458158     0     4 2
+#> 6 sim0001     B   1 28063345     9     0 0
 ```
