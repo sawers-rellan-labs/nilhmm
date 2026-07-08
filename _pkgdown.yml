@@ -69,8 +69,18 @@ reference:
       - calibrate_r
       - expected_fragment_dist
       - fit_design_gamma
-      - load_map
       - cm_to_mb
+
+  - title: Simulation & maps
+    desc: >-
+      Design-driven cross simulation via simcross, the bundled consensus map, and
+      the marker grid used to sample it.
+    contents:
+      - simulate_nil
+      - simulate_counts
+      - load_map
+      - build_marker_grid
+      - maize_map_v5
 
   - title: Plotting
     contents:

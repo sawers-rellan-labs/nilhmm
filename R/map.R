@@ -4,15 +4,21 @@
 
 #' Load the bundled consensus map
 #'
-#' @param version Map version key (default `"v5"`); version-namespaced and
-#'   overridable.
-#' @return A map data.frame (marker -> chr, cM, bp).
+#' Returns the version-namespaced bundled consensus map (marker -> chr, cM, bp).
+#' Only `"v5"` (B73 v5, [maize_map_v5]) is bundled; the map is overridable
+#' everywhere it is used (e.g. pass your own `map` to [simulate_nil()]).
+#'
+#' @param version Map version key (default `"v5"`).
+#' @return The map data.frame `locus, chr, cm, bp` (with an `"assembly"` attr).
+#' @seealso [maize_map_v5], [simulate_nil()], [build_marker_grid()]
 #' @examples
-#' \dontrun{
-#' # Planned (Task 4): the bundled B73 v5 consensus map.
 #' map <- load_map("v5")
-#' }
+#' head(map)
 #' @export
 load_map <- function(version = "v5") {
-  stop("nilHMM::load_map() not yet implemented (Task 4)")
+  if (!identical(version, "v5"))
+    stop("load_map(): only the bundled 'v5' consensus map is available; got '", version, "'")
+  e <- new.env()
+  utils::data("maize_map_v5", package = "nilHMM", envir = e)
+  e[["maize_map_v5"]]
 }

@@ -7,18 +7,20 @@
 load_map(version = "v5")
 }
 \arguments{
-\item{version}{Map version key (default \code{"v5"}); version-namespaced and
-overridable.}
+\item{version}{Map version key (default \code{"v5"}).}
 }
 \value{
-A map data.frame (marker -> chr, cM, bp).
+The map data.frame \verb{locus, chr, cm, bp} (with an \code{"assembly"} attr).
 }
 \description{
-Load the bundled consensus map
+Returns the version-namespaced bundled consensus map (marker -> chr, cM, bp).
+Only \code{"v5"} (B73 v5, \link{maize_map_v5}) is bundled; the map is overridable
+everywhere it is used (e.g. pass your own \code{map} to \code{\link[=simulate_nil]{simulate_nil()}}).
 }
 \examples{
-\dontrun{
-# Planned (Task 4): the bundled B73 v5 consensus map.
 map <- load_map("v5")
+head(map)
 }
+\seealso{
+\link{maize_map_v5}, \code{\link[=simulate_nil]{simulate_nil()}}, \code{\link[=build_marker_grid]{build_marker_grid()}}
 }
