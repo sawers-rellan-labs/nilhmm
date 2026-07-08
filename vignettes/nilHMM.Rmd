@@ -44,42 +44,19 @@ comes from and where results go.
 
 We need an observation table. In practice you read one with `read_counts()` (a
 `chr pos ref n_ref alt n_alt` TSV or a directory of them), `read_vcf_gt()`,
-`read_hapmap()`, or `read_plink()`. Here we simulate a small cohort with
-[**simcross**](https://cran.r-project.org/package=simcross) (real meiosis and
-recombination on a genetic map) and then layer allelic read counts on top — so
-the introgression blocks come from genuine crossovers rather than hand-placed
-segments. We build a BC2S2 cohort (two backcrosses, two selfings): six lines, two
-chromosomes, from a donor **B** crossed onto a recurrent parent **A** (so `REF` =
-A, `ALT` = donor B).
+`read_hapmap()`, or `read_plink()`. Here we generate one with the package's own
+design-driven simulator: `simulate_nil()` builds a breeding design and runs it
+through [**simcross**](https://cran.r-project.org/package=simcross) (real meiosis
+and recombination on the **bundled B73 v5 consensus map**, [load_map()]) to get
+the true donor mosaic, and `simulate_counts()` degrades that truth to observed
+allelic read counts. We take a **BC2S2** cohort — six lines on chromosomes 1–2,
+donor **B** crossed onto recurrent parent **A** (so `REF` = A, `ALT` = donor B):
 
 ```{r simulate}
-library(simcross)
-
-# simulate one BC(nbc)S(nself) family and layer read counts. Chromosomes assort
-# independently, so we simulate each separately. Returns a long observation table
-# with allelic counts (n_ref/n_alt) and a hard genotype g in {0 REF,1 HET,2 ALT,3 NA}.
-sim_cohort <- function(n = 6L, m = 150L, n_chr = 2L, L = 100,
-                       nbc = 2L, nself = 2L, depth = 6, err = 0.01, miss = 0.05) {
-  rec <- create_parent(L, 1); don <- create_parent(L, 2)      # inbred recurrent / donor
-  one_line <- function() {
-    ind <- cross(rec, don)                                    # F1
-    for (b in seq_len(nbc))   ind <- cross(ind, rec)          # backcross to recurrent
-    for (s in seq_len(nself)) ind <- cross(ind, ind)          # selfing
-    ind
-  }
-  map <- seq(0, L, length.out = m)
-  do.call(rbind, lapply(seq_len(n_chr), function(ch) {
-    g <- as.vector(convert2geno(lapply(seq_len(n), function(i) one_line()), map)) - 1L
-    N <- length(g); p_alt <- c(err, 0.5, 1 - err)[g + 1L]
-    d <- rpois(N, depth); na <- rbinom(N, d, p_alt)
-    g_obs <- g; g_obs[d == 0L | runif(N) < miss] <- 3L
-    data.frame(name = rep(sprintf("NIL%02d", seq_len(n)), times = m),
-               donor = "B", chr = ch, pos = rep(as.integer(map * 1e6), each = n),
-               n_ref = d - na, n_alt = na, g = as.integer(g_obs))
-  }))
-}
-cohort <- sim_cohort()
-counts <- cohort[, c("name", "donor", "chr", "pos", "n_ref", "n_alt")]
+truth  <- simulate_nil("BC2S2", n = 6, chr = 1:2, n_markers = 300, donor = "B",
+                       names = sprintf("NIL%02d", 1:6), seed = 1)   # true donor mosaic
+counts <- simulate_counts(truth, depth = 6, seed = 1)[        # observed low-cov counts
+  c("name", "donor", "chr", "pos", "n_ref", "n_alt")]
 head(counts)
 ```
 

@@ -76,20 +76,14 @@ use 20 lines × 500 markers. simcross gives real recombination breakpoints; the
 donor blocks and residual heterozygosity fall out of the crossing scheme.
 
 ```{r family}
-library(simcross)
-sim_family <- function(donor, n_lines = 20L, m = 500L, L = 100, nself = 4L, miss = 0.1) {
-  rec <- create_parent(L, 1); don <- create_parent(L, 2)  # recurrent A x this donor
-  one_line <- function() {
-    ind <- cross(cross(rec, don), rec)                  # F1 -> backcross to recurrent (BC1)
-    for (s in seq_len(nself)) ind <- cross(ind, ind)    # four selfings -> BC1S4
-    ind
-  }
-  map <- seq(0, L, length.out = m)
-  g <- as.vector(convert2geno(lapply(seq_len(n_lines), function(i) one_line()), map)) - 1L
-  g[runif(length(g)) < miss] <- 3L                      # skeleton missingness
-  data.frame(name = rep(sprintf("%s_L%02d", donor, seq_len(n_lines)), times = m),
-             donor = donor, family = donor, chr = 1L,
-             pos = rep(as.integer(map * 1e6), each = n_lines), g = as.integer(g))
+# one BC1S4 family per donor: simulate the truth, then observe genotypes (with
+# missingness), and tag the family grouping. 20 lines x 500 markers on chr 1.
+sim_family <- function(donor) {
+  tr  <- simulate_nil("BC1S4", n = 20, chr = 1, n_markers = 500, donor = donor,
+                      names = sprintf("%s_L%02d", donor, 1:20))
+  obs <- simulate_counts(tr, depth = 8, p_missing = 0.1)
+  data.frame(name = obs$name, donor = obs$donor, family = donor,
+             chr = obs$chr, pos = obs$pos, g = obs$g)
 }
 fam <- do.call(rbind, lapply(c("B1", "B2", "B3"), sim_family))
 
