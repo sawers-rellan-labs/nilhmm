@@ -149,7 +149,14 @@ caller_sweep <- function(data, caller = c("rtiger", "nnil", "lbimpute"), values,
   # then decode. Precompute transitions serially (cheap).
   tds <- lapply(values, td_of)
   jobs <- expand.grid(vi = seq_along(values), si = seq_along(samples))
-  rows <- fan(seq_len(nrow(jobs)), function(j) {
+  # Segment IN-WORKER (like the rtiger path) and return compact segments, not raw
+  # per-marker states. Aggregating raw markers in the master -- st <- rbind(rows)
+  # over |values| x n_samples per-marker frames -- OOMs on large panels (118K x 200
+  # x |values| ~ 1e8 rows, past the per-process vector cap). to_segments RLE never
+  # spans a `name` change (runs break on it) and re-sorts its output by
+  # (donor, name, chr, start_bp), so segmenting per (value, sample) and re-applying
+  # that sort per value is byte-identical to a whole-cohort to_segments per value.
+  seglist <- fan(seq_len(nrow(jobs)), function(j) {
     s <- samples[[jobs$si[j]]]; td <- tds[[jobs$vi[j]]]; v <- values[jobs$vi[j]]
     theta <- if (!isTRUE(fit_means)) theta0            # fixed emission: rrate-independent (exact)
              else if (refit == "none") s$ref_theta     # fit once at ref, reuse
@@ -157,15 +164,16 @@ caller_sweep <- function(data, caller = c("rtiger", "nnil", "lbimpute"), values,
     model <- structure(list(theta = theta, log_start = td$log_start,
                             log_trans = td$log_trans, n_sub = td$n_sub,
                             emission = emission), class = "nilHMM_model")
-    do.call(rbind, lapply(s$obs_list, function(o) data.frame(
+    markers <- do.call(rbind, lapply(s$obs_list, function(o) data.frame(
       source = source, donor = s$donor, name = s$name, chr = as.integer(o$chr),
       pos = as.integer(o$pos), state = as.integer(decode(model, o)),
-      rrate = v, stringsAsFactors = FALSE)))
-  })
-  st <- do.call(rbind, rows)
-  do.call(rbind, lapply(values, function(v) {
-    seg <- to_segments(st[st$rrate == v, setdiff(names(st), "rrate"), drop = FALSE])
+      stringsAsFactors = FALSE)))
+    seg <- to_segments(markers)
     seg$rrate <- v
     seg
+  })
+  do.call(rbind, lapply(seq_along(values), function(vi) {
+    seg <- do.call(rbind, seglist[jobs$vi == vi])
+    seg[order(seg$donor, seg$name, seg$chr, seg$start_bp), , drop = FALSE]
   }))
 }
