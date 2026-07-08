@@ -44,7 +44,8 @@ sim_cohort <- function(n = 8L, m = 150L, n_chr = 2L, L = 100,
     data.frame(name = rep(sprintf("NIL%02d", seq_len(n)), times = m),
                donor = "B", family = "B", chr = ch,
                pos = rep(as.integer(map * 1e6), each = n),
-               n_ref = d - na, n_alt = na, g = as.integer(g_obs))
+               n_ref = d - na, n_alt = na, g = as.integer(g_obs),
+               truth = as.integer(g))                       # noise-free simcross state
   }))
 }
 d <- sim_cohort()   # donor B (ALT) on recurrent A (REF)
@@ -171,15 +172,20 @@ rbind(nnil = summ(nnil_count), rtiger = summ(rt), binhmm = summ(bh),
 ### Chromosome painting
 
 The real payoff of the shared schema is that you can **paint every
-caller on the same axes** and eyeball whether the independent methods
-agree on where the donor (**B**) blocks land. Each row is a NIL, each
-column a chromosome, and within a cell the six caller tracks are stacked
-as bands (REF gold / HET green / ALT purple).
+caller on the same axes** — against the simcross **ground truth** — and
+eyeball whether the independent methods recover the donor (**B**)
+blocks. Each row is a NIL, each column a chromosome, and within a cell
+the tracks are stacked as bands (REF gold / HET green / ALT purple),
+with the noise-free truth on top.
 
+The truth is just
+[`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md)
+on the simulated genotype *before* the depth and missingness were added
+(the `truth` column).
 [`paint_calls()`](https://sawers-rellan-labs.github.io/nilhmm/reference/paint_calls.md)
-does this in one step: `rbind` each caller’s segments with a column
-naming the track, then pass that column as `track` (its levels stack as
-bands, first level on top). `samples` keeps the figure legible.
+then stacks it above the callers: `rbind` each track’s segments with a
+column naming it, and pass that column as `track` (its levels stack
+top-down, so truth goes first).
 
 ``` r
 
@@ -187,18 +193,25 @@ tracks <- list("nnil (count)" = nnil_count, "nnil (gt)" = nnil_gt,
                rtiger = rt, binhmm = bh, atlas = at, lbimpute = lb)
 comparison <- do.call(rbind, Map(function(seg, m) { seg$method <- m; seg },
                                  tracks, names(tracks)))
-comparison$method <- factor(comparison$method, levels = names(tracks))
 
+# simcross ground truth (noise-free) as the top track
+truth <- to_segments(data.frame(name = d$name, donor = d$donor,
+                                 chr = d$chr, pos = d$pos, state = d$truth))
+truth$method <- "truth (simcross)"
+
+comparison <- rbind(truth, comparison)
+comparison$method <- factor(comparison$method,
+                            levels = c("truth (simcross)", names(tracks)))
 paint_calls(comparison, track = "method", samples = sprintf("NIL%02d", 1:4))
 ```
 
 ![](callers_files/figure-html/paint-1.png)
 
-The donor blocks land in the same place across the independent callers —
-the core sanity check — with expected method-specific behaviour
+The callers recover the true donor blocks — each caller’s band lines up
+with the truth on top — with expected method-specific behaviour
 (e.g. `binhmm` paints broader per-bin blocks). This is the same painting
-used for the real coverage-sweep NILs; on real data it is how you
-confirm the tracks corroborate each other.
+used for the real coverage-sweep NILs, where the truth track is instead
+an independent data source or a high-confidence call set.
 
 For per-caller parameters and lineage, see
 [`?call_ancestry`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md)

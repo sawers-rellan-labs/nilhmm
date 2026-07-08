@@ -108,7 +108,8 @@ callers), from the same simulated genotypes.</p>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"NIL%02d"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span>, times <span class="op">=</span> <span class="va">m</span><span class="op">)</span>,</span>
 <span>               donor <span class="op">=</span> <span class="st">"B"</span>, family <span class="op">=</span> <span class="st">"B"</span>, chr <span class="op">=</span> <span class="va">ch</span>,</span>
 <span>               pos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">map</span> <span class="op">*</span> <span class="fl">1e6</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">n</span><span class="op">)</span>,</span>
-<span>               n_ref <span class="op">=</span> <span class="va">d</span> <span class="op">-</span> <span class="va">na</span>, n_alt <span class="op">=</span> <span class="va">na</span>, g <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">g_obs</span><span class="op">)</span><span class="op">)</span></span>
+<span>               n_ref <span class="op">=</span> <span class="va">d</span> <span class="op">-</span> <span class="va">na</span>, n_alt <span class="op">=</span> <span class="va">na</span>, g <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">g_obs</span><span class="op">)</span>,</span>
+<span>               truth <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">g</span><span class="op">)</span><span class="op">)</span>                       <span class="co"># noise-free simcross state</span></span>
 <span>  <span class="op">}</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="va">d</span> <span class="op">&lt;-</span> <span class="fu">sim_cohort</span><span class="op">(</span><span class="op">)</span>   <span class="co"># donor B (ALT) on recurrent A (REF)</span></span>
@@ -230,29 +231,40 @@ same counts:</p>
 <h3 id="chromosome-painting">Chromosome painting<a class="anchor" aria-label="anchor" href="#chromosome-painting"></a>
 </h3>
 <p>The real payoff of the shared schema is that you can <strong>paint
-every caller on the same axes</strong> and eyeball whether the
-independent methods agree on where the donor (<strong>B</strong>) blocks
-land. Each row is a NIL, each column a chromosome, and within a cell the
-six caller tracks are stacked as bands (REF gold / HET green / ALT
-purple).</p>
-<p><code><a href="../reference/paint_calls.html">paint_calls()</a></code> does this in one step: <code>rbind</code>
-each caller’s segments with a column naming the track, then pass that
-column as <code>track</code> (its levels stack as bands, first level on
-top). <code>samples</code> keeps the figure legible.</p>
+every caller on the same axes</strong> — against the simcross
+<strong>ground truth</strong> — and eyeball whether the independent
+methods recover the donor (<strong>B</strong>) blocks. Each row is a
+NIL, each column a chromosome, and within a cell the tracks are stacked
+as bands (REF gold / HET green / ALT purple), with the noise-free truth
+on top.</p>
+<p>The truth is just <code><a href="../reference/to_segments.html">to_segments()</a></code> on the simulated
+genotype <em>before</em> the depth and missingness were added (the
+<code>truth</code> column). <code><a href="../reference/paint_calls.html">paint_calls()</a></code> then stacks it
+above the callers: <code>rbind</code> each track’s segments with a
+column naming it, and pass that column as <code>track</code> (its levels
+stack top-down, so truth goes first).</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tracks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"nnil (count)"</span> <span class="op">=</span> <span class="va">nnil_count</span>, <span class="st">"nnil (gt)"</span> <span class="op">=</span> <span class="va">nnil_gt</span>,</span>
 <span>               rtiger <span class="op">=</span> <span class="va">rt</span>, binhmm <span class="op">=</span> <span class="va">bh</span>, atlas <span class="op">=</span> <span class="va">at</span>, lbimpute <span class="op">=</span> <span class="va">lb</span><span class="op">)</span></span>
 <span><span class="va">comparison</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Map</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">seg</span>, <span class="va">m</span><span class="op">)</span> <span class="op">{</span> <span class="va">seg</span><span class="op">$</span><span class="va">method</span> <span class="op">&lt;-</span> <span class="va">m</span>; <span class="va">seg</span> <span class="op">}</span>,</span>
 <span>                                 <span class="va">tracks</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">tracks</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="va">comparison</span><span class="op">$</span><span class="va">method</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">comparison</span><span class="op">$</span><span class="va">method</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">tracks</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># simcross ground truth (noise-free) as the top track</span></span>
+<span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/to_segments.html">to_segments</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>name <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">name</span>, donor <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">donor</span>,</span>
+<span>                                 chr <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">chr</span>, pos <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">pos</span>, state <span class="op">=</span> <span class="va">d</span><span class="op">$</span><span class="va">truth</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">truth</span><span class="op">$</span><span class="va">method</span> <span class="op">&lt;-</span> <span class="st">"truth (simcross)"</span></span>
+<span></span>
+<span><span class="va">comparison</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="va">truth</span>, <span class="va">comparison</span><span class="op">)</span></span>
+<span><span class="va">comparison</span><span class="op">$</span><span class="va">method</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">comparison</span><span class="op">$</span><span class="va">method</span>,</span>
+<span>                            levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"truth (simcross)"</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">tracks</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/paint_calls.html">paint_calls</a></span><span class="op">(</span><span class="va">comparison</span>, track <span class="op">=</span> <span class="st">"method"</span>, samples <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"NIL%02d"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><img src="callers_files/figure-html/paint-1.png" class="r-plt" alt="" width="768"></p>
-<p>The donor blocks land in the same place across the independent
-callers — the core sanity check — with expected method-specific
-behaviour (e.g. <code>binhmm</code> paints broader per-bin blocks). This
-is the same painting used for the real coverage-sweep NILs; on real data
-it is how you confirm the tracks corroborate each other.</p>
+<p>The callers recover the true donor blocks — each caller’s band lines
+up with the truth on top — with expected method-specific behaviour
+(e.g. <code>binhmm</code> paints broader per-bin blocks). This is the
+same painting used for the real coverage-sweep NILs, where the truth
+track is instead an independent data source or a high-confidence call
+set.</p>
 <p>For per-caller parameters and lineage, see
 <code><a href="../reference/call_ancestry.html">?call_ancestry</a></code> and the README caller table. ```</p>
 </div>
@@ -268,7 +280,7 @@ it is how you confirm the tracks corroborate each other.</p>
 </div>
 
 <div class="pkgdown-footer-right">
-  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.0.</p>
+  <p>Site built with <a href="https://pkgdown.r-lib.org/" class="external-link">pkgdown</a> 2.2.1.</p>
 </div>
 
     </footer>
