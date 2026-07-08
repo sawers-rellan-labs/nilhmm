@@ -63,11 +63,11 @@ build_marker_grid <- function(map, n_markers = 2000L) {
   span <- vapply(chrs, function(ch) { b <- map$bp[map$chr == ch]; max(b) - min(b) }, numeric(1))
   quota <- pmax(2L, as.integer(round(n_markers * span / sum(span))))
   do.call(rbind, lapply(seq_along(chrs), function(i) {
-    sub <- map[map$chr == chrs[i], c("bp", "cm")]
-    agg <- aggregate(cm ~ bp, data = sub, FUN = mean)       # unique, increasing bp
-    agg <- agg[order(agg$bp), ]
-    f <- stats::splinefun(agg$bp, agg$cm, method = "hyman")  # monotone bp -> cM
-    gbp <- round(seq(min(agg$bp), max(agg$bp), length.out = quota[i]))
+    sub <- map[map$chr == chrs[i], , drop = FALSE]
+    cm_by_bp <- tapply(sub$cm, sub$bp, mean)                # collapse duplicate bp
+    bp_u <- as.numeric(names(cm_by_bp)); o <- order(bp_u)
+    f <- stats::splinefun(bp_u[o], as.numeric(cm_by_bp)[o], method = "hyman")  # monotone bp -> cM
+    gbp <- round(seq(min(bp_u), max(bp_u), length.out = quota[i]))
     data.frame(chr = as.integer(chrs[i]), pos = as.integer(gbp),
                cm = as.numeric(f(gbp)), stringsAsFactors = FALSE)
   }))
@@ -187,7 +187,7 @@ simulate_nil <- function(design = "BC2S2", n = 1L, map = NULL, n_markers = 2000L
 #' @seealso [simulate_nil()], [read_counts()].
 #' @examples
 #' if (requireNamespace("simcross", quietly = TRUE)) {
-#'   truth <- simulate_nil("BC2S2", n = 2, n_chr = 2, n_markers = 100, seed = 1)
+#'   truth <- simulate_nil("BC2S2", n = 2, chr = 1:2, n_markers = 100, seed = 1)
 #'   obs <- simulate_counts(truth, depth = 6, seed = 1)
 #'   head(obs)
 #' }

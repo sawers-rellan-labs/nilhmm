@@ -33,7 +33,7 @@ not here.
 }
 \examples{
 if (requireNamespace("simcross", quietly = TRUE)) {
-  truth <- simulate_nil("BC2S2", n = 2, n_chr = 2, n_markers = 100, seed = 1)
+  truth <- simulate_nil("BC2S2", n = 2, chr = 1:2, n_markers = 100, seed = 1)
   obs <- simulate_counts(truth, depth = 6, seed = 1)
   head(obs)
 }
