@@ -52,6 +52,115 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fsfhap_segregating_sites_cpp
+List fsfhap_segregating_sites_cpp(IntegerMatrix G, double max_missing, double ratio);
+RcppExport SEXP _nilHMM_fsfhap_segregating_sites_cpp(SEXP GSEXP, SEXP max_missingSEXP, SEXP ratioSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type G(GSEXP);
+    Rcpp::traits::input_parameter< double >::type max_missing(max_missingSEXP);
+    Rcpp::traits::input_parameter< double >::type ratio(ratioSEXP);
+    rcpp_result_gen = Rcpp::wrap(fsfhap_segregating_sites_cpp(G, max_missing, ratio));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fsfhap_same_tag_keep_cpp
+LogicalVector fsfhap_same_tag_keep_cpp(IntegerMatrix G, IntegerVector pos, LogicalVector major_is_ref, double min_rsq);
+RcppExport SEXP _nilHMM_fsfhap_same_tag_keep_cpp(SEXP GSEXP, SEXP posSEXP, SEXP major_is_refSEXP, SEXP min_rsqSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type G(GSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type pos(posSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type major_is_ref(major_is_refSEXP);
+    Rcpp::traits::input_parameter< double >::type min_rsq(min_rsqSEXP);
+    rcpp_result_gen = Rcpp::wrap(fsfhap_same_tag_keep_cpp(G, pos, major_is_ref, min_rsq));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fsfhap_cluster_window_cpp
+List fsfhap_cluster_window_cpp(IntegerMatrix Gw, int maxdiff, bool merge, bool move_biggest, int max_het);
+RcppExport SEXP _nilHMM_fsfhap_cluster_window_cpp(SEXP GwSEXP, SEXP maxdiffSEXP, SEXP mergeSEXP, SEXP move_biggestSEXP, SEXP max_hetSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type Gw(GwSEXP);
+    Rcpp::traits::input_parameter< int >::type maxdiff(maxdiffSEXP);
+    Rcpp::traits::input_parameter< bool >::type merge(mergeSEXP);
+    Rcpp::traits::input_parameter< bool >::type move_biggest(move_biggestSEXP);
+    Rcpp::traits::input_parameter< int >::type max_het(max_hetSEXP);
+    rcpp_result_gen = Rcpp::wrap(fsfhap_cluster_window_cpp(Gw, maxdiff, merge, move_biggest, max_het));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fsfhap_impute_five_state_cpp
+List fsfhap_impute_five_state_cpp(IntegerMatrix G, IntegerVector pos, double phet, int max_iter);
+RcppExport SEXP _nilHMM_fsfhap_impute_five_state_cpp(SEXP GSEXP, SEXP posSEXP, SEXP phetSEXP, SEXP max_iterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type G(GSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type pos(posSEXP);
+    Rcpp::traits::input_parameter< double >::type phet(phetSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(fsfhap_impute_five_state_cpp(G, pos, phet, max_iter));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fsfhap_fill_gaps_cpp
+IntegerMatrix fsfhap_fill_gaps_cpp(IntegerMatrix G);
+RcppExport SEXP _nilHMM_fsfhap_fill_gaps_cpp(SEXP GSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type G(GSEXP);
+    rcpp_result_gen = Rcpp::wrap(fsfhap_fill_gaps_cpp(G));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fsfhap_filter_snps_by_tag_cpp
+LogicalVector fsfhap_filter_snps_by_tag_cpp(IntegerMatrix G, IntegerVector pos, double min_maf, double max_missing, double max_het);
+RcppExport SEXP _nilHMM_fsfhap_filter_snps_by_tag_cpp(SEXP GSEXP, SEXP posSEXP, SEXP min_mafSEXP, SEXP max_missingSEXP, SEXP max_hetSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type G(GSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type pos(posSEXP);
+    Rcpp::traits::input_parameter< double >::type min_maf(min_mafSEXP);
+    Rcpp::traits::input_parameter< double >::type max_missing(max_missingSEXP);
+    Rcpp::traits::input_parameter< double >::type max_het(max_hetSEXP);
+    rcpp_result_gen = Rcpp::wrap(fsfhap_filter_snps_by_tag_cpp(G, pos, min_maf, max_missing, max_het));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fsfhap_prefilter_sites_cpp
+LogicalVector fsfhap_prefilter_sites_cpp(IntegerMatrix G, IntegerVector pos, double min_maf, double min_coverage, double max_het_deviation, double min_r2);
+RcppExport SEXP _nilHMM_fsfhap_prefilter_sites_cpp(SEXP GSEXP, SEXP posSEXP, SEXP min_mafSEXP, SEXP min_coverageSEXP, SEXP max_het_deviationSEXP, SEXP min_r2SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type G(GSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type pos(posSEXP);
+    Rcpp::traits::input_parameter< double >::type min_maf(min_mafSEXP);
+    Rcpp::traits::input_parameter< double >::type min_coverage(min_coverageSEXP);
+    Rcpp::traits::input_parameter< double >::type max_het_deviation(max_het_deviationSEXP);
+    Rcpp::traits::input_parameter< double >::type min_r2(min_r2SEXP);
+    rcpp_result_gen = Rcpp::wrap(fsfhap_prefilter_sites_cpp(G, pos, min_maf, min_coverage, max_het_deviation, min_r2));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fsfhap_biparental_alleles_cpp
+List fsfhap_biparental_alleles_cpp(IntegerMatrix Gf);
+RcppExport SEXP _nilHMM_fsfhap_biparental_alleles_cpp(SEXP GfSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerMatrix >::type Gf(GfSEXP);
+    rcpp_result_gen = Rcpp::wrap(fsfhap_biparental_alleles_cpp(Gf));
+    return rcpp_result_gen;
+END_RCPP
+}
 // interp_geno_cpp
 NumericMatrix interp_geno_cpp(NumericVector obs_cm, NumericMatrix G, NumericVector target_cm, int mode);
 RcppExport SEXP _nilHMM_interp_geno_cpp(SEXP obs_cmSEXP, SEXP GSEXP, SEXP target_cmSEXP, SEXP modeSEXP) {
@@ -330,6 +439,14 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_count_emission_loglik_cpp", (DL_FUNC) &_nilHMM_count_emission_loglik_cpp, 4},
     {"_nilHMM_fast_indep_cpp", (DL_FUNC) &_nilHMM_fast_indep_cpp, 5},
     {"_nilHMM_forward_backward_cpp", (DL_FUNC) &_nilHMM_forward_backward_cpp, 3},
+    {"_nilHMM_fsfhap_segregating_sites_cpp", (DL_FUNC) &_nilHMM_fsfhap_segregating_sites_cpp, 3},
+    {"_nilHMM_fsfhap_same_tag_keep_cpp", (DL_FUNC) &_nilHMM_fsfhap_same_tag_keep_cpp, 4},
+    {"_nilHMM_fsfhap_cluster_window_cpp", (DL_FUNC) &_nilHMM_fsfhap_cluster_window_cpp, 5},
+    {"_nilHMM_fsfhap_impute_five_state_cpp", (DL_FUNC) &_nilHMM_fsfhap_impute_five_state_cpp, 4},
+    {"_nilHMM_fsfhap_fill_gaps_cpp", (DL_FUNC) &_nilHMM_fsfhap_fill_gaps_cpp, 1},
+    {"_nilHMM_fsfhap_filter_snps_by_tag_cpp", (DL_FUNC) &_nilHMM_fsfhap_filter_snps_by_tag_cpp, 5},
+    {"_nilHMM_fsfhap_prefilter_sites_cpp", (DL_FUNC) &_nilHMM_fsfhap_prefilter_sites_cpp, 6},
+    {"_nilHMM_fsfhap_biparental_alleles_cpp", (DL_FUNC) &_nilHMM_fsfhap_biparental_alleles_cpp, 1},
     {"_nilHMM_interp_geno_cpp", (DL_FUNC) &_nilHMM_interp_geno_cpp, 4},
     {"_nilHMM_lb_emission_loglik_cpp", (DL_FUNC) &_nilHMM_lb_emission_loglik_cpp, 4},
     {"_nilHMM_lb_viterbi_cpp", (DL_FUNC) &_nilHMM_lb_viterbi_cpp, 5},

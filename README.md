@@ -15,7 +15,7 @@ engine** with two swappable axes:
 - **duration** — `geometric`, `rigidity` (a minimum-run-length prior), or `hsmm`.
 
 Those choices, plus a per-unit calling rule, express a family of named **callers**:
-`nnil`, `rtiger`, `binhmm`, `atlas`, and `lbimpute`. The package is **data-agnostic** — every
+`nnil`, `rtiger`, `binhmm`, `atlas`, `lbimpute`, and `fsfhap`. The package is **data-agnostic** — every
 function takes `(data, params)` and returns calls; pipeline scripts own file paths
 and sample lists. The whole API is one verb:
 
@@ -69,6 +69,17 @@ calls <- call_ancestry(read_vcf_gt("target.vcf.gz"),
                        caller = "nnil", design = "BC2S2")   # g-only input -> gt emission
 ```
 
+For **full-sib families** (TASSEL FSFHap), read the HapMap + pedigree, attach the
+family grouping, and call — pooling each family:
+
+```r
+data <- read_hapmap("family.hmp.txt")                    # -> name, chr, pos, g
+ped  <- read_pedigree("family_pedigree.txt")             # -> taxon, family, contribution, F
+data$family <- ped$family[match(data$name, ped$taxon)]
+stopifnot(!anyNA(data$family))                           # every sample must be in the pedigree
+calls <- call_ancestry(data, caller = "fsfhap", design = "BC1S4")   # design routes + derives phet
+```
+
 ## The callers
 
 All four share the 3-state REF/HET/ALT chain and the design priors; they differ
@@ -81,6 +92,7 @@ in emission, duration, and the input they expect.
 | **`binhmm`** | anchored Gaussian on binned alt-freq | per-bin HMM smooth | allelic read counts | `bin_size`, `cluster_method` | "Ancestry Analysis by bins" |
 | **`atlas`** | `gt` (categorical, GOOGA thresholds) | geometric | competitive-alignment recurrent/donor read counts (RNA-seq) | `atlas_thresh`, `atlas_het`, `atlas_min_reads` | GOOGA competitive alignment |
 | **`lbimpute`** | coverage-aware (LB-Impute) | distance-based (double-recomb penalty) | low-coverage allelic read counts (GBS / skim, <1×) | `err`, `genotypeerr`, `recombdist`, `drp` | [LB-Impute](https://github.com/dellaporta-laboratory/LB-Impute) (Fragoso et al. 2014) |
+| **`fsfhap`** | genotype-error (5-state EM) | distance-scaled (Haldane) | called `GT` for **full-sib families** (HapMap / VCF) + a `family` grouping | `design` (or `phet`), `family`, `threads` | [FSFHap](https://bitbucket.org/tasseladmin/tassel-5-source) (Swarts et al. 2014, TASSEL) |
 
 - `nnil` — count caller pools single-read observations along a segment via a
   BetaBinomial emission (`err`, `conc`); `fit_means = TRUE` EM-fits the per-state
@@ -108,10 +120,22 @@ in emission, duration, and the input they expect.
   engine's full-chromosome Viterbi — the optimal path that LB-Impute's windowed
   forward/reverse consensus approximates. Emit an imputed VCF from the result
   with `write_vcf_impute()`.
+- `fsfhap` — a native port of TASSEL's **FSFHap** (Swarts et al. 2014) for
+  **full-sib families**, pooling each family (not per-line). Two design-routed
+  parent-calling routes: the **backcross** route (BC1, `contribution = 0.75`) and
+  the general **`BiparentalHaplotypeFinder`** route (reconstructs two parental
+  haplotypes), both feeding the 5-state Viterbi-training EM imputation + gap-fill.
+  Bit-exact vs TASSEL on its intended populations (backcross and **RIL/inbred**);
+  het-heavy F2 is a documented stress case. `design` (a `BC{n}S{m}` token) selects
+  the route and derives the expected heterozygosity `phet = (1-F)/2`; supply the
+  `family` grouping via a `family` column or the `family=` argument. **Not** for
+  NILs with heterozygous/outbred donors — use `nnil` (donor-agnostic) there.
+  Read the native input with `read_hapmap()` + `read_pedigree()`.
 
 ## Related building blocks
 
-`read_counts()`, `read_vcf_gt()` (I/O); `caller_spec()`, `emission_count()`,
+`read_counts()`, `read_vcf_gt()`, `read_hapmap()`, `read_plink()`,
+`read_pedigree()` (I/O); `caller_spec()`, `emission_count()`,
 `emission_gt()`, `duration_geometric()`, `duration_rigidity()`,
 `duration_hsmm()`, `design_priors()`, `fit()`, `decode()` (engine internals);
 `calibrate_r()`, `select_emission()` (calibration); `plot_fragment_sizes()`,

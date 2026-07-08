@@ -6,7 +6,9 @@
 \usage{
 call_states(
   data,
-  caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute"),
+  caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap"),
+  family = NULL,
+  phet = NULL,
   design = NULL,
   rrate = 0.01,
   rigidity = NULL,
@@ -49,7 +51,15 @@ atlas paths) or a pre-called hard-genotype column \code{g} in \verb{\{0,1,2,3\}}
 \code{\link[=read_vcf_gt]{read_vcf_gt()}}; auto-selects \code{caller = "nnil"}, \code{emission = "gt"}).
 Optionally \code{donor}.}
 
-\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}, \code{"atlas"}, \code{"lbimpute"}.}
+\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}, \code{"atlas"}, \code{"lbimpute"},
+\code{"fsfhap"}.}
+
+\item{family}{\code{fsfhap} caller only: per-row family grouping (a vector length
+\code{nrow(data)}, or supply a \code{family} column on \code{data}). FSFHap pools each family.}
+
+\item{phet}{\code{fsfhap} caller only: expected heterozygosity. If \code{NULL}, derived
+from \code{design} as \code{(1 - F)/2} (BC1S4 → 0.03125); the \code{fsfhap} port supports
+\strong{BC1 designs} (\code{"BC1S{m}"}) — other designs route to unported TASSEL paths.}
 
 \item{design}{Breeding-design key for priors (e.g. \code{"BC2S2"}, \code{"BC2S3"}).
 Required unless \code{f_1}/\code{f_2} are supplied.}
@@ -82,8 +92,13 @@ parameter; the faithful \code{caller = "rtiger"} port uses only \code{rigidity} 
 (only the fixed-means batched path; control thread count with
 \code{\link[RcppParallel:setThreadOptions]{RcppParallel::setThreadOptions()}}). Identical results to serial.}
 
-\item{threads, seed}{RTIGER caller only: E-step threads and the seed for its
-randomized init.}
+\item{threads}{Fan-out width for coarse-grained parallelism. \code{rtiger}: E-step
+threads. \code{fsfhap}: family x chromosome units decoded in parallel
+(\code{\link[parallel:mclapply]{parallel::mclapply()}}, unix only; identical results to \code{threads = 1L}).
+\code{lbimpute}: per-(name, chr) decode fan-out. Other callers ignore it (use
+\code{parallel} for the batched count path).}
+
+\item{seed}{RTIGER caller only: the seed for its randomized init.}
 
 \item{postprocess}{RTIGER caller only: apply the border re-placement (default TRUE).}
 

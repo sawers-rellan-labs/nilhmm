@@ -52,6 +52,165 @@ forward_backward_cpp <- function(log_init, log_trans, log_emit) {
     .Call(`_nilHMM_forward_backward_cpp`, log_init, log_trans, log_emit)
 }
 
+#' FSFHap segregating-site test (whichSitesSegregateCorrectly), faithful port
+#'
+#' Per site, keep it if its minor-allele count fits the design's segregation
+#' model better than the alternatives. Backcross (`ratio` 0.25 or 0.75):
+#' keep iff `pquarter > phalf && pquarter > pmono`. F2 (`ratio` 0.5): keep iff
+#' `phalf / (pmono + pquarter) > 2`. Sites that are monomorphic (single allele)
+#' or exceed `max_missing` are dropped.
+#'
+#' @param G Integer matrix, taxa x sites, values 0/1/2/3 = REF-hom / het /
+#'   ALT-hom / missing (engine canonical `g`). One family, one chromosome,
+#'   sites sorted by position.
+#' @param max_missing Max missing-genotype proportion for a site to be tested.
+#' @param ratio Expected minor-allele frequency: 0.25/0.75 backcross, 0.5 F2.
+#' @return List: `seg` (logical, kept sites), `Mj`/`Mn` (major/minor allele
+#'   counts), `p_missing`, and the model probs `pmono`/`pquarter`/`phalf`
+#'   (NA at untested sites) — for per-stage TASSEL-parity checks.
+#' @keywords internal
+fsfhap_segregating_sites_cpp <- function(G, max_missing, ratio) {
+    .Call(`_nilHMM_fsfhap_segregating_sites_cpp`, G, max_missing, ratio)
+}
+
+#' FSFHap same-tag SNP filter (whichSnpsAreFromSameTag), faithful port
+#'
+#' Within a 64 bp window, consecutive SNPs whose presence-based R^2 to the
+#' window's anchor is >= `min_rsq` are treated as coming from the same GBS tag
+#' and dropped, keeping only the anchor; a SNP that is >= 64 bp away, or has
+#' R^2 < `min_rsq` (or NaN), becomes the next kept anchor. **One chromosome per
+#' call** (positions only; the chromosome-equality guard is implicit), markers
+#' sorted by position.
+#'
+#' @param G Integer matrix, taxa x sites, canonical `g` in {0,1,2,3}.
+#' @param pos Integer marker positions (bp), length = ncol(G), sorted ascending.
+#' @param major_is_ref Logical, length = ncol(G): TRUE if REF is the major
+#'   allele at that site (so allele presence is defined per the site's own
+#'   major/minor, as TASSEL's `majorAllele`/`minorAllele` do).
+#' @param min_rsq R^2 threshold for "same tag" (TASSEL default 0.8).
+#' @return Logical vector, length = ncol(G): TRUE = keep (a distinct tag).
+#' @keywords internal
+fsfhap_same_tag_keep_cpp <- function(G, pos, major_is_ref, min_rsq) {
+    .Call(`_nilHMM_fsfhap_same_tag_keep_cpp`, G, pos, major_is_ref, min_rsq)
+}
+
+#' FSFHap stage 2a: cluster a window of parent-called haplotypes
+#'
+#' Faithful port of `HaplotypeClusterer.makeClusters` + `HaplotypeCluster`
+#' consensus, on the parent-origin frame (`g` in {0 A-hom, 1 het, 2 C-hom,
+#' 3 missing}). Clusters group taxa whose window haplotypes are 0-distance
+#' (identical modulo missing); a haplotype 0-distance to members of several
+#' clusters joins all of them with fractional score `1/count`. Clusters are
+#' returned sorted by score (desc) then size (desc) — `HaplotypeCluster.compareTo`.
+#'
+#' @param Gw Integer matrix, taxa x window-sites, canonical `g` in {0,1,2,3}.
+#' @param maxdiff Distance threshold for `merge`/`move_biggest` (TASSEL
+#'   `maxDifferenceScore`, 0 on the BC/finder path).
+#' @param merge Apply `mergeClusters(maxdiff)` after `makeClusters`
+#'   (clusterWindow does this only when `maxdiff > 0`).
+#' @param move_biggest Apply `moveAllHaplotypesToBiggestCluster(maxdiff)`.
+#' @param max_het If `>= 0`, drop clusters with more than `max_het` heterozygous
+#'   sites (`removeHeterozygousClusters`; the finder passes `maxdiff + 5`).
+#' @return List: `size`, `score` (per cluster); `majority`, `unanimous`
+#'   (clusters x sites consensus, `3` = N); `members` (list of 1-based taxon
+#'   indices per cluster). For 0-distance clusters `majority == unanimous`;
+#'   they diverge only after merges.
+#' @keywords internal
+fsfhap_cluster_window_cpp <- function(Gw, maxdiff = 0L, merge = FALSE, move_biggest = FALSE, max_het = -1L) {
+    .Call(`_nilHMM_fsfhap_cluster_window_cpp`, Gw, maxdiff, merge, move_biggest, max_het)
+}
+
+#' FSFHap stage 3: 5-state Viterbi-training EM imputation (imputeUsingViterbiFiveState)
+#'
+#' The real FSFHap imputation step (via `ViterbiAlgorithmPlugin`). Faithful port
+#' of `imputeUsingViterbiFiveState`: per-taxon 5-state Viterbi on non-missing
+#' parent calls with a distance-scaled transition, EM re-estimating emission +
+#' transition from state-count matrices until the emission-count matrix stabilizes.
+#'
+#' @param G Integer matrix, taxa x sites, parent-called `g` in {0 A-hom, 1 het,
+#'   2 C-hom, 3 missing} (stage-1b output); one family, one chromosome, sorted.
+#' @param pos Integer marker positions (bp), length = ncol(G).
+#' @param phet Design-derived expected heterozygosity (`(1-F)/2`); sets the
+#'   initial state distribution `{phom, .25 phet, .5 phet, .25 phet, phom}`.
+#' @param max_iter EM iteration cap (TASSEL 50).
+#' @return List: `imputed` (taxa x sites, `0`=A / `1`=het / `2`=C / `3`=missing on
+#'   undecoded sites), `iters` (EM iterations run), `emission` (final 5x3).
+#' @keywords internal
+fsfhap_impute_five_state_cpp <- function(G, pos, phet, max_iter = 50L) {
+    .Call(`_nilHMM_fsfhap_impute_five_state_cpp`, G, pos, phet, max_iter)
+}
+
+#' FSFHap stage 3: forward-fill gaps (fillGapsInAlignment)
+#'
+#' Per taxon (row), across sites in order: when two non-missing calls flanking a
+#' run of missing (`3`) are EQUAL, fill the run with that value; a differing
+#' non-missing call resets the anchor (no fill). Faithful to `fillGapsInAlignment`.
+#'
+#' @param G Integer matrix, taxa x sites, `0`/`1`/`2`/`3` (`3` = missing).
+#' @return `G` with eligible missing runs forward-filled.
+#' @keywords internal
+fsfhap_fill_gaps_cpp <- function(G) {
+    .Call(`_nilHMM_fsfhap_fill_gaps_cpp`, G)
+}
+
+#' FSFHap preFilterSites step 1: filterSnpsByTag (faithful port)
+#'
+#' Thins SNPs from the same GBS tag and applies per-site quality gates. Finds the
+#' first site passing MAF/missing/het thresholds (the head), then keeps each later
+#' site that (is >= 64 bp from the head OR has presence-correlation `< 0.7` to it)
+#' AND passes the gates; the head advances to each kept site. Faithful to TASSEL's
+#' `filterSnpsByTag(a, minMaf, maxMissing, maxHet)`.
+#'
+#' @param G Integer matrix, taxa x sites, canonical `g` in {0,1,2,3}; one
+#'   chromosome, sites sorted by position.
+#' @param pos Integer marker positions (bp), length = ncol(G).
+#' @param min_maf,max_missing,max_het Per-site gates (minor-allele freq,
+#'   missing proportion, heterozygous proportion). preFilterSites calls this with
+#'   `(minMaf, 1 - minCoverage, 1.0)`.
+#' @return Logical vector, length = ncol(G): TRUE = kept site.
+#' @keywords internal
+fsfhap_filter_snps_by_tag_cpp <- function(G, pos, min_maf, max_missing, max_het) {
+    .Call(`_nilHMM_fsfhap_filter_snps_by_tag_cpp`, G, pos, min_maf, max_missing, max_het)
+}
+
+#' FSFHap preFilterSites (full): filterSnpsByTag -> het-deviation -> biallelic -> LD
+#'
+#' Faithful port of `BiparentalHaplotypeFinder.preFilterSites`. Step 1 =
+#' [fsfhap_filter_snps_by_tag_cpp()] with `(minMaf, 1 - minCoverage, 1.0)`. On the
+#' result: (2) drop sites whose het fraction exceeds `mean + maxHetDeviation * sd`
+#' (sample sd over the filtered sites); (3) drop monomorphic (non-biallelic) sites;
+#' (4) if `minR2 > 0`, drop sites whose average `r^2` over a ±50-filtered-site window
+#' (hets→missing, [calc_rsqr]) is `< minR2` (NaN pairs skipped; all-NaN average is
+#' not a rejection, matching TASSEL's `NaN < minR2` = false).
+#'
+#' @param G Integer matrix, taxa x sites, canonical `g` in {0,1,2,3}; one chromosome.
+#' @param pos Integer marker positions (bp), length = ncol(G).
+#' @param min_maf,min_coverage,max_het_deviation,min_r2 TASSEL fields
+#'   (0.05 / 0.2 / 5 / 0.2).
+#' @return Logical vector, length = ncol(G): TRUE = site kept by preFilterSites.
+#' @keywords internal
+fsfhap_prefilter_sites_cpp <- function(G, pos, min_maf, min_coverage, max_het_deviation, min_r2) {
+    .Call(`_nilHMM_fsfhap_prefilter_sites_cpp`, G, pos, min_maf, min_coverage, max_het_deviation, min_r2)
+}
+
+#' FSFHap stage 2b: BiparentalHaplotypeFinder.assignHaplotyes (faithful port)
+#'
+#' Reconstruct two parental haplotypes across a bidirectional window scan on the
+#' preFiltered genotype matrix, producing per-site parent alleles. Seed: first
+#' window with exactly two clusters (3rd `< minClusterSize`) whose majority
+#' haplotypes differ by `>= 2*window-4`; then extend forward and backward,
+#' matching each window's candidate haplotypes to the running parents and writing
+#' the non-overlap alleles.
+#'
+#' @param Gf Integer matrix, taxa x sites, canonical `g` in {0,1,2,3}; the
+#'   ALREADY preFiltered chromosome (see [fsfhap_prefilter_sites_cpp()]).
+#' @return List: `alleleA`, `alleleC` (length ncol(Gf); g-frame `0`=REF-hom /
+#'   `2`=ALT-hom / `3`=NN) parent-of-origin alleles per site; `seeded` (logical).
+#' @keywords internal
+fsfhap_biparental_alleles_cpp <- function(Gf) {
+    .Call(`_nilHMM_fsfhap_biparental_alleles_cpp`, Gf)
+}
+
 #' Interpolate a complete genotype block onto a target cM grid (single chr)
 #'
 #' Linear flanking-marker interpolation in genetic distance for one chromosome.
