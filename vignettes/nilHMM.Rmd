@@ -9,6 +9,8 @@ vignette: >
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 3)
+# the data chunks use simcross (a Suggested package); skip gracefully if absent
+knitr::opts_chunk$set(eval = requireNamespace("simcross", quietly = TRUE))
 set.seed(1)
 ```
 
@@ -42,27 +44,41 @@ comes from and where results go.
 
 We need an observation table. In practice you read one with `read_counts()` (a
 `chr pos ref n_ref alt n_alt` TSV or a directory of them), `read_vcf_gt()`,
-`read_hapmap()`, or `read_plink()`. Here we simulate a small cohort of allelic
-read counts so the vignette is self-contained: six lines, two chromosomes, each
-carrying one donor (ALT) introgression block on a REF background.
+`read_hapmap()`, or `read_plink()`. Here we simulate a small cohort with
+[**simcross**](https://cran.r-project.org/package=simcross) (real meiosis and
+recombination on a genetic map) and then layer allelic read counts on top — so
+the introgression blocks come from genuine crossovers rather than hand-placed
+segments. We build a BC2S2 cohort (two backcrosses, two selfings): six lines, two
+chromosomes.
 
 ```{r simulate}
-sim_counts <- function(n = 6L, m = 300L, n_chr = 2L, depth = 6, err = 0.01) {
-  chr <- rep(seq_len(n_chr), each = m)
-  pos <- as.integer(rep(seq_len(m), n_chr) * 1e5)
-  do.call(rbind, lapply(seq_len(n), function(s) {
-    truth <- integer(length(chr))                        # 0 REF / 1 HET / 2 ALT
-    for (ch in seq_len(n_chr)) {
-      idx <- which(chr == ch); w <- sample(20:60, 1L); s0 <- sample(idx, 1L)
-      blk <- s0:min(max(idx), s0 + w); truth[blk] <- 2L; truth[blk[1]] <- 1L
-    }
-    d  <- rpois(length(chr), depth)
-    na <- rbinom(length(chr), d, c(err, 0.5, 1 - err)[truth + 1L])
-    data.frame(name = sprintf("NIL%02d", s), chr = chr, pos = pos,
-               n_ref = d - na, n_alt = na)
+library(simcross)
+
+# simulate one BC(nbc)S(nself) family and layer read counts. Chromosomes assort
+# independently, so we simulate each separately. Returns a long observation table
+# with allelic counts (n_ref/n_alt) and a hard genotype g in {0 REF,1 HET,2 ALT,3 NA}.
+sim_cohort <- function(n = 6L, m = 150L, n_chr = 2L, L = 100,
+                       nbc = 2L, nself = 2L, depth = 6, err = 0.01, miss = 0.05) {
+  rec <- create_parent(L, 1); don <- create_parent(L, 2)      # inbred recurrent / donor
+  one_line <- function() {
+    ind <- cross(rec, don)                                    # F1
+    for (b in seq_len(nbc))   ind <- cross(ind, rec)          # backcross to recurrent
+    for (s in seq_len(nself)) ind <- cross(ind, ind)          # selfing
+    ind
+  }
+  map <- seq(0, L, length.out = m)
+  do.call(rbind, lapply(seq_len(n_chr), function(ch) {
+    g <- as.vector(convert2geno(lapply(seq_len(n), function(i) one_line()), map)) - 1L
+    N <- length(g); p_alt <- c(err, 0.5, 1 - err)[g + 1L]
+    d <- rpois(N, depth); na <- rbinom(N, d, p_alt)
+    g_obs <- g; g_obs[d == 0L | runif(N) < miss] <- 3L
+    data.frame(name = rep(sprintf("NIL%02d", seq_len(n)), times = m),
+               chr = ch, pos = rep(as.integer(map * 1e6), each = n),
+               n_ref = d - na, n_alt = na, g = as.integer(g_obs))
   }))
 }
-counts <- sim_counts()
+cohort <- sim_cohort()
+counts <- cohort[, c("name", "chr", "pos", "n_ref", "n_alt")]
 head(counts)
 ```
 

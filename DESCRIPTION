@@ -39,7 +39,8 @@ Suggests:
     ggplot2,
     ggpubr,
     GenomicRanges,
-    rebmix
+    rebmix,
+    simcross
 VignetteBuilder: knitr
 Roxygen: list(markdown = TRUE)
 Config/testthat/edition: 3
