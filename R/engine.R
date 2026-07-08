@@ -185,7 +185,13 @@ decode <- function(model, obs) {
 #'   atlas paths) or a pre-called hard-genotype column `g` in `{0,1,2,3}` (from
 #'   [read_vcf_gt()]; auto-selects `caller = "nnil"`, `emission = "gt"`).
 #'   Optionally `donor`.
-#' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`, `"lbimpute"`.
+#' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`, `"lbimpute"`,
+#'   `"fsfhap"`.
+#' @param family `fsfhap` caller only: per-row family grouping (a vector length
+#'   `nrow(data)`, or supply a `family` column on `data`). FSFHap pools each family.
+#' @param phet `fsfhap` caller only: expected heterozygosity. If `NULL`, derived
+#'   from `design` as `(1 - F)/2` (BC1S4 → 0.03125); the `fsfhap` port supports
+#'   **BC1 designs** (`"BC1S{m}"`) — other designs route to unported TASSEL paths.
 #' @param design Breeding-design key for priors (e.g. `"BC2S2"`, `"BC2S3"`).
 #'   Required unless `f_1`/`f_2` are supplied.
 #' @param rrate Count/geometric callers (`nnil`, `atlas`): expected per-marker
@@ -208,8 +214,12 @@ decode <- function(model, obs) {
 #' @param parallel If `TRUE`, decode samples across cores via RcppParallel
 #'   (only the fixed-means batched path; control thread count with
 #'   [RcppParallel::setThreadOptions()]). Identical results to serial.
-#' @param threads,seed RTIGER caller only: E-step threads and the seed for its
-#'   randomized init.
+#' @param threads Fan-out width for coarse-grained parallelism. `rtiger`: E-step
+#'   threads. `fsfhap`: family x chromosome units decoded in parallel
+#'   ([parallel::mclapply()], unix only; identical results to `threads = 1L`).
+#'   `lbimpute`: per-(name, chr) decode fan-out. Other callers ignore it (use
+#'   `parallel` for the batched count path).
+#' @param seed RTIGER caller only: the seed for its randomized init.
 #' @param postprocess RTIGER caller only: apply the border re-placement (default TRUE).
 #' @param min_cov Drop no-coverage units before decoding (default `1L`; `0L` keeps
 #'   everything, the old behaviour). "No coverage" is caller-specific but the
@@ -286,7 +296,8 @@ decode <- function(model, obs) {
 #' to_segments(st)                       # or, in one step:
 #' call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #' @export
-call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute"),
+call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap"),
+                        family = NULL, phet = NULL,
                         design = NULL, rrate = 0.01, rigidity = NULL,
                         err = 0.01, conc = 20,
                         fit_means = FALSE, xrate = 0.01,
@@ -321,10 +332,41 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
   # MolBreeding regime). It only makes sense for caller = "nnil" + the gt emission
   # (the count/rtiger/binhmm/atlas paths all need read counts).
   if (has_gt && !has_counts) {
-    if (caller != "nnil")
-      stop("call_states(): a `g` genotype input (no read counts) requires caller = 'nnil'; ",
-           "'", caller, "' needs n_ref/n_alt read counts")
-    emission <- "gt"
+    if (!caller %in% c("nnil", "fsfhap"))
+      stop("call_states(): a `g` genotype input (no read counts) requires caller = 'nnil' ",
+           "or 'fsfhap'; '", caller, "' needs n_ref/n_alt read counts")
+    if (caller == "nnil") emission <- "gt"
+  }
+
+  # FSFHap caller (R/fsfhap.R, src/fsfhap.cpp): parent-calling (stage 1) + 5-state
+  # EM imputation (stage 3), pooled PER FAMILY x chromosome. Design-routing
+  # dispatcher: `design` (BC{n}S{m}) -> route + design-derived `phet = (1-F)/2`.
+  # Dispatched early — it manages its own missing/coverage, so it skips the shared
+  # gt/count filters below. Only the BC1 route is ported (see design/FSFHAP_PORT.md).
+  if (caller == "fsfhap") {
+    if (!has_gt) stop("call_states(): caller = 'fsfhap' needs a `g` genotype column ",
+                      "(e.g. from read_vcf_gt())")
+    ph <- phet
+    if (is.null(ph)) {
+      if (is.null(design)) stop("call_states(): caller = 'fsfhap' needs `design` (e.g. ",
+                                "'BC1S4') or an explicit `phet`")
+      m <- regmatches(design, regexec("^BC([0-9]+)S([0-9]+)$", design))[[1]]
+      if (length(m) != 3L) stop("call_states(): fsfhap `design` must be 'BC{n}S{m}', got '", design, "'")
+      nbc <- as.integer(m[2]); nself <- as.integer(m[3])
+      ph <- .fsfhap_phet(1 - 0.5^nself)
+    }
+    # design-routing dispatcher (mirrors TASSEL CallParentAllelesPlugin): BC1
+    # (contribution1 = 0.75) -> backcross route; else -> BiparentalHaplotypeFinder.
+    fsfhap_route <- if (!is.null(design) && grepl("^BC1S", design)) "bc" else
+                    if (!is.null(design) && grepl("^BC[0-9]+S", design)) "biparental" else "bc"
+    if (!is.null(family)) {
+      if (length(family) != nrow(data))
+        stop("call_states(): `family` must have length nrow(data) (", nrow(data),
+             "); got ", length(family), ". Pass a per-row vector or a `family` column.")
+      data$family <- family
+    }
+    return(.fsfhap_states(data, phet = ph, source = source, donor = donor,
+                          has_donor = has_donor, route = fsfhap_route, threads = threads))
   }
 
   # Required priors are a caller-argument problem, not a data problem, so validate
@@ -539,13 +581,21 @@ to_segments <- function(states) {
   # then a run starts wherever the group or the state changes. Avoids the per-group
   # loop + do.call(rbind) that dominated wall-clock on large cohorts (the RLE and
   # segment build are then O(n) over the whole table).
-  gkey <- paste(st$name, st$chr, sep = "\r")
-  o <- order(gkey, st$pos)
+  # Radix on INTEGER factor codes instead of a character paste()+order(): the
+  # character multi-key sort was a serial tail costing ~half of full-genome
+  # wall-clock (cf. `.lbimpute_prep`, `.fsfhap_states`). Factor codes on both keys
+  # (not as.integer(chr), which would collapse non-numeric chr names to one NA
+  # group) keep every (name, chr) run distinct; group order only needs each run
+  # contiguous with pos ascending — line 599 re-sorts the output.
+  name_c <- as.integer(factor(st$name))
+  chr_c  <- as.integer(factor(st$chr))
+  o <- order(name_c, chr_c, as.integer(st$pos), method = "radix")
   st <- st[o, , drop = FALSE]
-  gkey <- gkey[o]
+  name_c <- name_c[o]; chr_c <- chr_c[o]
   state <- as.integer(st$state)
   n <- length(state)
-  s <- which(c(TRUE, state[-1L] != state[-n] | gkey[-1L] != gkey[-n]))  # run-start rows
+  s <- which(c(TRUE, state[-1L] != state[-n] | name_c[-1L] != name_c[-n] |
+                 chr_c[-1L] != chr_c[-n]))                              # run-start rows
   e <- c(s[-1L] - 1L, n)                                                # run-end rows
   calls <- data.frame(
     source   = st$source[s], donor = st$donor[s], name = st$name[s],

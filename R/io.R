@@ -198,6 +198,153 @@ read_vcf_gt <- function(path, samples = NULL) {
                stringsAsFactors = FALSE)))
 }
 
+#' IUPAC heterozygote code for an allele pair (internal HapMap helper)
+#' @keywords internal
+.iupac_het <- function(a0, a1) {
+  key <- paste0(pmin(a0, a1), pmax(a0, a1))
+  unname(c(AC = "M", AG = "R", AT = "W", CG = "S", CT = "Y", GT = "K")[key])
+}
+
+#' Read a TASSEL HapMap into the engine's observation table
+#'
+#' Adapter for FSFHap's native input: a TASSEL **HapMap** (11 fixed columns
+#' `rs# alleles chrom pos strand assembly# center protLSID assayLSID panelLSID
+#' QCcode` then one column per taxon) into the canonical `(name, chr, pos, g)`
+#' table, `g` in {`0`,`1`,`2`,`3`} = allele0-hom / het / allele1-hom / missing,
+#' where allele0/allele1 are the two alleles from the per-site `alleles` field
+#' (e.g. `A/C`). Genotype cells may be single-character IUPAC (`A`/`C`/`M`/`N`)
+#' or two-character diploid (`AA`/`AC`/`CC`/`NN`). Feed to
+#' `call_ancestry(..., caller = "fsfhap"|"nnil")` (a `g`-only input).
+#'
+#' @param path A HapMap file (`.hmp.txt`, optionally `.gz`).
+#' @param samples Optional character vector restricting to a subset of taxa.
+#' @return A long observation table: `name, chr, pos, g`.
+#' @seealso [read_pedigree()] for the matching family/priors, [read_vcf_gt()].
+#' @examples
+#' f <- tempfile(fileext = ".hmp.txt")
+#' writeLines(c(
+#'   "rs#\talleles\tchrom\tpos\tstrand\tassembly#\tcenter\tprotLSID\tassayLSID\tpanelLSID\tQCcode\tL1\tL2",
+#'   "m1\tA/C\t1\t100\t+\tNA\tNA\tNA\tNA\tNA\tNA\tA\tC",
+#'   "m2\tA/C\t1\t200\t+\tNA\tNA\tNA\tNA\tNA\tNA\tM\tN"), f)
+#' read_hapmap(f)          # g in {0 A-hom, 1 het, 2 C-hom, 3 missing}
+#' @export
+read_hapmap <- function(path, samples = NULL) {
+  d <- utils::read.table(path, sep = "\t", header = TRUE, quote = "", comment.char = "",
+                         check.names = FALSE, stringsAsFactors = FALSE, colClasses = "character")
+  if (ncol(d) < 12L || names(d)[1] != "rs#")
+    stop("read_hapmap(): not a HapMap (expected 'rs#' header + >= 1 taxon column)")
+  chr <- as.integer(sub("^chr", "", d$chrom)); pos <- as.integer(d$pos)
+  a0 <- substr(d$alleles, 1L, 1L); a1 <- substr(d$alleles, 3L, 3L)   # "A/C" -> A, C
+  het <- .iupac_het(a0, a1)
+  taxa <- names(d)[12:ncol(d)]
+  keep <- if (is.null(samples)) taxa else intersect(taxa, samples)
+  if (!length(keep)) stop("read_hapmap(): none of `samples` present")
+  to_g <- function(call) {
+    g <- integer(length(call)); two <- nchar(call) == 2L; s <- !two
+    g[s] <- ifelse(call[s] == a0[s], 0L,
+             ifelse(call[s] == a1[s], 2L,
+             ifelse(!is.na(het[s]) & call[s] == het[s], 1L, 3L)))
+    if (any(two)) {                                    # two-char diploid (HapmapDiploid)
+      c1 <- substr(call[two], 1L, 1L); c2 <- substr(call[two], 2L, 2L)
+      A0 <- a0[two]; A1 <- a1[two]
+      g[two] <- ifelse(c1 == A0 & c2 == A0, 0L,
+                 ifelse(c1 == A1 & c2 == A1, 2L,
+                 ifelse((c1 == A0 & c2 == A1) | (c1 == A1 & c2 == A0), 1L, 3L)))
+    }
+    g
+  }
+  do.call(rbind, lapply(keep, function(t)
+    data.frame(name = t, chr = chr, pos = pos, g = to_g(d[[t]]), stringsAsFactors = FALSE)))
+}
+
+#' Read a PLINK binary genotype (.bed/.bim/.fam) into the engine's table
+#'
+#' Adapter for PLINK 1 binary genotypes into the canonical `(name, chr, pos, g)`
+#' table. `g` is the **A1-allele dosage** (A1 = `.bim` column 5, PLINK's minor
+#' allele by default): `2` = A1-hom, `1` = het, `0` = A2-hom, `3` = missing.
+#' SNP-major `.bed` only (the PLINK default).
+#'
+#' @param prefix Path prefix (the `.bed`, `.bim`, `.fam` trio); a trailing
+#'   `.bed` is stripped if given.
+#' @return A long observation table: `name, chr, pos, g`.
+#' @seealso [read_pedigree()] (`format = "fam"`) for the family grouping.
+#' @export
+read_plink <- function(prefix) {
+  prefix <- sub("\\.bed$", "", prefix)
+  bim <- utils::read.table(paste0(prefix, ".bim"), header = FALSE, stringsAsFactors = FALSE)
+  fam <- utils::read.table(paste0(prefix, ".fam"), header = FALSE, stringsAsFactors = FALSE)
+  m <- nrow(bim); n <- nrow(fam)
+  chr <- as.integer(sub("^chr", "", bim[[1]])); pos <- as.integer(bim[[4]]); taxa <- as.character(fam[[2]])
+  bedf <- paste0(prefix, ".bed")
+  bed <- readBin(bedf, what = "raw", n = file.info(bedf)$size)
+  if (length(bed) < 3L || bed[1] != as.raw(0x6c) || bed[2] != as.raw(0x1b))
+    stop("read_plink(): not a valid PLINK .bed (bad magic bytes)")
+  if (bed[3] != as.raw(0x01)) stop("read_plink(): only SNP-major .bed is supported")
+  bytesPerSnp <- ceiling(n / 4)
+  if (length(bed) != 3L + m * bytesPerSnp)             # guard truncated / mismatched trio
+    stop("read_plink(): .bed size inconsistent with .bim/.fam (expected ",
+         3L + m * bytesPerSnp, " bytes for ", n, " taxa x ", m, " SNPs, got ", length(bed), ")")
+  ri <- as.integer(bed[-(1:3)])                        # bytes as 0..255
+  codes <- rbind(bitwAnd(ri, 3L), bitwAnd(bitwShiftR(ri, 2L), 3L),   # 4 x nbytes, LSB-first
+                 bitwAnd(bitwShiftR(ri, 4L), 3L), bitwAnd(bitwShiftR(ri, 6L), 3L))
+  code2g <- c(2L, 3L, 1L, 0L)                          # PLINK 00->A1hom(2) 01->miss(3) 10->het(1) 11->A2hom(0)
+  Gm <- matrix(3L, n, m)
+  for (j in seq_len(m)) {
+    cc <- as.integer(codes[, (j - 1L) * bytesPerSnp + seq_len(bytesPerSnp)])
+    Gm[, j] <- code2g[cc[seq_len(n)] + 1L]
+  }
+  do.call(rbind, lapply(seq_len(n), function(i)
+    data.frame(name = taxa[i], chr = chr, pos = pos, g = Gm[i, ], stringsAsFactors = FALSE)))
+}
+
+#' Read a pedigree (FSFHap TSV or PLINK .fam) into a family/priors table
+#'
+#' The IO adapter for FSFHap family grouping + design priors (keeps the caller
+#' data-agnostic: the algorithm never reads files). Returns one row per taxon.
+#'
+#' - `format = "fsfhap"`: TASSEL's 7-column, header-first FSFHap pedigree
+#'   (`family taxon parent1 parent2 contribution1 contribution2 F`).
+#' - `format = "fam"`: PLINK `.fam` (`FID IID PID MID sex pheno`) -> `family` =
+#'   FID, `taxon` = IID; contribution/`F` are `NA` (not in `.fam`).
+#'
+#' Use it to attach the `family` key and derive the design for `caller = "fsfhap"`:
+#' `ped <- read_pedigree(p); data$family <- ped$family[match(data$name, ped$taxon)]`;
+#' then pass `design`/`phet` (phet = `(1 - F)/2`, see [.fsfhap_phet()]).
+#'
+#' @param path A pedigree file.
+#' @param format `"fsfhap"` (default) or `"fam"`.
+#' @return data.frame `taxon, family, parent1, parent2, contribution1,
+#'   contribution2, F`.
+#' @examples
+#' p <- tempfile()
+#' writeLines(c("family\ttaxon\tparent1\tparent2\tp1\tp2\tF",
+#'              "SIM\tL1\tA\tC\t0.75\t0.25\t0.9375"), p)
+#' read_pedigree(p)
+#' @export
+read_pedigree <- function(path, format = c("fsfhap", "fam")) {
+  format <- match.arg(format)
+  num <- function(x) suppressWarnings(as.numeric(x))
+  if (format == "fsfhap") {
+    d <- utils::read.table(path, sep = "\t", header = TRUE, quote = "",
+                           check.names = FALSE, stringsAsFactors = FALSE)
+    if (ncol(d) < 4L) stop("read_pedigree(): FSFHap pedigree needs >= 4 columns ",
+                           "(family taxon parent1 parent2 [contribution1 contribution2 F])")
+    data.frame(taxon = as.character(d[[2]]), family = as.character(d[[1]]),
+               parent1 = as.character(d[[3]]), parent2 = as.character(d[[4]]),
+               contribution1 = if (ncol(d) >= 5L) num(d[[5]]) else NA_real_,
+               contribution2 = if (ncol(d) >= 6L) num(d[[6]]) else NA_real_,
+               F = if (ncol(d) >= 7L) num(d[[7]]) else NA_real_, stringsAsFactors = FALSE)
+  } else {
+    d <- utils::read.table(path, header = FALSE, stringsAsFactors = FALSE)
+    if (ncol(d) < 2L) stop("read_pedigree(): PLINK .fam needs >= 2 columns (FID IID ...)")
+    data.frame(taxon = as.character(d[[2]]), family = as.character(d[[1]]),
+               parent1 = if (ncol(d) >= 3L) as.character(d[[3]]) else NA_character_,
+               parent2 = if (ncol(d) >= 4L) as.character(d[[4]]) else NA_character_,
+               contribution1 = NA_real_, contribution2 = NA_real_, F = NA_real_,
+               stringsAsFactors = FALSE)
+  }
+}
+
 #' Write imputed per-marker genotypes as a VCF (LB-Impute-style deliverable)
 #'
 #' Optional, decoupled from the engine: turns a per-marker state table (from
