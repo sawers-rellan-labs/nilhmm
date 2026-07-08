@@ -49,7 +49,8 @@ We need an observation table. In practice you read one with `read_counts()` (a
 recombination on a genetic map) and then layer allelic read counts on top — so
 the introgression blocks come from genuine crossovers rather than hand-placed
 segments. We build a BC2S2 cohort (two backcrosses, two selfings): six lines, two
-chromosomes.
+chromosomes, from a donor **B** crossed onto a recurrent parent **A** (so `REF` =
+A, `ALT` = donor B).
 
 ```{r simulate}
 library(simcross)
@@ -73,12 +74,12 @@ sim_cohort <- function(n = 6L, m = 150L, n_chr = 2L, L = 100,
     d <- rpois(N, depth); na <- rbinom(N, d, p_alt)
     g_obs <- g; g_obs[d == 0L | runif(N) < miss] <- 3L
     data.frame(name = rep(sprintf("NIL%02d", seq_len(n)), times = m),
-               chr = ch, pos = rep(as.integer(map * 1e6), each = n),
+               donor = "B", chr = ch, pos = rep(as.integer(map * 1e6), each = n),
                n_ref = d - na, n_alt = na, g = as.integer(g_obs))
   }))
 }
 cohort <- sim_cohort()
-counts <- cohort[, c("name", "chr", "pos", "n_ref", "n_alt")]
+counts <- cohort[, c("name", "donor", "chr", "pos", "n_ref", "n_alt")]
 head(counts)
 ```
 

@@ -55,8 +55,9 @@ fitted model. `decode()` runs Viterbi and returns one **state per observation**
 (coordinate-free: `0/1/2`).
 
 We simulate one line with [**simcross**](https://cran.r-project.org/package=simcross)
-(a BC2S2 backcross on an 80 cM chromosome) and layer read counts, so the
-observations come from a real recombination track:
+(a BC2S2 backcross of a donor **B** onto a recurrent parent **A**, on an 80 cM
+chromosome) and layer read counts, so the observations come from a real
+recombination track:
 
 ```{r fit-decode}
 library(simcross)
@@ -85,7 +86,7 @@ collapse the per-marker states into the common segment schema (this is the secon
 half of `call_ancestry()`):
 
 ```{r segments}
-states <- data.frame(name = "S1", chr = 1L,
+states <- data.frame(name = "S1", donor = "B", chr = 1L,
                      pos = as.integer(map * 1e6),      # cM map -> bp coordinates
                      state = decode(model, obs))
 to_segments(states)
