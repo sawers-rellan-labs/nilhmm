@@ -74,6 +74,7 @@ reference:
 
   - title: Plotting
     contents:
+      - paint_calls
       - plot_fragment_sizes
 
 articles:

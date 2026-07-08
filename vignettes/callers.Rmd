@@ -141,6 +141,33 @@ rbind(nnil = summ(nnil_count), rtiger = summ(rt), binhmm = summ(bh),
       atlas = summ(at), lbimpute = summ(lb))
 ```
 
+### Chromosome painting
+
+The real payoff of the shared schema is that you can **paint every caller on the
+same axes** and eyeball whether the independent methods agree on where the donor
+(**B**) blocks land. Each row is a NIL, each column a chromosome, and within a cell
+the six caller tracks are stacked as bands (REF gold / HET green / ALT purple).
+
+`paint_calls()` does this in one step: `rbind` each caller's segments with a
+column naming the track, then pass that column as `track` (its levels stack as
+bands, first level on top). `samples` keeps the figure legible.
+
+```{r paint, eval = requireNamespace("ggplot2", quietly = TRUE) && requireNamespace("simcross", quietly = TRUE), fig.width = 8, fig.height = 5}
+tracks <- list("nnil (count)" = nnil_count, "nnil (gt)" = nnil_gt,
+               rtiger = rt, binhmm = bh, atlas = at, lbimpute = lb)
+comparison <- do.call(rbind, Map(function(seg, m) { seg$method <- m; seg },
+                                 tracks, names(tracks)))
+comparison$method <- factor(comparison$method, levels = names(tracks))
+
+paint_calls(comparison, track = "method", samples = sprintf("NIL%02d", 1:4))
+```
+
+The donor blocks land in the same place across the independent callers — the core
+sanity check — with expected method-specific behaviour (e.g. `binhmm` paints
+broader per-bin blocks). This is the same painting used for the real
+coverage-sweep NILs; on real data it is how you confirm the tracks corroborate
+each other.
+
 For per-caller parameters and lineage, see `?call_ancestry` and the README caller
 table.
 ```
