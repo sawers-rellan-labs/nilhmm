@@ -90,24 +90,25 @@ practice you point them at your files):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">hmp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span>fileext <span class="op">=</span> <span class="st">".hmp.txt"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
-<span>  <span class="st">"rs#\talleles\tchrom\tpos\tstrand\tassembly#\tcenter\tprotLSID\tassayLSID\tpanelLSID\tQCcode\tL1\tL2"</span>,</span>
+<span>  <span class="st">"rs#\talleles\tchrom\tpos\tstrand\tassembly#\tcenter\tprotLSID\tassayLSID\tpanelLSID\tQCcode\tB1_L1\tB1_L2"</span>,</span>
 <span>  <span class="st">"m1\tA/C\t1\t100\t+\tNA\tNA\tNA\tNA\tNA\tNA\tA\tC"</span>,</span>
 <span>  <span class="st">"m2\tA/C\t1\t200\t+\tNA\tNA\tNA\tNA\tNA\tNA\tM\tA"</span><span class="op">)</span>, <span class="va">hmp</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/read_hapmap.html">read_hapmap</a></span><span class="op">(</span><span class="va">hmp</span><span class="op">)</span>          <span class="co"># -&gt; name, chr, pos, g   (g in {0 A-hom, 1 het, 2 C-hom, 3 NA})</span></span>
-<span><span class="co">#&gt;   name chr pos g</span></span>
-<span><span class="co">#&gt; 1   L1   1 100 0</span></span>
-<span><span class="co">#&gt; 2   L1   1 200 1</span></span>
-<span><span class="co">#&gt; 3   L2   1 100 2</span></span>
-<span><span class="co">#&gt; 4   L2   1 200 0</span></span>
+<span><span class="co">#&gt;    name chr pos g</span></span>
+<span><span class="co">#&gt; 1 B1_L1   1 100 0</span></span>
+<span><span class="co">#&gt; 2 B1_L1   1 200 1</span></span>
+<span><span class="co">#&gt; 3 B1_L2   1 100 2</span></span>
+<span><span class="co">#&gt; 4 B1_L2   1 200 0</span></span>
 <span></span>
+<span><span class="co"># pedigree: family B1 = recurrent parent A x donor B1 (contribution 0.75 / 0.25)</span></span>
 <span><span class="va">ped_file</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"family\ttaxon\tparent1\tparent2\tp1\tp2\tF"</span>,</span>
-<span>             <span class="st">"TIL01\tL1\tW22\tTIL01_teo\t0.75\t0.25\t0.9375"</span>,</span>
-<span>             <span class="st">"TIL01\tL2\tW22\tTIL01_teo\t0.75\t0.25\t0.9375"</span><span class="op">)</span>, <span class="va">ped_file</span><span class="op">)</span></span>
+<span>             <span class="st">"B1\tB1_L1\tA\tB1\t0.75\t0.25\t0.9375"</span>,</span>
+<span>             <span class="st">"B1\tB1_L2\tA\tB1\t0.75\t0.25\t0.9375"</span><span class="op">)</span>, <span class="va">ped_file</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/read_pedigree.html">read_pedigree</a></span><span class="op">(</span><span class="va">ped_file</span><span class="op">)</span>   <span class="co"># -&gt; taxon, family, parents, contribution1/2, F</span></span>
-<span><span class="co">#&gt;   taxon family parent1   parent2 contribution1 contribution2      F</span></span>
-<span><span class="co">#&gt; 1    L1  TIL01     W22 TIL01_teo          0.75          0.25 0.9375</span></span>
-<span><span class="co">#&gt; 2    L2  TIL01     W22 TIL01_teo          0.75          0.25 0.9375</span></span></code></pre></div>
+<span><span class="co">#&gt;   taxon family parent1 parent2 contribution1 contribution2      F</span></span>
+<span><span class="co">#&gt; 1 B1_L1     B1       A      B1          0.75          0.25 0.9375</span></span>
+<span><span class="co">#&gt; 2 B1_L2     B1       A      B1          0.75          0.25 0.9375</span></span></code></pre></div>
 <p>You attach the family grouping by joining on the taxon name:</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/read_hapmap.html">read_hapmap</a></span><span class="op">(</span><span class="st">"family.hmp.txt"</span><span class="op">)</span></span>
@@ -127,20 +128,23 @@ design) gives <code>F = 0.9375</code>, so <code>phet = 0.03125</code>.
 to as-yet-unported TASSEL paths.</p>
 </div>
 <div class="section level2">
-<h2 id="calling-on-a-family">Calling on a family<a class="anchor" aria-label="anchor" href="#calling-on-a-family"></a>
+<h2 id="calling-on-several-families">Calling on several families<a class="anchor" aria-label="anchor" href="#calling-on-several-families"></a>
 </h2>
-<p>A real family needs enough segregating markers to phase the donor
-(and to clear FSFHap’s coverage floor), so we simulate a 24-line
-<strong>BC1S4</strong> family with <a href="https://cran.r-project.org/package=simcross" class="external-link"><strong>simcross</strong></a>
-— the TeoNAM design: one backcross to the recurrent parent, then four
-selfings (<code>F = 0.9375</code>, so <code>phet = 0.03125</code>).
-simcross gives real recombination breakpoints; the donor blocks and
-residual heterozygosity fall out of the crossing scheme rather than
-being placed by hand.</p>
+<p>FSFHap pools <em>each</em> family independently, so a realistic run
+has more than one — each a distinct donor crossed onto the shared
+recurrent parent <strong>A</strong>. We simulate three
+<strong>BC1S4</strong> families with <a href="https://cran.r-project.org/package=simcross" class="external-link"><strong>simcross</strong></a>,
+donors <strong>B1</strong>, <strong>B2</strong>, <strong>B3</strong>
+(the TeoNAM design: one backcross to A, then four selfings —
+<code>F = 0.9375</code>, so <code>phet = 0.03125</code>). Each family
+needs enough segregating markers to phase its donor and clear FSFHap’s
+coverage floor, so we use 20 lines × 500 markers. simcross gives real
+recombination breakpoints; the donor blocks and residual heterozygosity
+fall out of the crossing scheme.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://kbroman.org/simcross/" class="external-link">simcross</a></span><span class="op">)</span></span>
-<span><span class="va">sim_family</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">n_lines</span> <span class="op">=</span> <span class="fl">24L</span>, <span class="va">m</span> <span class="op">=</span> <span class="fl">500L</span>, <span class="va">L</span> <span class="op">=</span> <span class="fl">100</span>, <span class="va">nself</span> <span class="op">=</span> <span class="fl">4L</span>, <span class="va">miss</span> <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/simcross/man/create_parent.html" class="external-link">create_parent</a></span><span class="op">(</span><span class="va">L</span>, <span class="fl">1</span><span class="op">)</span>; <span class="va">don</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/simcross/man/create_parent.html" class="external-link">create_parent</a></span><span class="op">(</span><span class="va">L</span>, <span class="fl">2</span><span class="op">)</span></span>
+<span><span class="va">sim_family</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">donor</span>, <span class="va">n_lines</span> <span class="op">=</span> <span class="fl">20L</span>, <span class="va">m</span> <span class="op">=</span> <span class="fl">500L</span>, <span class="va">L</span> <span class="op">=</span> <span class="fl">100</span>, <span class="va">nself</span> <span class="op">=</span> <span class="fl">4L</span>, <span class="va">miss</span> <span class="op">=</span> <span class="fl">0.1</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/simcross/man/create_parent.html" class="external-link">create_parent</a></span><span class="op">(</span><span class="va">L</span>, <span class="fl">1</span><span class="op">)</span>; <span class="va">don</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/simcross/man/create_parent.html" class="external-link">create_parent</a></span><span class="op">(</span><span class="va">L</span>, <span class="fl">2</span><span class="op">)</span>  <span class="co"># recurrent A x this donor</span></span>
 <span>  <span class="va">one_line</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="va">ind</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/simcross/man/cross.html" class="external-link">cross</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/simcross/man/cross.html" class="external-link">cross</a></span><span class="op">(</span><span class="va">rec</span>, <span class="va">don</span><span class="op">)</span>, <span class="va">rec</span><span class="op">)</span>                  <span class="co"># F1 -&gt; backcross to recurrent (BC1)</span></span>
 <span>    <span class="kw">for</span> <span class="op">(</span><span class="va">s</span> <span class="kw">in</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">nself</span><span class="op">)</span><span class="op">)</span> <span class="va">ind</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/simcross/man/cross.html" class="external-link">cross</a></span><span class="op">(</span><span class="va">ind</span>, <span class="va">ind</span><span class="op">)</span>    <span class="co"># four selfings -&gt; BC1S4</span></span>
@@ -149,38 +153,41 @@ being placed by hand.</p>
 <span>  <span class="va">map</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="va">L</span>, length.out <span class="op">=</span> <span class="va">m</span><span class="op">)</span></span>
 <span>  <span class="va">g</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/vector.html" class="external-link">as.vector</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/pkg/simcross/man/convert2geno.html" class="external-link">convert2geno</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_lines</span><span class="op">)</span>, <span class="kw">function</span><span class="op">(</span><span class="va">i</span><span class="op">)</span> <span class="fu">one_line</span><span class="op">(</span><span class="op">)</span><span class="op">)</span>, <span class="va">map</span><span class="op">)</span><span class="op">)</span> <span class="op">-</span> <span class="fl">1L</span></span>
 <span>  <span class="va">g</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">g</span><span class="op">)</span><span class="op">)</span> <span class="op">&lt;</span> <span class="va">miss</span><span class="op">]</span> <span class="op">&lt;-</span> <span class="fl">3L</span>                      <span class="co"># skeleton missingness</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"L%02d"</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_lines</span><span class="op">)</span><span class="op">)</span>, times <span class="op">=</span> <span class="va">m</span><span class="op">)</span>,</span>
-<span>             family <span class="op">=</span> <span class="st">"TIL01"</span>, chr <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>name <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"%s_L%02d"</span>, <span class="va">donor</span>, <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="va">n_lines</span><span class="op">)</span><span class="op">)</span>, times <span class="op">=</span> <span class="va">m</span><span class="op">)</span>,</span>
+<span>             donor <span class="op">=</span> <span class="va">donor</span>, family <span class="op">=</span> <span class="va">donor</span>, chr <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>             pos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/rep.html" class="external-link">rep</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">map</span> <span class="op">*</span> <span class="fl">1e6</span><span class="op">)</span>, each <span class="op">=</span> <span class="va">n_lines</span><span class="op">)</span>, g <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">g</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
-<span><span class="va">fam</span> <span class="op">&lt;-</span> <span class="fu">sim_family</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">fam</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/lapply.html" class="external-link">lapply</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"B1"</span>, <span class="st">"B2"</span>, <span class="st">"B3"</span><span class="op">)</span>, <span class="va">sim_family</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">fam</span>, caller <span class="op">=</span> <span class="st">"fsfhap"</span>, design <span class="op">=</span> <span class="st">"BC1S4"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span>donor <span class="op">=</span> <span class="va">calls</span><span class="op">$</span><span class="va">donor</span>, state <span class="op">=</span> <span class="va">calls</span><span class="op">$</span><span class="va">state</span><span class="op">)</span>         <span class="co"># per-family state counts</span></span>
+<span><span class="co">#&gt;      state</span></span>
+<span><span class="co">#&gt; donor  0  1  2</span></span>
+<span><span class="co">#&gt;    B1 27  8 21</span></span>
+<span><span class="co">#&gt;    B2 31  7 18</span></span>
+<span><span class="co">#&gt;    B3 42  7 34</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">calls</span>, <span class="fl">4</span><span class="op">)</span></span>
-<span><span class="co">#&gt;   source donor name chr start_bp   end_bp state</span></span>
-<span><span class="co">#&gt; 1 nilHMM  &lt;NA&gt;  L01   1        0 16232464     0</span></span>
-<span><span class="co">#&gt; 2 nilHMM  &lt;NA&gt;  L01   1 16633266 45891783     2</span></span>
-<span><span class="co">#&gt; 3 nilHMM  &lt;NA&gt;  L01   1 46292585 98797595     0</span></span>
-<span><span class="co">#&gt; 4 nilHMM  &lt;NA&gt;  L02   1        0  5410821     2</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">calls</span><span class="op">$</span><span class="va">state</span><span class="op">)</span></span>
-<span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt;  0  1  2 </span></span>
-<span><span class="co">#&gt; 32 11 25</span></span></code></pre></div>
+<span><span class="co">#&gt;   source donor   name chr start_bp    end_bp state</span></span>
+<span><span class="co">#&gt; 1 nilHMM    B1 B1_L01   1        0  16432865     0</span></span>
+<span><span class="co">#&gt; 2 nilHMM    B1 B1_L01   1 16633266  45891783     2</span></span>
+<span><span class="co">#&gt; 3 nilHMM    B1 B1_L01   1 46092184 100000000     0</span></span>
+<span><span class="co">#&gt; 4 nilHMM    B1 B1_L02   1        0   5410821     2</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="parallelism">Parallelism<a class="anchor" aria-label="anchor" href="#parallelism"></a>
 </h2>
-<p>Each <strong>family × chromosome</strong> is an independent unit, so
+<p>Each <strong>family × chromosome</strong> is an independent unit —
+here three families on one chromosome, so three units — and
 <code>fsfhap</code> fans them out across cores with <code>threads</code>
-(bit-identical to serial). On a real full-genome cohort this is a large
-win — the family × chromosome units fill all cores:</p>
+(bit-identical to serial):</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">fam</span>, caller <span class="op">=</span> <span class="st">"fsfhap"</span>, design <span class="op">=</span> <span class="st">"BC1S4"</span>, threads <span class="op">=</span> <span class="fl">1L</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">fam</span>, caller <span class="op">=</span> <span class="st">"fsfhap"</span>, design <span class="op">=</span> <span class="st">"BC1S4"</span>, threads <span class="op">=</span> <span class="fl">2L</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">fam</span>, caller <span class="op">=</span> <span class="st">"fsfhap"</span>, design <span class="op">=</span> <span class="st">"BC1S4"</span>, threads <span class="op">=</span> <span class="fl">3L</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
-<p>On real TeoNAM (all five families, 51,004 markers, 50 units) the port
+<p>On a real full-genome cohort this is a large win. On real TeoNAM (all
+five families, 51,004 markers, 50 family × chromosome units) the port
 runs in <strong>28.6 s on 10 threads vs TASSEL’s 218.5 s</strong> — 7.6×
 faster, and faster than TASSEL even single-threaded. See
 <code>design/FSFHAP_PORT.md</code> for the full benchmark.</p>

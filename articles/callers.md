@@ -14,7 +14,8 @@ library(nilHMM)
 
 ## Synthetic data
 
-We build one small BC2S2 cohort with
+We build one small BC2S2 cohort (donor **B** crossed onto a recurrent
+parent **A**) with
 [**simcross**](https://cran.r-project.org/package=simcross) (real
 meiosis and recombination on a genetic map), then layer allelic read
 counts. The result carries **both** the counts (`n_ref`/`n_alt`, for the
@@ -41,13 +42,14 @@ sim_cohort <- function(n = 8L, m = 150L, n_chr = 2L, L = 100,
     d <- rpois(N, depth); na <- rbinom(N, d, p_alt)
     g_obs <- g; g_obs[d == 0L | runif(N) < miss] <- 3L
     data.frame(name = rep(sprintf("NIL%02d", seq_len(n)), times = m),
-               family = "F1", chr = ch, pos = rep(as.integer(map * 1e6), each = n),
+               donor = "B", family = "B", chr = ch,
+               pos = rep(as.integer(map * 1e6), each = n),
                n_ref = d - na, n_alt = na, g = as.integer(g_obs))
   }))
 }
-d <- sim_cohort()
-counts <- d[, c("name", "chr", "pos", "n_ref", "n_alt")]
-gt     <- d[, c("name", "chr", "pos", "g")]
+d <- sim_cohort()   # donor B (ALT) on recurrent A (REF)
+counts <- d[, c("name", "donor", "chr", "pos", "n_ref", "n_alt")]
+gt     <- d[, c("name", "donor", "chr", "pos", "g")]
 ```
 
 ## `nnil` — count and genotype
@@ -79,9 +81,9 @@ rt <- call_ancestry(counts, caller = "rtiger", design = "BC2S2",
                     rigidity = 5L, seed = 1L)
 head(rt, 3)
 #>   source donor  name chr start_bp    end_bp state
-#> 1 nilHMM  <NA> NIL01   1        0 100000000     0
-#> 2 nilHMM  <NA> NIL01   2        0  90604026     0
-#> 3 nilHMM  <NA> NIL01   2 91275167 100000000     2
+#> 1 nilHMM     B NIL01   1        0 100000000     0
+#> 2 nilHMM     B NIL01   2        0  90604026     0
+#> 3 nilHMM     B NIL01   2 91275167 100000000     2
 ```
 
 ## `binhmm` — per-bin calling
@@ -94,9 +96,9 @@ Bins the genome (default 1 Mb) and calls per-bin state with an anchored
 bh <- call_ancestry(counts, caller = "binhmm", design = "BC2S2", bin_size = 5e6)
 head(bh, 3)
 #>   source donor  name chr start_bp    end_bp state
-#> 1 nilHMM  <NA> NIL01   1        0 100000000     0
-#> 2 nilHMM  <NA> NIL01   2        0  89932885     0
-#> 3 nilHMM  <NA> NIL01   2 90604026 100000000     2
+#> 1 nilHMM     B NIL01   1        0 100000000     0
+#> 2 nilHMM     B NIL01   2        0  89932885     0
+#> 3 nilHMM     B NIL01   2 90604026 100000000     2
 ```
 
 ## `atlas` — competitive-alignment (GOOGA)
@@ -111,9 +113,9 @@ at <- call_ancestry(counts, caller = "atlas", design = "BC2S2",
                     atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L)
 head(at, 3)
 #>   source donor  name chr start_bp    end_bp state
-#> 1 nilHMM  <NA> NIL01   1        0 100000000     0
-#> 2 nilHMM  <NA> NIL01   2        0  90604026     0
-#> 3 nilHMM  <NA> NIL01   2 91275167 100000000     2
+#> 1 nilHMM     B NIL01   1        0 100000000     0
+#> 2 nilHMM     B NIL01   2        0  90604026     0
+#> 3 nilHMM     B NIL01   2 91275167 100000000     2
 ```
 
 ## `lbimpute` — very low coverage
@@ -128,9 +130,9 @@ over `recombdist`). No design priors needed.
 lb <- call_ancestry(counts, caller = "lbimpute", recombdist = 1e7, genotypeerr = 0.05)
 head(lb, 3)
 #>   source donor  name chr start_bp    end_bp state
-#> 1 nilHMM  <NA> NIL01   1        0 100000000     0
-#> 2 nilHMM  <NA> NIL01   2        0  90604026     0
-#> 3 nilHMM  <NA> NIL01   2 91275167 100000000     2
+#> 1 nilHMM     B NIL01   1        0 100000000     0
+#> 2 nilHMM     B NIL01   2        0  90604026     0
+#> 3 nilHMM     B NIL01   2 91275167 100000000     2
 ```
 
 ## `fsfhap` — full-sib families

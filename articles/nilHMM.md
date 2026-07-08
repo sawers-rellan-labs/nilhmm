@@ -47,7 +47,9 @@ Here we simulate a small cohort with
 meiosis and recombination on a genetic map) and then layer allelic read
 counts on top — so the introgression blocks come from genuine crossovers
 rather than hand-placed segments. We build a BC2S2 cohort (two
-backcrosses, two selfings): six lines, two chromosomes.
+backcrosses, two selfings): six lines, two chromosomes, from a donor
+**B** crossed onto a recurrent parent **A** (so `REF` = A, `ALT` = donor
+B).
 
 ``` r
 
@@ -72,20 +74,20 @@ sim_cohort <- function(n = 6L, m = 150L, n_chr = 2L, L = 100,
     d <- rpois(N, depth); na <- rbinom(N, d, p_alt)
     g_obs <- g; g_obs[d == 0L | runif(N) < miss] <- 3L
     data.frame(name = rep(sprintf("NIL%02d", seq_len(n)), times = m),
-               chr = ch, pos = rep(as.integer(map * 1e6), each = n),
+               donor = "B", chr = ch, pos = rep(as.integer(map * 1e6), each = n),
                n_ref = d - na, n_alt = na, g = as.integer(g_obs))
   }))
 }
 cohort <- sim_cohort()
-counts <- cohort[, c("name", "chr", "pos", "n_ref", "n_alt")]
+counts <- cohort[, c("name", "donor", "chr", "pos", "n_ref", "n_alt")]
 head(counts)
-#>    name chr pos n_ref n_alt
-#> 1 NIL01   1   0     7     0
-#> 2 NIL02   1   0     7     0
-#> 3 NIL03   1   0     8     0
-#> 4 NIL04   1   0     3     0
-#> 5 NIL05   1   0     3     0
-#> 6 NIL06   1   0     4     0
+#>    name donor chr pos n_ref n_alt
+#> 1 NIL01     B   1   0     7     0
+#> 2 NIL02     B   1   0     7     0
+#> 3 NIL03     B   1   0     8     0
+#> 4 NIL04     B   1   0     3     0
+#> 5 NIL05     B   1   0     3     0
+#> 6 NIL06     B   1   0     4     0
 ```
 
 Call ancestry with the `nnil` count caller and BC2S2 design priors:
@@ -96,12 +98,12 @@ calls <- call_ancestry(counts, caller = "nnil", design = "BC2S2",
                        rrate = 1e-4, err = 0.01)
 head(calls)
 #>   source donor  name chr start_bp    end_bp state
-#> 1 nilHMM  <NA> NIL01   1        0 100000000     0
-#> 2 nilHMM  <NA> NIL01   2        0 100000000     0
-#> 3 nilHMM  <NA> NIL02   1        0  57718120     0
-#> 4 nilHMM  <NA> NIL02   1 58389261  91946308     1
-#> 5 nilHMM  <NA> NIL02   1 92617449 100000000     0
-#> 6 nilHMM  <NA> NIL02   2        0 100000000     0
+#> 1 nilHMM     B NIL01   1        0 100000000     0
+#> 2 nilHMM     B NIL01   2        0 100000000     0
+#> 3 nilHMM     B NIL02   1        0  57718120     0
+#> 4 nilHMM     B NIL02   1 58389261  91946308     1
+#> 5 nilHMM     B NIL02   1 92617449 100000000     0
+#> 6 nilHMM     B NIL02   2        0 100000000     0
 ```
 
 ## The common segment schema

@@ -141,8 +141,9 @@ spec, a duration spec, and priors, and returns a fitted model.
 <code><a href="../reference/decode.html">decode()</a></code> runs Viterbi and returns one <strong>state per
 observation</strong> (coordinate-free: <code>0/1/2</code>).</p>
 <p>We simulate one line with <a href="https://cran.r-project.org/package=simcross" class="external-link"><strong>simcross</strong></a>
-(a BC2S2 backcross on an 80 cM chromosome) and layer read counts, so the
-observations come from a real recombination track:</p>
+(a BC2S2 backcross of a donor <strong>B</strong> onto a recurrent parent
+<strong>A</strong>, on an 80 cM chromosome) and layer read counts, so
+the observations come from a real recombination track:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://kbroman.org/simcross/" class="external-link">simcross</a></span><span class="op">)</span></span>
 <span><span class="va">map</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">80</span>, length.out <span class="op">=</span> <span class="fl">24</span><span class="op">)</span></span>
@@ -176,15 +177,15 @@ observations come from a real recombination track:</p>
 the per-marker states into the common segment schema (this is the second
 half of <code><a href="../reference/call_ancestry.html">call_ancestry()</a></code>):</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>name <span class="op">=</span> <span class="st">"S1"</span>, chr <span class="op">=</span> <span class="fl">1L</span>,</span>
+<code class="sourceCode R"><span><span class="va">states</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>name <span class="op">=</span> <span class="st">"S1"</span>, donor <span class="op">=</span> <span class="st">"B"</span>, chr <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>                     pos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/integer.html" class="external-link">as.integer</a></span><span class="op">(</span><span class="va">map</span> <span class="op">*</span> <span class="fl">1e6</span><span class="op">)</span>,      <span class="co"># cM map -&gt; bp coordinates</span></span>
 <span>                     state <span class="op">=</span> <span class="fu"><a href="../reference/decode.html">decode</a></span><span class="op">(</span><span class="va">model</span>, <span class="va">obs</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/to_segments.html">to_segments</a></span><span class="op">(</span><span class="va">states</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   source donor name chr start_bp   end_bp state</span></span>
-<span><span class="co">#&gt; 1 nilHMM  &lt;NA&gt;   S1   1        0 13913043     2</span></span>
-<span><span class="co">#&gt; 2 nilHMM  &lt;NA&gt;   S1   1 17391304 48695652     0</span></span>
-<span><span class="co">#&gt; 3 nilHMM  &lt;NA&gt;   S1   1 52173913 62608695     2</span></span>
-<span><span class="co">#&gt; 4 nilHMM  &lt;NA&gt;   S1   1 66086956 80000000     0</span></span></code></pre></div>
+<span><span class="co">#&gt; 1 nilHMM     B   S1   1        0 13913043     2</span></span>
+<span><span class="co">#&gt; 2 nilHMM     B   S1   1 17391304 48695652     0</span></span>
+<span><span class="co">#&gt; 3 nilHMM     B   S1   1 52173913 62608695     2</span></span>
+<span><span class="co">#&gt; 4 nilHMM     B   S1   1 66086956 80000000     0</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="swapping-an-axis">Swapping an axis<a class="anchor" aria-label="anchor" href="#swapping-an-axis"></a>

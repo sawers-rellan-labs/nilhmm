@@ -89,8 +89,9 @@ runs Viterbi and returns one **state per observation** (coordinate-free:
 
 We simulate one line with
 [**simcross**](https://cran.r-project.org/package=simcross) (a BC2S2
-backcross on an 80 cM chromosome) and layer read counts, so the
-observations come from a real recombination track:
+backcross of a donor **B** onto a recurrent parent **A**, on an 80 cM
+chromosome) and layer read counts, so the observations come from a real
+recombination track:
 
 ``` r
 
@@ -130,15 +131,15 @@ is the second half of
 
 ``` r
 
-states <- data.frame(name = "S1", chr = 1L,
+states <- data.frame(name = "S1", donor = "B", chr = 1L,
                      pos = as.integer(map * 1e6),      # cM map -> bp coordinates
                      state = decode(model, obs))
 to_segments(states)
 #>   source donor name chr start_bp   end_bp state
-#> 1 nilHMM  <NA>   S1   1        0 13913043     2
-#> 2 nilHMM  <NA>   S1   1 17391304 48695652     0
-#> 3 nilHMM  <NA>   S1   1 52173913 62608695     2
-#> 4 nilHMM  <NA>   S1   1 66086956 80000000     0
+#> 1 nilHMM     B   S1   1        0 13913043     2
+#> 2 nilHMM     B   S1   1 17391304 48695652     0
+#> 3 nilHMM     B   S1   1 52173913 62608695     2
+#> 4 nilHMM     B   S1   1 66086956 80000000     0
 ```
 
 ## Swapping an axis
