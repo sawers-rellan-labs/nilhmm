@@ -107,21 +107,14 @@ table(calls$state)
 #> 20  4  9
 ```
 
-Numeric states are `0 = REF`, `1 = HET`, `2 = ALT`. A quick
-karyotype-style view of one line’s introgressions (base graphics, no
-extra packages):
+Numeric states are `0 = REF`, `1 = HET`, `2 = ALT`. The package’s
+[`paint_calls()`](https://sawers-rellan-labs.github.io/nilhmm/reference/paint_calls.md)
+renders those segments as a chromosome painting — one band per line,
+faceted by chromosome (REF gold / HET green / ALT purple):
 
 ``` r
 
-one <- calls[calls$name == "NIL01", ]
-cols <- c("0" = "grey85", "1" = "goldenrod", "2" = "firebrick")
-plot(NA, xlim = c(0, max(one$end_bp)), ylim = c(0.5, max(one$chr) + 0.5),
-     xlab = "position (bp)", ylab = "chromosome", yaxt = "n",
-     main = "NIL01 ancestry")
-axis(2, at = sort(unique(one$chr)))
-with(one, rect(start_bp, chr - 0.3, end_bp, chr + 0.3,
-               col = cols[as.character(state)], border = NA))
-legend("topright", fill = cols, legend = c("REF", "HET", "ALT"), bty = "n")
+paint_calls(calls)
 ```
 
 ![](nilHMM_files/figure-html/plot-1.png)
