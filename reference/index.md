@@ -115,5 +115,7 @@ Breeding-design priors, the fragment-size Null, and r calibration.
 
 ## Plotting
 
+- [`paint_calls()`](https://sawers-rellan-labs.github.io/nilhmm/reference/paint_calls.md)
+  : Chromosome-paint called ancestry segments
 - [`plot_fragment_sizes()`](https://sawers-rellan-labs.github.io/nilhmm/reference/plot_fragment_sizes.md)
   : Plot called fragment sizes against the expected Null

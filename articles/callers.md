@@ -168,6 +168,38 @@ rbind(nnil = summ(nnil_count), rtiger = summ(rt), binhmm = summ(bh),
 #> lbimpute       32      3
 ```
 
+### Chromosome painting
+
+The real payoff of the shared schema is that you can **paint every
+caller on the same axes** and eyeball whether the independent methods
+agree on where the donor (**B**) blocks land. Each row is a NIL, each
+column a chromosome, and within a cell the six caller tracks are stacked
+as bands (REF gold / HET green / ALT purple).
+
+[`paint_calls()`](https://sawers-rellan-labs.github.io/nilhmm/reference/paint_calls.md)
+does this in one step: `rbind` each caller’s segments with a column
+naming the track, then pass that column as `track` (its levels stack as
+bands, first level on top). `samples` keeps the figure legible.
+
+``` r
+
+tracks <- list("nnil (count)" = nnil_count, "nnil (gt)" = nnil_gt,
+               rtiger = rt, binhmm = bh, atlas = at, lbimpute = lb)
+comparison <- do.call(rbind, Map(function(seg, m) { seg$method <- m; seg },
+                                 tracks, names(tracks)))
+comparison$method <- factor(comparison$method, levels = names(tracks))
+
+paint_calls(comparison, track = "method", samples = sprintf("NIL%02d", 1:4))
+```
+
+![](callers_files/figure-html/paint-1.png)
+
+The donor blocks land in the same place across the independent callers —
+the core sanity check — with expected method-specific behaviour
+(e.g. `binhmm` paints broader per-bin blocks). This is the same painting
+used for the real coverage-sweep NILs; on real data it is how you
+confirm the tracks corroborate each other.
+
 For per-caller parameters and lineage, see
 [`?call_ancestry`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md)
 and the README caller table. \`\`\`

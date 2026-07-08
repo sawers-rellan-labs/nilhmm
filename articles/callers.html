@@ -226,8 +226,36 @@ same counts:</p>
 <span><span class="co">#&gt; binhmm         25      3</span></span>
 <span><span class="co">#&gt; atlas          30      3</span></span>
 <span><span class="co">#&gt; lbimpute       32      3</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="chromosome-painting">Chromosome painting<a class="anchor" aria-label="anchor" href="#chromosome-painting"></a>
+</h3>
+<p>The real payoff of the shared schema is that you can <strong>paint
+every caller on the same axes</strong> and eyeball whether the
+independent methods agree on where the donor (<strong>B</strong>) blocks
+land. Each row is a NIL, each column a chromosome, and within a cell the
+six caller tracks are stacked as bands (REF gold / HET green / ALT
+purple).</p>
+<p><code><a href="../reference/paint_calls.html">paint_calls()</a></code> does this in one step: <code>rbind</code>
+each caller’s segments with a column naming the track, then pass that
+column as <code>track</code> (its levels stack as bands, first level on
+top). <code>samples</code> keeps the figure legible.</p>
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">tracks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"nnil (count)"</span> <span class="op">=</span> <span class="va">nnil_count</span>, <span class="st">"nnil (gt)"</span> <span class="op">=</span> <span class="va">nnil_gt</span>,</span>
+<span>               rtiger <span class="op">=</span> <span class="va">rt</span>, binhmm <span class="op">=</span> <span class="va">bh</span>, atlas <span class="op">=</span> <span class="va">at</span>, lbimpute <span class="op">=</span> <span class="va">lb</span><span class="op">)</span></span>
+<span><span class="va">comparison</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Map</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">seg</span>, <span class="va">m</span><span class="op">)</span> <span class="op">{</span> <span class="va">seg</span><span class="op">$</span><span class="va">method</span> <span class="op">&lt;-</span> <span class="va">m</span>; <span class="va">seg</span> <span class="op">}</span>,</span>
+<span>                                 <span class="va">tracks</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">tracks</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="va">comparison</span><span class="op">$</span><span class="va">method</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/factor.html" class="external-link">factor</a></span><span class="op">(</span><span class="va">comparison</span><span class="op">$</span><span class="va">method</span>, levels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">tracks</span><span class="op">)</span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="../reference/paint_calls.html">paint_calls</a></span><span class="op">(</span><span class="va">comparison</span>, track <span class="op">=</span> <span class="st">"method"</span>, samples <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"NIL%02d"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">4</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+<p><img src="callers_files/figure-html/paint-1.png" class="r-plt" alt="" width="768"></p>
+<p>The donor blocks land in the same place across the independent
+callers — the core sanity check — with expected method-specific
+behaviour (e.g. <code>binhmm</code> paints broader per-bin blocks). This
+is the same painting used for the real coverage-sweep NILs; on real data
+it is how you confirm the tracks corroborate each other.</p>
 <p>For per-caller parameters and lineage, see
 <code><a href="../reference/call_ancestry.html">?call_ancestry</a></code> and the README caller table. ```</p>
+</div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>
