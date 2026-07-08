@@ -203,10 +203,38 @@
 }
 
 .rtiger_states <- function(data, rigidity, source, donor, has_donor, threads, seed,
-                           postprocess = TRUE) {
+                           postprocess = TRUE, fit = NULL) {
   o <- .rtiger_obs(data, has_donor, donor)
   .rtiger_check_coverage(o$obs, rigidity)
-  fit   <- .rtiger_fit(o$obs, rigidity, threads = threads, seed = seed)
+  # `fit` lets a caller supply a pre-fit emission (from fit_rtiger()) so the joint
+  # per-family EM can be reused across separate per-chromosome decode calls -- same
+  # emission, a fraction of the peak memory. NULL => fit here (the default).
+  if (is.null(fit)) fit <- .rtiger_fit(o$obs, rigidity, threads = threads, seed = seed)
   paths <- .rtiger_decode(o$obs, fit, rigidity, postprocess = postprocess, threads = threads)
   .rtiger_assemble(o$obs, o$pos, paths, o$donor_of, source)
+}
+
+#' Fit the RTIGER emission once (to reuse across per-chromosome decodes)
+#'
+#' Fits the faithful RTIGER EM (emission alpha/beta + transition) on ALL chains in
+#' `data` (samples x chromosomes) and returns the fit, to be passed as
+#' `call_states(..., caller = "rtiger", rtiger_fit = <fit>)`. This keeps the joint
+#' per-family emission while letting each chromosome be decoded in a separate,
+#' low-memory call -- e.g. a genome-scale sweep that would otherwise hold the whole
+#' panel per worker. Decoding is per-chromosome regardless, so results are identical
+#' to a single whole-family call.
+#'
+#' @param data Long observation table (`name, chr, pos, n_ref, n_alt`), as for
+#'   [call_states()]. Filter to covered markers upstream if using `min_reads`.
+#' @param rigidity Integer RTIGER minimum run length.
+#' @param threads,seed Passed to the fit (RcppParallel E-step; seeded init).
+#' @return An RTIGER fit `list(A, pi, alpha, beta, iterations)`.
+#' @seealso [call_states()]
+#' @export
+fit_rtiger <- function(data, rigidity, threads = 1L, seed = 1L) {
+  if (!all(c("name", "chr", "pos", "n_ref", "n_alt") %in% names(data)))
+    stop("fit_rtiger(): data needs name, chr, pos, n_ref, n_alt")
+  o <- .rtiger_obs(data, has_donor = "donor" %in% names(data), donor = NA_character_)
+  .rtiger_check_coverage(o$obs, rigidity)
+  .rtiger_fit(o$obs, as.integer(rigidity), threads = threads, seed = seed)
 }

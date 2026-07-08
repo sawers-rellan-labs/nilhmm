@@ -304,7 +304,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
                         f_1 = NULL, f_2 = NULL,
                         source = "nilHMM", donor = NA_character_,
                         parallel = FALSE, threads = 1L, seed = 1L,
-                        postprocess = TRUE, min_reads = 1L, emission = NULL,
+                        postprocess = TRUE, min_reads = 1L, rtiger_fit = NULL, emission = NULL,
                         bin_size = 1e6, cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
                         joint_clust = FALSE, obs_weights = FALSE,
                         atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L,
@@ -408,7 +408,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
   if (caller == "rtiger") {
     rig <- if (is.null(rigidity)) 5L else as.integer(rigidity)   # minimum run length
     if (rig < 1L) stop("rtiger: `rigidity` must be an integer >= 1")
-    return(.rtiger_states(data, rig, source, donor, has_donor, threads, seed, postprocess))
+    return(.rtiger_states(data, rig, source, donor, has_donor, threads, seed, postprocess, fit = rtiger_fit))
   }
 
   # binhmm caller: the bin -> K=3 cluster -> HMM-smooth pipeline (R/binhmm.R),
