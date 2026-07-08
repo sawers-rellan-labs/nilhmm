@@ -157,7 +157,7 @@
 # the common segment schema with a `recombdist` column tagging each value. EXACT
 # per value (recombdist touches only the transition), so each is identical to
 # call_ancestry(caller = "lbimpute", recombdist = v). Keeps zero-coverage markers
-# (flat emission) so the distance transition sees true spacing; `min_cov` is a
+# (flat emission) so the distance transition sees true spacing; `min_reads` is a
 # no-op here, matching call_states for lbimpute.
 .caller_sweep_lbimpute <- function(data, values, unit, err, errg, drp,
                                    design, f_1, f_2, threads, source, donor, has_donor) {

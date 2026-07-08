@@ -221,16 +221,16 @@ decode <- function(model, obs) {
 #'   `parallel` for the batched count path).
 #' @param seed RTIGER caller only: the seed for its randomized init.
 #' @param postprocess RTIGER caller only: apply the border re-placement (default TRUE).
-#' @param min_cov Drop no-coverage units before decoding (default `1L`; `0L` keeps
-#'   everything, the old behaviour). "No coverage" is caller-specific but the
-#'   intent is uniform — never make a confident call from no data, and keep all
-#'   callers on the same support for comparability:
-#'   * `nnil` (count) and `rtiger`: markers with `n_ref + n_alt < min_cov`;
-#'   * `nnil` gt path: missing genotypes (`g == 3`);
-#'   * `binhmm`: bins with fewer than `min_cov` informative markers (`ninf`).
-#'   Zero-coverage units carry no emission signal — they only slow decoding,
-#'   marginally inflate `nnil` fragmentation, and dilute `rtiger`'s rigidity run.
-#'   (The `atlas` caller has its own `atlas_min_reads` gate and is unaffected.)
+#' @param min_reads Minimum read depth to keep a marker before decoding (default
+#'   `1L`; `0L` keeps everything). Drops markers with `n_ref + n_alt < min_reads`
+#'   for the count callers (`nnil` count path and `rtiger`), and missing genotypes
+#'   (`g == 3`) on the `nnil` gt path. The intent is uniform — never make a
+#'   confident call from no data, and keep the count callers on the same support
+#'   for comparability. Zero-read markers carry no emission signal — they only slow
+#'   decoding, marginally inflate `nnil` fragmentation, and dilute `rtiger`'s
+#'   rigidity run. `binhmm` is unaffected (it drops truly-empty bins internally; a
+#'   future per-bin frequency gate would be a separate `min_freq`). (`atlas` has its
+#'   own `atlas_min_reads` gate.)
 #' @param emission Optional emission override (`"count"`, `"gt"`) for the `nnil`
 #'   caller; `NULL` uses the caller's default.
 #' @param bin_size,cluster_method `binhmm` caller only: genomic bin width in bp
@@ -304,7 +304,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
                         f_1 = NULL, f_2 = NULL,
                         source = "nilHMM", donor = NA_character_,
                         parallel = FALSE, threads = 1L, seed = 1L,
-                        postprocess = TRUE, min_cov = 1L, emission = NULL,
+                        postprocess = TRUE, min_reads = 1L, emission = NULL,
                         bin_size = 1e6, cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
                         joint_clust = FALSE, obs_weights = FALSE,
                         atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L,
@@ -371,7 +371,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
 
   # Required priors are a caller-argument problem, not a data problem, so validate
   # them BEFORE any coverage filtering below. Otherwise an all-zero-coverage input
-  # would trip the min_cov "no covered markers" error and mask a genuinely missing
+  # would trip the min_reads "no covered markers" error and mask a genuinely missing
   # `design`/`f_1`/`f_2`. Every caller but rtiger (which fits its own start freqs)
   # needs priors; each path re-resolves them below, this just fails fast up front.
   if (!caller %in% c("rtiger", "lbimpute") &&
@@ -382,24 +382,24 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
   # the gt (nnil hard-genotype) caller ignores uncovered positions too, mirroring
   # the count/rtiger covered-marker filter below.
   if (identical(emission, "gt") && "g" %in% names(data) &&
-      !is.null(min_cov) && min_cov > 0L) {
+      !is.null(min_reads) && min_reads > 0L) {
     data <- data[data$g != 3L, , drop = FALSE]
-    if (!nrow(data)) stop("call_states(): no non-missing genotypes after the min_cov filter")
+    if (!nrow(data)) stop("call_states(): no non-missing genotypes after the min_reads filter")
   }
 
-  # Covered-marker filter for the count-emission callers (`nnil` count path and
-  # `rtiger`): drop markers with fewer than `min_cov` total reads. A zero-coverage
+  # Read-depth filter for the count-emission callers (`nnil` count path and
+  # `rtiger`): drop markers with fewer than `min_reads` total reads. A zero-read
   # panel position carries no emission signal — it only slows decoding, marginally
   # inflates fragmentation for `nnil`, and dilutes the rigidity run for `rtiger`
-  # (which requires covered markers anyway). This makes the two callers run on the
-  # SAME marker support, so their calls are directly comparable. `binhmm` bins its
+  # (which requires read-covered markers anyway). This makes the two callers run on
+  # the SAME marker support, so their calls are directly comparable. `binhmm` bins its
   # own way and the `gt`/`alt_freq` inputs have no read counts to threshold, so
-  # they are exempt. `min_cov = 0L` restores decoding every input marker.
+  # they are exempt. `min_reads = 0L` restores decoding every input marker.
   if (has_counts && !identical(emission, "gt") && caller %in% c("nnil", "rtiger") &&
-      !is.null(min_cov) && min_cov > 0L) {
-    data <- data[data$n_ref + data$n_alt >= min_cov, , drop = FALSE]
+      !is.null(min_reads) && min_reads > 0L) {
+    data <- data[data$n_ref + data$n_alt >= min_reads, , drop = FALSE]
     if (!nrow(data))
-      stop("call_states(): no markers with coverage >= min_cov (", min_cov, ")")
+      stop("call_states(): no markers with >= min_reads reads (", min_reads, ")")
   }
 
   # RTIGER caller: its own EM/Viterbi (src/rtiger.cpp, R/rtiger.R) — a faithful
@@ -421,8 +421,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
               else stop("call_states(): supply `design` or both `f_1` and `f_2`")
     return(.binhmm_states(data, bin_size, cluster_method, priors,
                           source, donor, has_donor,
-                          joint_clust = joint_clust, obs_weights = obs_weights,
-                          min_cov = min_cov))
+                          joint_clust = joint_clust, obs_weights = obs_weights))
   }
 
   # LB-Impute caller (R/lbimpute.R, src/lbimpute.cpp): a native port of

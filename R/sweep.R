@@ -45,9 +45,9 @@
 #' @param threads Fan-out width (`parallel::mclapply` on unix; serial otherwise).
 #' @param ref Reference value for the shared fit (default `median(values)`,
 #'   rounded for rtiger). Unused for `lbimpute` (no shared fit).
-#' @param min_cov Covered-marker filter before decoding (default `1L`); `0L` keeps
-#'   all. **No-op for `lbimpute`**, which keeps zero-coverage markers (flat
-#'   emission) so the distance transition sees true marker spacing.
+#' @param min_reads Minimum read depth to keep a marker before decoding (default
+#'   `1L`); `0L` keeps all. **No-op for `lbimpute`**, which keeps zero-read markers
+#'   (flat emission) so the distance transition sees true marker spacing.
 #' @param err,conc,fit_means nnil count-emission parameters (fixed across the grid).
 #'   `err` is also LB-Impute's per-read error (`readerr`).
 #' @param seed,postprocess rtiger fit seed and border post-processing.
@@ -62,7 +62,7 @@
 caller_sweep <- function(data, caller = c("rtiger", "nnil", "lbimpute"), values,
                          refit = c("none", "cold"),
                          design = NULL, f_1 = NULL, f_2 = NULL, threads = 1L,
-                         ref = NULL, min_cov = 1L, err = 0.01, conc = 20,
+                         ref = NULL, min_reads = 1L, err = 0.01, conc = 20,
                          fit_means = FALSE, seed = 1L, postprocess = TRUE,
                          unit = c("bp", "cm"), genotypeerr = 0.05, drp = FALSE,
                          source = "nilHMM", donor = NA_character_) {
@@ -86,8 +86,8 @@ caller_sweep <- function(data, caller = c("rtiger", "nnil", "lbimpute"), values,
   # recombdist affects only the transition, never the emission, so each swept value
   # is identical to a cold call_ancestry(caller = "lbimpute", recombdist = v) -- no
   # refit approximation (the `refit` arg is inapplicable and ignored). Routed
-  # before the min_cov filter: lbimpute keeps zero-coverage markers (flat emission)
-  # so the distance transition sees true marker spacing (min_cov is a no-op here,
+  # before the min_reads filter: lbimpute keeps zero-read markers (flat emission)
+  # so the distance transition sees true marker spacing (min_reads is a no-op here,
   # matching call_states for lbimpute).
   if (caller == "lbimpute") {
     unit <- match.arg(unit)
@@ -95,9 +95,9 @@ caller_sweep <- function(data, caller = c("rtiger", "nnil", "lbimpute"), values,
                                   design, f_1, f_2, threads, source, donor, has_donor))
   }
 
-  if (!is.null(min_cov) && min_cov > 0L)
-    data <- data[data$n_ref + data$n_alt >= min_cov, , drop = FALSE]
-  if (!nrow(data)) stop("caller_sweep(): no markers with coverage >= min_cov")
+  if (!is.null(min_reads) && min_reads > 0L)
+    data <- data[data$n_ref + data$n_alt >= min_reads, , drop = FALSE]
+  if (!nrow(data)) stop("caller_sweep(): no markers with >= min_reads reads")
 
   # ---------------- rtiger: EM (once / warm / cold) + decode per rigidity -----
   if (caller == "rtiger") {
