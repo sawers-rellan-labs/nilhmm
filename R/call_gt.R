@@ -60,9 +60,6 @@
 #'   compute `gp[,,2]*1 + gp[,,3]*2`. `"post"`: the normalized genotype-posterior
 #'   (GP) array `markers x samples x 3` (`NA` rows at zero depth). "GP" is the VCF
 #'   FORMAT field for `P(G | reads)`; the hard `"call"` is its MAP (argmax-GP).
-#' @param ... Deprecated arguments. `prior = "breeding"` with `f = c(f_REF, f_HET,
-#'   f_ALT)` is a soft-deprecated shim for the old API; pass the vector directly as
-#'   `prior` instead.
 #' @return For `"call"`/`"dosage"`: a matrix `markers x samples` (a plain vector if
 #'   the inputs were vectors). For `"post"`: the genotype-posterior (GP) array,
 #'   `markers x samples x 3` (slices ordered REF/HET/ALT = dosage 0/1/2).
@@ -79,19 +76,8 @@
 call_gt <- function(n_ref, n_alt,
                     prior = "hwe",
                     af = NULL, error = 0.01,
-                    return = c("call", "dosage", "post"),
-                    ...) {
+                    return = c("call", "dosage", "post")) {
   return <- match.arg(return)
-
-  # Soft-deprecated shim for the old prior = "breeding" + f API: fold f into prior.
-  dots <- list(...)
-  if (is.character(prior) && length(prior) == 1L && prior == "breeding") {
-    if (is.null(dots$f))
-      stop("call_gt(): prior = 'breeding' needs `f` = c(f_REF, f_HET, f_ALT).")
-    .Deprecated(msg = paste0("call_gt(): prior = 'breeding' + `f` is deprecated; ",
-                             "pass the vector directly as `prior`."))
-    prior <- dots$f
-  }
 
   if (!is.numeric(error) || length(error) != 1L || error <= 0 || error >= 0.5)
     stop("call_gt(): `error` must be a single value in (0, 0.5).")
@@ -141,13 +127,6 @@ call_gt <- function(n_ref, n_alt,
   if (return == "dosage") storage.mode(call) <- "double"
   if (was_vec) call <- call[, 1L]
   call
-}
-
-#' @rdname call_gt
-#' @export
-call_gl <- function(...) {
-  .Deprecated("call_gt")
-  call_gt(...)
 }
 
 # Per-marker log-prior vectors (each length M) for the three genotypes. `prior` is
