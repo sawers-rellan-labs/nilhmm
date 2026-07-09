@@ -23,6 +23,7 @@ reference:
     desc: Fit parameters, decode the state path, and collapse to segments.
     contents:
       - fit
+      - fit_rtiger
       - decode
       - to_segments
 
