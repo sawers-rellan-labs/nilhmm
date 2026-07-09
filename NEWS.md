@@ -1,3 +1,27 @@
+# nilHMM 0.2.0
+
+## Genotype calling
+
+* `call_gt` replaces `call_gl` as the per-site genotype caller. The old name was
+  tied to the GL emission stage shared with every caller, not to what it does
+  (call a per-site genotype); `call_gl` remains as a soft-deprecated alias.
+* `call_gt(prior = )` is now polymorphic — `"flat"` (argmax-GL / ML), `"hwe"`
+  (+ `af`), or a fixed `c(f_REF, f_HET, f_ALT)` vector (renormalized, covering
+  both design and custom priors). The old `prior = "breeding"` + `f` API folds
+  into the numeric-vector path via a deprecation shim (still warns); the `f`
+  formal is removed.
+* `design_prior(design)` returns the design's single-locus frequencies as the
+  `c(f_REF, f_HET, f_ALT)` vector `call_gt()` consumes as its `prior`, so the
+  design prior is derived rather than typed
+  (e.g. `call_gt(n_ref, n_alt, prior = design_prior("BC2S3"))`).
+
+## Documentation
+
+* `R CMD check` is clean (Status OK): documented `call_states()`'s `rtiger_fit`
+  argument, fixed "Lost braces" in the `fsfhap_*` / `read_hapmap` man pages, and
+  re-attached the `.fsfhap_biparental_call` roxygen block (was landing on the
+  `.FSFHAP_BHF_WINDOW` constant).
+
 # nilHMM 0.1.0
 
 First development release: a unified R + Rcpp reimplementation of the nilHMM
@@ -47,13 +71,7 @@ populations.
 
 ## Genotype calling & downstream utilities
 
-* `call_gt` — a linkage-free per-site GATK-style genotype caller with a
-  polymorphic `prior` (`"flat"` / `"hwe"` + `af` / a fixed `c(f_REF, f_HET,
-  f_ALT)` vector, e.g. from `design_prior()`). Renamed from `call_gl` (kept as a
-  soft-deprecated alias); the old `prior = "breeding"` + `f` API folds into the
-  numeric-vector `prior` (deprecated shim, still warns).
-* `design_prior` — design frequencies as the `c(f_REF, f_HET, f_ALT)` vector
-  `call_gt()` consumes as its `prior`.
+* `call_gl` — a linkage-free per-site GATK-style genotype-likelihood caller.
 * `interpolate_genotype` — genotype densification onto a target marker grid.
 * `pairwise_distance` + `select_independent` — LD-based marker thinning
   (FastIndep port).
