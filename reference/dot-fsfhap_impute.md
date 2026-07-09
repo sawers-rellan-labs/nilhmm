@@ -19,7 +19,7 @@ A/het/C frame from
 
 - G:
 
-  Integer matrix, taxa x sites, parent-called `g` in 0,1,2,3.
+  Integer matrix, taxa x sites, parent-called `g` in `{0,1,2,3}`.
 
 - pos:
 

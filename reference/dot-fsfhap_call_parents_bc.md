@@ -27,8 +27,8 @@ result is the observation matrix the 5-state smoother consumes next.
 
 - G:
 
-  Integer matrix, taxa x sites, canonical `g` in 0,1,2,3; one family,
-  one chromosome, sites sorted by position.
+  Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`; one
+  family, one chromosome, sites sorted by position.
 
 - pos:
 

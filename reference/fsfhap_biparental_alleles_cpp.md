@@ -17,8 +17,8 @@ fsfhap_biparental_alleles_cpp(Gf)
 
 - Gf:
 
-  Integer matrix, taxa x sites, canonical `g` in 0,1,2,3; the ALREADY
-  preFiltered chromosome (see
+  Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`; the
+  ALREADY preFiltered chromosome (see
   [`fsfhap_prefilter_sites_cpp()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fsfhap_prefilter_sites_cpp.md)).
 
 ## Value

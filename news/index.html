@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,6 +39,31 @@
       <small>Source: <a href="https://github.com/sawers-rellan-labs/nilhmm/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.0" id="nilhmm-030">nilHMM 0.3.0<a class="anchor" aria-label="anchor" href="#nilhmm-030"></a></h2>
+<div class="section level3">
+<h3 id="genotype-calling--clean-break-breaking-0-3-0">Genotype calling — clean break (breaking)<a class="anchor" aria-label="anchor" href="#genotype-calling--clean-break-breaking-0-3-0"></a></h3>
+<ul><li>Removed the <code>call_gl</code> alias entirely. Use <code>call_gt</code>. (Consumers must migrate; there is no longer a soft-deprecated fallback.)</li>
+<li>Removed the <code>prior = "breeding"</code> + <code>f</code> deprecation shim and the <code>f</code> formal. <code>prior</code> now accepts only <code>"flat"</code>, <code>"hwe"</code> (+ <code>af</code>), or a length-3 numeric vector <code>c(f_REF, f_HET, f_ALT)</code>. Build design priors with <code><a href="../reference/design_prior.html">design_prior()</a></code>.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.2.0" id="nilhmm-020">nilHMM 0.2.0<a class="anchor" aria-label="anchor" href="#nilhmm-020"></a></h2>
+<div class="section level3">
+<h3 id="genotype-calling-0-2-0">Genotype calling<a class="anchor" aria-label="anchor" href="#genotype-calling-0-2-0"></a></h3>
+<ul><li>
+<code>call_gt</code> replaces <code>call_gl</code> as the per-site genotype caller. The old name was tied to the GL emission stage shared with every caller, not to what it does (call a per-site genotype); <code>call_gl</code> remains as a soft-deprecated alias.</li>
+<li>
+<code>call_gt(prior = )</code> is now polymorphic — <code>"flat"</code> (argmax-GL / ML), <code>"hwe"</code> (+ <code>af</code>), or a fixed <code>c(f_REF, f_HET, f_ALT)</code> vector (renormalized, covering both design and custom priors). The old <code>prior = "breeding"</code> + <code>f</code> API folds into the numeric-vector path via a deprecation shim (still warns); the <code>f</code> formal is removed.</li>
+<li>
+<code>design_prior(design)</code> returns the design’s single-locus frequencies as the <code>c(f_REF, f_HET, f_ALT)</code> vector <code><a href="../reference/call_gt.html">call_gt()</a></code> consumes as its <code>prior</code>, so the design prior is derived rather than typed (e.g. <code>call_gt(n_ref, n_alt, prior = design_prior("BC2S3"))</code>).</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-0-2-0">Documentation<a class="anchor" aria-label="anchor" href="#documentation-0-2-0"></a></h3>
+<ul><li>
+<code>R CMD check</code> is clean (Status OK): documented <code><a href="../reference/call_states.html">call_states()</a></code>’s <code>rtiger_fit</code> argument, fixed “Lost braces” in the <code>fsfhap_*</code> / <code>read_hapmap</code> man pages, and re-attached the <code>.fsfhap_biparental_call</code> roxygen block (was landing on the <code>.FSFHAP_BHF_WINDOW</code> constant).</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="nilhmm-010">nilHMM 0.1.0<a class="anchor" aria-label="anchor" href="#nilhmm-010"></a></h2>
 <p>First development release: a unified R + Rcpp reimplementation of the nilHMM ancestry-calling family for Near-Isogenic Lines and related backcross / full-sib populations.</p>

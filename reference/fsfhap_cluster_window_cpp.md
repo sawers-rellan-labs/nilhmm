@@ -1,12 +1,12 @@
 # FSFHap stage 2a: cluster a window of parent-called haplotypes
 
 Faithful port of `HaplotypeClusterer.makeClusters` + `HaplotypeCluster`
-consensus, on the parent-origin frame (`g` in 0 A-hom, 1 het, 2 C-hom, 3
-missing). Clusters group taxa whose window haplotypes are 0-distance
-(identical modulo missing); a haplotype 0-distance to members of several
-clusters joins all of them with fractional score `1/count`. Clusters are
-returned sorted by score (desc) then size (desc) —
-`HaplotypeCluster.compareTo`.
+consensus, on the parent-origin frame (`g` in
+`{0 A-hom, 1 het, 2 C-hom, 3 missing}`). Clusters group taxa whose
+window haplotypes are 0-distance (identical modulo missing); a haplotype
+0-distance to members of several clusters joins all of them with
+fractional score `1/count`. Clusters are returned sorted by score (desc)
+then size (desc) — `HaplotypeCluster.compareTo`.
 
 ## Usage
 
@@ -24,7 +24,7 @@ fsfhap_cluster_window_cpp(
 
 - Gw:
 
-  Integer matrix, taxa x window-sites, canonical `g` in 0,1,2,3.
+  Integer matrix, taxa x window-sites, canonical `g` in `{0,1,2,3}`.
 
 - maxdiff:
 

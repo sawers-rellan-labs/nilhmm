@@ -17,7 +17,7 @@ Data-agnostic: pass the observations in; this function never reads paths."></hea
 
     <a class="navbar-brand me-2" href="../index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -81,7 +81,8 @@ Data-agnostic: pass the observations in; this function never reads paths.</p>
 <span>  threads <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  postprocess <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  min_cov <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>  min_reads <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>  rtiger_fit <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  emission <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  bin_size <span class="op">=</span> <span class="fl">1e+06</span>,</span>
 <span>  cluster_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gauss"</span>, <span class="st">"gmm"</span>, <span class="st">"kmeans"</span>, <span class="st">"rebmix"</span><span class="op">)</span>,</span>
@@ -195,17 +196,23 @@ threads. <code>fsfhap</code>: family x chromosome units decoded in parallel
 <dd><p>RTIGER caller only: apply the border re-placement (default TRUE).</p></dd>
 
 
-<dt id="arg-min-cov">min_cov<a class="anchor" aria-label="anchor" href="#arg-min-cov"></a></dt>
-<dd><p>Drop no-coverage units before decoding (default <code>1L</code>; <code>0L</code> keeps
-everything, the old behaviour). "No coverage" is caller-specific but the
-intent is uniform — never make a confident call from no data, and keep all
-callers on the same support for comparability:</p><ul><li><p><code>nnil</code> (count) and <code>rtiger</code>: markers with <code>n_ref + n_alt &lt; min_cov</code>;</p></li>
-<li><p><code>nnil</code> gt path: missing genotypes (<code>g == 3</code>);</p></li>
-<li><p><code>binhmm</code>: bins with fewer than <code>min_cov</code> informative markers (<code>ninf</code>).
-Zero-coverage units carry no emission signal — they only slow decoding,
-marginally inflate <code>nnil</code> fragmentation, and dilute <code>rtiger</code>'s rigidity run.
-(The <code>atlas</code> caller has its own <code>atlas_min_reads</code> gate and is unaffected.)</p></li>
-</ul></dd>
+<dt id="arg-min-reads">min_reads<a class="anchor" aria-label="anchor" href="#arg-min-reads"></a></dt>
+<dd><p>Minimum read depth to keep a marker before decoding (default
+<code>1L</code>; <code>0L</code> keeps everything). Drops markers with <code>n_ref + n_alt &lt; min_reads</code>
+for the count callers (<code>nnil</code> count path and <code>rtiger</code>), and missing genotypes
+(<code>g == 3</code>) on the <code>nnil</code> gt path. The intent is uniform — never make a
+confident call from no data, and keep the count callers on the same support
+for comparability. Zero-read markers carry no emission signal — they only slow
+decoding, marginally inflate <code>nnil</code> fragmentation, and dilute <code>rtiger</code>'s
+rigidity run. <code>binhmm</code> is unaffected (it drops truly-empty bins internally; a
+future per-bin frequency gate would be a separate <code>min_freq</code>). (<code>atlas</code> has its
+own <code>atlas_min_reads</code> gate.)</p></dd>
+
+
+<dt id="arg-rtiger-fit">rtiger_fit<a class="anchor" aria-label="anchor" href="#arg-rtiger-fit"></a></dt>
+<dd><p><code>rtiger</code> caller only: a pre-computed RTIGER fit from
+<code><a href="fit_rtiger.html">fit_rtiger()</a></code>, reused across per-chromosome decodes to avoid re-fitting
+(low-memory decode-reuse path). <code>NULL</code> (default) fits once internally.</p></dd>
 
 
 <dt id="arg-emission">emission<a class="anchor" aria-label="anchor" href="#arg-emission"></a></dt>

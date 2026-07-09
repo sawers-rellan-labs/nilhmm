@@ -17,7 +17,7 @@ fsfhap_same_tag_keep_cpp(G, pos, major_is_ref, min_rsq)
 
 - G:
 
-  Integer matrix, taxa x sites, canonical `g` in 0,1,2,3.
+  Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`.
 
 - pos:
 

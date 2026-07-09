@@ -3,12 +3,11 @@
 Adapter for FSFHap's native input: a TASSEL **HapMap** (11 fixed columns
 `rs# alleles chrom pos strand assembly# center protLSID assayLSID panelLSID QCcode`
 then one column per taxon) into the canonical `(name, chr, pos, g)`
-table, `g` in `0`,`1`,`2`,`3` = allele0-hom / het / allele1-hom /
-missing, where allele0/allele1 are the two alleles from the per-site
-`alleles` field (e.g. `A/C`). Genotype cells may be single-character
-IUPAC (`A`/`C`/`M`/`N`) or two-character diploid (`AA`/`AC`/`CC`/`NN`).
-Feed to `call_ancestry(..., caller = "fsfhap"|"nnil")` (a `g`-only
-input).
+table, `g` in `{0,1,2,3}` = allele0-hom / het / allele1-hom / missing,
+where allele0/allele1 are the two alleles from the per-site `alleles`
+field (e.g. `A/C`). Genotype cells may be single-character IUPAC
+(`A`/`C`/`M`/`N`) or two-character diploid (`AA`/`AC`/`CC`/`NN`). Feed
+to `call_ancestry(..., caller = "fsfhap"|"nnil")` (a `g`-only input).
 
 ## Usage
 

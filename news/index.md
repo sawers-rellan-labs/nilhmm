@@ -1,5 +1,44 @@
 # Changelog
 
+## nilHMM 0.3.0
+
+### Genotype calling — clean break (breaking)
+
+- Removed the `call_gl` alias entirely. Use `call_gt`. (Consumers must
+  migrate; there is no longer a soft-deprecated fallback.)
+- Removed the `prior = "breeding"` + `f` deprecation shim and the `f`
+  formal. `prior` now accepts only `"flat"`, `"hwe"` (+ `af`), or a
+  length-3 numeric vector `c(f_REF, f_HET, f_ALT)`. Build design priors
+  with
+  [`design_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_prior.md).
+
+## nilHMM 0.2.0
+
+### Genotype calling
+
+- `call_gt` replaces `call_gl` as the per-site genotype caller. The old
+  name was tied to the GL emission stage shared with every caller, not
+  to what it does (call a per-site genotype); `call_gl` remains as a
+  soft-deprecated alias.
+- `call_gt(prior = )` is now polymorphic — `"flat"` (argmax-GL / ML),
+  `"hwe"` (+ `af`), or a fixed `c(f_REF, f_HET, f_ALT)` vector
+  (renormalized, covering both design and custom priors). The old
+  `prior = "breeding"` + `f` API folds into the numeric-vector path via
+  a deprecation shim (still warns); the `f` formal is removed.
+- `design_prior(design)` returns the design’s single-locus frequencies
+  as the `c(f_REF, f_HET, f_ALT)` vector
+  [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+  consumes as its `prior`, so the design prior is derived rather than
+  typed (e.g. `call_gt(n_ref, n_alt, prior = design_prior("BC2S3"))`).
+
+### Documentation
+
+- `R CMD check` is clean (Status OK): documented
+  [`call_states()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.md)’s
+  `rtiger_fit` argument, fixed “Lost braces” in the `fsfhap_*` /
+  `read_hapmap` man pages, and re-attached the `.fsfhap_biparental_call`
+  roxygen block (was landing on the `.FSFHAP_BHF_WINDOW` constant).
+
 ## nilHMM 0.1.0
 
 First development release: a unified R + Rcpp reimplementation of the

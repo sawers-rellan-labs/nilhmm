@@ -17,7 +17,7 @@ recurrent parent in a backcross → 0 REF, 1 HET, 2 ALT/donor).'></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,7 +80,7 @@ recurrent parent in a backcross → <code>0</code> REF, <code>1</code> HET, <cod
 
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>Long table with <code>name, chr, pos, g</code> (<code>g</code> in 0,1,2,3) and a
+<dd><p>Long table with <code>name, chr, pos, g</code> (<code>g</code> in <code>{0,1,2,3}</code>) and a
 <code>family</code> grouping column; optional <code>donor</code>.</p></dd>
 
 
@@ -116,7 +116,7 @@ stages 1+3 are untouched, so results are identical to <code>threads = 1L</code>.
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p><code>data.frame(source, donor, name, chr, pos, state)</code>, <code>state</code> in 0,1,2;
+    <p><code>data.frame(source, donor, name, chr, pos, state)</code>, <code>state</code> in <code>{0,1,2}</code>;
 uncalled markers (dropped by the filters, or still missing after gap-fill) are
 simply absent. Feed to <code><a href="to_segments.html">to_segments()</a></code>.</p>
     </div>

@@ -36,7 +36,8 @@ call_states(
   threads = 1L,
   seed = 1L,
   postprocess = TRUE,
-  min_cov = 1L,
+  min_reads = 1L,
+  rtiger_fit = NULL,
   emission = NULL,
   bin_size = 1e+06,
   cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
@@ -159,22 +160,26 @@ call_states(
 
   RTIGER caller only: apply the border re-placement (default TRUE).
 
-- min_cov:
+- min_reads:
 
-  Drop no-coverage units before decoding (default `1L`; `0L` keeps
-  everything, the old behaviour). "No coverage" is caller-specific but
-  the intent is uniform — never make a confident call from no data, and
-  keep all callers on the same support for comparability:
+  Minimum read depth to keep a marker before decoding (default `1L`;
+  `0L` keeps everything). Drops markers with `n_ref + n_alt < min_reads`
+  for the count callers (`nnil` count path and `rtiger`), and missing
+  genotypes (`g == 3`) on the `nnil` gt path. The intent is uniform —
+  never make a confident call from no data, and keep the count callers
+  on the same support for comparability. Zero-read markers carry no
+  emission signal — they only slow decoding, marginally inflate `nnil`
+  fragmentation, and dilute `rtiger`'s rigidity run. `binhmm` is
+  unaffected (it drops truly-empty bins internally; a future per-bin
+  frequency gate would be a separate `min_freq`). (`atlas` has its own
+  `atlas_min_reads` gate.)
 
-  - `nnil` (count) and `rtiger`: markers with `n_ref + n_alt < min_cov`;
+- rtiger_fit:
 
-  - `nnil` gt path: missing genotypes (`g == 3`);
-
-  - `binhmm`: bins with fewer than `min_cov` informative markers
-    (`ninf`). Zero-coverage units carry no emission signal — they only
-    slow decoding, marginally inflate `nnil` fragmentation, and dilute
-    `rtiger`'s rigidity run. (The `atlas` caller has its own
-    `atlas_min_reads` gate and is unaffected.)
+  `rtiger` caller only: a pre-computed RTIGER fit from
+  [`fit_rtiger()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fit_rtiger.md),
+  reused across per-chromosome decodes to avoid re-fitting (low-memory
+  decode-reuse path). `NULL` (default) fits once internally.
 
 - emission:
 

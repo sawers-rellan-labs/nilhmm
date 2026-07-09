@@ -14,15 +14,16 @@
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/build_marker_grid.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/calibrate_r.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.html</loc></url>
-<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/call_gl.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/caller_spec.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/caller_sweep.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/cm_to_mb.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/count_emission_loglik_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/decode.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/design_prior.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/design_priors.html</loc></url>
-<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/dot-FSFHAP_BHF_WINDOW.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/dot-fsfhap_biparental_call.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/dot-fsfhap_call_parents_bc.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/dot-fsfhap_impute.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/dot-fsfhap_phet.html</loc></url>
@@ -38,6 +39,7 @@
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/fast_indep_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/fit.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/fit_design_gamma.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/fit_rtiger.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/forward_backward_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/fsfhap_biparental_alleles_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/fsfhap_cluster_window_cpp.html</loc></url>

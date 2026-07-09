@@ -17,7 +17,7 @@ fsfhap_filter_snps_by_tag_cpp(G, pos, min_maf, max_missing, max_het)
 
 - G:
 
-  Integer matrix, taxa x sites, canonical `g` in 0,1,2,3; one
+  Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`; one
   chromosome, sites sorted by position.
 
 - pos:

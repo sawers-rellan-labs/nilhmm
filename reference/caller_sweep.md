@@ -18,7 +18,7 @@ caller_sweep(
   f_2 = NULL,
   threads = 1L,
   ref = NULL,
-  min_cov = 1L,
+  min_reads = 1L,
   err = 0.01,
   conc = 20,
   fit_means = FALSE,
@@ -81,11 +81,12 @@ caller_sweep(
   Reference value for the shared fit (default `median(values)`, rounded
   for rtiger). Unused for `lbimpute` (no shared fit).
 
-- min_cov:
+- min_reads:
 
-  Covered-marker filter before decoding (default `1L`); `0L` keeps all.
-  **No-op for `lbimpute`**, which keeps zero-coverage markers (flat
-  emission) so the distance transition sees true marker spacing.
+  Minimum read depth to keep a marker before decoding (default `1L`);
+  `0L` keeps all. **No-op for `lbimpute`**, which keeps zero-read
+  markers (flat emission) so the distance transition sees true marker
+  spacing.
 
 - err, conc, fit_means:
 

@@ -11,7 +11,7 @@ threads. refit controls the accuracy/speed trade (see details)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -62,7 +62,7 @@ when <code>fit_means = FALSE</code>) and sweep <code>values</code>, fanning the 
 <span>  f_2 <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  threads <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  ref <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  min_cov <span class="op">=</span> <span class="fl">1L</span>,</span>
+<span>  min_reads <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  err <span class="op">=</span> <span class="fl">0.01</span>,</span>
 <span>  conc <span class="op">=</span> <span class="fl">20</span>,</span>
 <span>  fit_means <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -122,10 +122,10 @@ For <code>lbimpute</code> these only seed the start distribution (flat if absent
 rounded for rtiger). Unused for <code>lbimpute</code> (no shared fit).</p></dd>
 
 
-<dt id="arg-min-cov">min_cov<a class="anchor" aria-label="anchor" href="#arg-min-cov"></a></dt>
-<dd><p>Covered-marker filter before decoding (default <code>1L</code>); <code>0L</code> keeps
-all. <strong>No-op for <code>lbimpute</code></strong>, which keeps zero-coverage markers (flat
-emission) so the distance transition sees true marker spacing.</p></dd>
+<dt id="arg-min-reads">min_reads<a class="anchor" aria-label="anchor" href="#arg-min-reads"></a></dt>
+<dd><p>Minimum read depth to keep a marker before decoding (default
+<code>1L</code>); <code>0L</code> keeps all. <strong>No-op for <code>lbimpute</code></strong>, which keeps zero-read markers
+(flat emission) so the distance transition sees true marker spacing.</p></dd>
 
 
 <dt id="arg-err-conc-fit-means">err, conc, fit_means<a class="anchor" aria-label="anchor" href="#arg-err-conc-fit-means"></a></dt>

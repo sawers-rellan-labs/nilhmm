@@ -16,9 +16,9 @@ fsfhap_impute_five_state_cpp(G, pos, phet, max_iter = 50L)
 
 - G:
 
-  Integer matrix, taxa x sites, parent-called `g` in 0 A-hom, 1 het, 2
-  C-hom, 3 missing (stage-1b output); one family, one chromosome,
-  sorted.
+  Integer matrix, taxa x sites, parent-called `g` in
+  `{0 A-hom, 1 het, 2 C-hom, 3 missing}` (stage-1b output); one family,
+  one chromosome, sorted.
 
 - pos:
 

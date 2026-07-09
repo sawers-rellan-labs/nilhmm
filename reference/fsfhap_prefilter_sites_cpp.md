@@ -27,7 +27,7 @@ fsfhap_prefilter_sites_cpp(
 
 - G:
 
-  Integer matrix, taxa x sites, canonical `g` in 0,1,2,3; one
+  Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`; one
   chromosome.
 
 - pos:

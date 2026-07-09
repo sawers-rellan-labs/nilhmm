@@ -19,6 +19,9 @@ Fit parameters, decode the state path, and collapse to segments.
 
 - [`fit()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fit.md)
   : Fit HMM emission/transition parameters
+- [`fit_rtiger()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fit_rtiger.md)
+  : Fit the RTIGER emission once (to reuse across per-chromosome
+  decodes)
 - [`decode()`](https://sawers-rellan-labs.github.io/nilhmm/reference/decode.md)
   : Decode the most-likely state path (Viterbi)
 - [`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md)
@@ -75,9 +78,8 @@ writers.
 A linkage-free genotype caller and helpers for the QTL-mapping pipeline
 (genotype densification, LD-based marker thinning).
 
-- [`call_gl()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gl.md)
-  : Per-site genotype-likelihood (GL) genotype caller with a swappable
-  prior
+- [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+  : Per-site genotype caller with a swappable prior
 - [`interpolate_genotype()`](https://sawers-rellan-labs.github.io/nilhmm/reference/interpolate_genotype.md)
   : Interpolate genotypes onto a target marker grid (Tian 2011 / Chen
   2019)
@@ -95,6 +97,9 @@ Breeding-design priors, the fragment-size Null, and r calibration.
 
 - [`design_priors()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_priors.md)
   : Single-locus genotype-frequency priors for a breeding design
+
+- [`design_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_prior.md)
+  : Design prior as a length-3 genotype-frequency vector
 
 - [`calibrate_r()`](https://sawers-rellan-labs.github.io/nilhmm/reference/calibrate_r.md)
   :

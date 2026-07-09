@@ -33,8 +33,8 @@ stage 3), and emits per-marker states in the common REF/HET/ALT frame
 
 - data:
 
-  Long table with `name, chr, pos, g` (`g` in 0,1,2,3) and a `family`
-  grouping column; optional `donor`.
+  Long table with `name, chr, pos, g` (`g` in `{0,1,2,3}`) and a
+  `family` grouping column; optional `donor`.
 
 - phet:
 
@@ -71,7 +71,7 @@ stage 3), and emits per-marker states in the common REF/HET/ALT frame
 
 ## Value
 
-`data.frame(source, donor, name, chr, pos, state)`, `state` in 0,1,2;
-uncalled markers (dropped by the filters, or still missing after
-gap-fill) are simply absent. Feed to
+`data.frame(source, donor, name, chr, pos, state)`, `state` in
+`{0,1,2}`; uncalled markers (dropped by the filters, or still missing
+after gap-fill) are simply absent. Feed to
 [`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md).
