@@ -1,6 +1,6 @@
 Package: nilHMM
 Title: Duration-Aware HMM Ancestry Caller for NIL Sequencing Data
-Version: 0.1.0
+Version: 0.2.0
 Authors@R:
     person("Fausto", "Rodriguez Zapata", role = c("aut", "cre"),
            email = "thegemmalab@ncsu.edu")
