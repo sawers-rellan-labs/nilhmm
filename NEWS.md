@@ -47,7 +47,13 @@ populations.
 
 ## Genotype calling & downstream utilities
 
-* `call_gl` — a linkage-free per-site GATK-style genotype-likelihood caller.
+* `call_gt` — a linkage-free per-site GATK-style genotype caller with a
+  polymorphic `prior` (`"flat"` / `"hwe"` + `af` / a fixed `c(f_REF, f_HET,
+  f_ALT)` vector, e.g. from `design_prior()`). Renamed from `call_gl` (kept as a
+  soft-deprecated alias); the old `prior = "breeding"` + `f` API folds into the
+  numeric-vector `prior` (deprecated shim, still warns).
+* `design_prior` — design frequencies as the `c(f_REF, f_HET, f_ALT)` vector
+  `call_gt()` consumes as its `prior`.
 * `interpolate_genotype` — genotype densification onto a target marker grid.
 * `pairwise_distance` + `select_independent` — LD-based marker thinning
   (FastIndep port).

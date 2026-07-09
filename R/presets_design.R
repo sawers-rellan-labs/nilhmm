@@ -31,6 +31,24 @@ design_priors <- function(design) {
   tab[[design]]
 }
 
+#' Design prior as a length-3 genotype-frequency vector
+#'
+#' Thin accessor over [design_priors()] that returns the single-locus genotype
+#' frequencies as the `c(f_REF, f_HET, f_ALT)` vector consumed directly by
+#' [call_gt()] as its `prior`. Keeps the design prior **derived, never typed**.
+#'
+#' @param design Design key (e.g. `"BC2S2"`, `"BC2S3"`), as for [design_priors()].
+#' @return Named numeric length-3 vector `c(REF, HET, ALT)` summing to 1.
+#' @examples
+#' design_prior("BC2S3")                          # c(REF = .8594, HET = .0312, ALT = .1094)
+#' call_gt(0, 1, prior = design_prior("BC2S3"))   # design prior resists the het flip -> 2
+#' @seealso [design_priors()], [call_gt()]
+#' @export
+design_prior <- function(design) {
+  d <- design_priors(design)
+  c(REF = 1 - d$f_1 - d$f_2, HET = d$f_1, ALT = d$f_2)
+}
+
 #' Expected fragment-size distribution (the Null / KS target)
 #'
 #' Returns the fitted Gamma `(k, lambda)` for a design plus density/CDF

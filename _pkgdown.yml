@@ -56,7 +56,7 @@ reference:
       A linkage-free genotype caller and helpers for the QTL-mapping pipeline
       (genotype densification, LD-based marker thinning).
     contents:
-      - call_gl
+      - call_gt
       - interpolate_genotype
       - pairwise_distance
       - select_independent
@@ -66,6 +66,7 @@ reference:
     desc: Breeding-design priors, the fragment-size Null, and r calibration.
     contents:
       - design_priors
+      - design_prior
       - calibrate_r
       - expected_fragment_dist
       - fit_design_gamma

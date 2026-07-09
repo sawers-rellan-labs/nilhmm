@@ -24,7 +24,8 @@ call_states(
   threads = 1L,
   seed = 1L,
   postprocess = TRUE,
-  min_cov = 1L,
+  min_reads = 1L,
+  rtiger_fit = NULL,
   emission = NULL,
   bin_size = 1e+06,
   cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
@@ -102,18 +103,16 @@ threads. \code{fsfhap}: family x chromosome units decoded in parallel
 
 \item{postprocess}{RTIGER caller only: apply the border re-placement (default TRUE).}
 
-\item{min_cov}{Drop no-coverage units before decoding (default \code{1L}; \code{0L} keeps
-everything, the old behaviour). "No coverage" is caller-specific but the
-intent is uniform — never make a confident call from no data, and keep all
-callers on the same support for comparability:
-\itemize{
-\item \code{nnil} (count) and \code{rtiger}: markers with \code{n_ref + n_alt < min_cov};
-\item \code{nnil} gt path: missing genotypes (\code{g == 3});
-\item \code{binhmm}: bins with fewer than \code{min_cov} informative markers (\code{ninf}).
-Zero-coverage units carry no emission signal — they only slow decoding,
-marginally inflate \code{nnil} fragmentation, and dilute \code{rtiger}'s rigidity run.
-(The \code{atlas} caller has its own \code{atlas_min_reads} gate and is unaffected.)
-}}
+\item{min_reads}{Minimum read depth to keep a marker before decoding (default
+\code{1L}; \code{0L} keeps everything). Drops markers with \code{n_ref + n_alt < min_reads}
+for the count callers (\code{nnil} count path and \code{rtiger}), and missing genotypes
+(\code{g == 3}) on the \code{nnil} gt path. The intent is uniform — never make a
+confident call from no data, and keep the count callers on the same support
+for comparability. Zero-read markers carry no emission signal — they only slow
+decoding, marginally inflate \code{nnil} fragmentation, and dilute \code{rtiger}'s
+rigidity run. \code{binhmm} is unaffected (it drops truly-empty bins internally; a
+future per-bin frequency gate would be a separate \code{min_freq}). (\code{atlas} has its
+own \code{atlas_min_reads} gate.)}
 
 \item{emission}{Optional emission override (\code{"count"}, \code{"gt"}) for the \code{nnil}
 caller; \code{NULL} uses the caller's default.}

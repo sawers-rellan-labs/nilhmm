@@ -42,9 +42,9 @@ test_that("brb slice carries donor (non-REF) signal to exercise HET/ALT", {
 
 # Strict regression: the R count caller (fixed means) must be bit-identical to the
 # frozen Python calls on chr1. The Python baseline decoded EVERY panel marker,
-# including zero-coverage ones, so reproduction requires min_cov = 0L (the
+# including zero-coverage ones, so reproduction requires min_reads = 0L (the
 # documented "decode every marker / old behaviour" flag); the live default of
-# min_cov = 1L drops no-coverage markers and shifts segment borders on purpose
+# min_reads = 1L drops no-read markers and shifts segment borders on purpose
 # (commit "min_cov: uniform no-coverage filtering across all callers"). Both skim
 # and BRB used fixed emission means, so both reproduce exactly. (fit_means=TRUE,
 # the §10 fix for BRB's ALT collapse, is a deliberate FUTURE divergence and is
@@ -55,7 +55,7 @@ reproduces <- function(src, sample, donor, design, r) {
   raw <- read_golden_counts(golden_slice_path(src, "counts", paste0(sample, ".chr1.tsv")))
   counts <- data.frame(name = sample, chr = as.integer(sub("^chr", "", raw$chr)),
                        pos = raw$pos, n_ref = raw$n_ref, n_alt = raw$n_alt, donor = donor)
-  got <- call_ancestry(counts, caller = "nnil", design = design, rrate = r, min_cov = 0L)
+  got <- call_ancestry(counts, caller = "nnil", design = design, rrate = r, min_reads = 0L)
   exp <- read_golden_expected(golden_slice_path(src, "expected_calls_chr1.csv"))
   exp <- exp[exp$name == sample, ]
   expect_equal(got[, seg_cols], exp[, seg_cols], ignore_attr = TRUE, info = paste(src, sample))
