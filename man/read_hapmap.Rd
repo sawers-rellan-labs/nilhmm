@@ -17,7 +17,7 @@ A long observation table: \verb{name, chr, pos, g}.
 \description{
 Adapter for FSFHap's native input: a TASSEL \strong{HapMap} (11 fixed columns
 \code{rs# alleles chrom pos strand assembly# center protLSID assayLSID panelLSID QCcode} then one column per taxon) into the canonical \verb{(name, chr, pos, g)}
-table, \code{g} in {\code{0},\code{1},\code{2},\code{3}} = allele0-hom / het / allele1-hom / missing,
+table, \code{g} in \verb{\{0,1,2,3\}} = allele0-hom / het / allele1-hom / missing,
 where allele0/allele1 are the two alleles from the per-site \code{alleles} field
 (e.g. \code{A/C}). Genotype cells may be single-character IUPAC (\code{A}/\code{C}/\code{M}/\code{N})
 or two-character diploid (\code{AA}/\code{AC}/\code{CC}/\code{NN}). Feed to

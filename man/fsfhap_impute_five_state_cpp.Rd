@@ -7,8 +7,8 @@
 fsfhap_impute_five_state_cpp(G, pos, phet, max_iter = 50L)
 }
 \arguments{
-\item{G}{Integer matrix, taxa x sites, parent-called \code{g} in {0 A-hom, 1 het,
-2 C-hom, 3 missing} (stage-1b output); one family, one chromosome, sorted.}
+\item{G}{Integer matrix, taxa x sites, parent-called \code{g} in
+\verb{\{0 A-hom, 1 het, 2 C-hom, 3 missing\}} (stage-1b output); one family, one chromosome, sorted.}
 
 \item{pos}{Integer marker positions (bp), length = ncol(G).}
 

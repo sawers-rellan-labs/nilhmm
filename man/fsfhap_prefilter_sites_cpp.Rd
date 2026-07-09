@@ -14,7 +14,7 @@ fsfhap_prefilter_sites_cpp(
 )
 }
 \arguments{
-\item{G}{Integer matrix, taxa x sites, canonical \code{g} in {0,1,2,3}; one chromosome.}
+\item{G}{Integer matrix, taxa x sites, canonical \code{g} in \verb{\{0,1,2,3\}}; one chromosome.}
 
 \item{pos}{Integer marker positions (bp), length = ncol(G).}
 

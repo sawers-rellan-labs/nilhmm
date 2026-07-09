@@ -7,7 +7,7 @@
 fsfhap_same_tag_keep_cpp(G, pos, major_is_ref, min_rsq)
 }
 \arguments{
-\item{G}{Integer matrix, taxa x sites, canonical \code{g} in {0,1,2,3}.}
+\item{G}{Integer matrix, taxa x sites, canonical \code{g} in \verb{\{0,1,2,3\}}.}
 
 \item{pos}{Integer marker positions (bp), length = ncol(G), sorted ascending.}
 

@@ -82,7 +82,7 @@ fsfhap_segregating_sites_cpp <- function(G, max_missing, ratio) {
 #' call** (positions only; the chromosome-equality guard is implicit), markers
 #' sorted by position.
 #'
-#' @param G Integer matrix, taxa x sites, canonical `g` in {0,1,2,3}.
+#' @param G Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`.
 #' @param pos Integer marker positions (bp), length = ncol(G), sorted ascending.
 #' @param major_is_ref Logical, length = ncol(G): TRUE if REF is the major
 #'   allele at that site (so allele presence is defined per the site's own
@@ -97,13 +97,13 @@ fsfhap_same_tag_keep_cpp <- function(G, pos, major_is_ref, min_rsq) {
 #' FSFHap stage 2a: cluster a window of parent-called haplotypes
 #'
 #' Faithful port of `HaplotypeClusterer.makeClusters` + `HaplotypeCluster`
-#' consensus, on the parent-origin frame (`g` in {0 A-hom, 1 het, 2 C-hom,
-#' 3 missing}). Clusters group taxa whose window haplotypes are 0-distance
+#' consensus, on the parent-origin frame (`g` in `{0 A-hom, 1 het, 2 C-hom, 3 missing}`).
+#' Clusters group taxa whose window haplotypes are 0-distance
 #' (identical modulo missing); a haplotype 0-distance to members of several
 #' clusters joins all of them with fractional score `1/count`. Clusters are
 #' returned sorted by score (desc) then size (desc) — `HaplotypeCluster.compareTo`.
 #'
-#' @param Gw Integer matrix, taxa x window-sites, canonical `g` in {0,1,2,3}.
+#' @param Gw Integer matrix, taxa x window-sites, canonical `g` in `{0,1,2,3}`.
 #' @param maxdiff Distance threshold for `merge`/`move_biggest` (TASSEL
 #'   `maxDifferenceScore`, 0 on the BC/finder path).
 #' @param merge Apply `mergeClusters(maxdiff)` after `makeClusters`
@@ -127,8 +127,8 @@ fsfhap_cluster_window_cpp <- function(Gw, maxdiff = 0L, merge = FALSE, move_bigg
 #' parent calls with a distance-scaled transition, EM re-estimating emission +
 #' transition from state-count matrices until the emission-count matrix stabilizes.
 #'
-#' @param G Integer matrix, taxa x sites, parent-called `g` in {0 A-hom, 1 het,
-#'   2 C-hom, 3 missing} (stage-1b output); one family, one chromosome, sorted.
+#' @param G Integer matrix, taxa x sites, parent-called `g` in
+#'   `{0 A-hom, 1 het, 2 C-hom, 3 missing}` (stage-1b output); one family, one chromosome, sorted.
 #' @param pos Integer marker positions (bp), length = ncol(G).
 #' @param phet Design-derived expected heterozygosity (`(1-F)/2`); sets the
 #'   initial state distribution `{phom, .25 phet, .5 phet, .25 phet, phom}`.
@@ -161,7 +161,7 @@ fsfhap_fill_gaps_cpp <- function(G) {
 #' AND passes the gates; the head advances to each kept site. Faithful to TASSEL's
 #' `filterSnpsByTag(a, minMaf, maxMissing, maxHet)`.
 #'
-#' @param G Integer matrix, taxa x sites, canonical `g` in {0,1,2,3}; one
+#' @param G Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`; one
 #'   chromosome, sites sorted by position.
 #' @param pos Integer marker positions (bp), length = ncol(G).
 #' @param min_maf,max_missing,max_het Per-site gates (minor-allele freq,
@@ -183,7 +183,7 @@ fsfhap_filter_snps_by_tag_cpp <- function(G, pos, min_maf, max_missing, max_het)
 #' (hets→missing, `calc_rsqr`) is `< minR2` (NaN pairs skipped; all-NaN average is
 #' not a rejection, matching TASSEL's `NaN < minR2` = false).
 #'
-#' @param G Integer matrix, taxa x sites, canonical `g` in {0,1,2,3}; one chromosome.
+#' @param G Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`; one chromosome.
 #' @param pos Integer marker positions (bp), length = ncol(G).
 #' @param min_maf,min_coverage,max_het_deviation,min_r2 TASSEL fields
 #'   (0.05 / 0.2 / 5 / 0.2).
@@ -202,7 +202,7 @@ fsfhap_prefilter_sites_cpp <- function(G, pos, min_maf, min_coverage, max_het_de
 #' matching each window's candidate haplotypes to the running parents and writing
 #' the non-overlap alleles.
 #'
-#' @param Gf Integer matrix, taxa x sites, canonical `g` in {0,1,2,3}; the
+#' @param Gf Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`; the
 #'   ALREADY preFiltered chromosome (see [fsfhap_prefilter_sites_cpp()]).
 #' @return List: `alleleA`, `alleleC` (length ncol(Gf); g-frame `0`=REF-hom /
 #'   `2`=ALT-hom / `3`=NN) parent-of-origin alleles per site; `seeded` (logical).

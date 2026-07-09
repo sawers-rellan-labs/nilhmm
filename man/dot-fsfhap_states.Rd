@@ -18,7 +18,7 @@
 )
 }
 \arguments{
-\item{data}{Long table with \verb{name, chr, pos, g} (\code{g} in {0,1,2,3}) and a
+\item{data}{Long table with \verb{name, chr, pos, g} (\code{g} in \verb{\{0,1,2,3\}}) and a
 \code{family} grouping column; optional \code{donor}.}
 
 \item{phet}{Design-derived expected heterozygosity (\code{\link[=.fsfhap_phet]{.fsfhap_phet()}}).}
@@ -40,7 +40,7 @@ This is FSFHap's coarse-grained parallelism — the single-threaded per-unit
 stages 1+3 are untouched, so results are identical to \code{threads = 1L}.}
 }
 \value{
-\code{data.frame(source, donor, name, chr, pos, state)}, \code{state} in {0,1,2};
+\code{data.frame(source, donor, name, chr, pos, state)}, \code{state} in \verb{\{0,1,2\}};
 uncalled markers (dropped by the filters, or still missing after gap-fill) are
 simply absent. Feed to \code{\link[=to_segments]{to_segments()}}.
 }

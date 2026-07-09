@@ -7,7 +7,7 @@
 .fsfhap_impute(G, pos, phet, max_iter = 50L, fill_gaps = TRUE)
 }
 \arguments{
-\item{G}{Integer matrix, taxa x sites, parent-called \code{g} in {0,1,2,3}.}
+\item{G}{Integer matrix, taxa x sites, parent-called \code{g} in \verb{\{0,1,2,3\}}.}
 
 \item{pos}{Integer marker positions (bp), length = ncol(G).}
 

@@ -221,6 +221,9 @@ decode <- function(model, obs) {
 #'   `parallel` for the batched count path).
 #' @param seed RTIGER caller only: the seed for its randomized init.
 #' @param postprocess RTIGER caller only: apply the border re-placement (default TRUE).
+#' @param rtiger_fit `rtiger` caller only: a pre-computed RTIGER fit from
+#'   [fit_rtiger()], reused across per-chromosome decodes to avoid re-fitting
+#'   (low-memory decode-reuse path). `NULL` (default) fits once internally.
 #' @param min_reads Minimum read depth to keep a marker before decoding (default
 #'   `1L`; `0L` keeps everything). Drops markers with `n_ref + n_alt < min_reads`
 #'   for the count callers (`nnil` count path and `rtiger`), and missing genotypes
