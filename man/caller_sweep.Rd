@@ -14,7 +14,7 @@ caller_sweep(
   f_2 = NULL,
   threads = 1L,
   ref = NULL,
-  min_cov = 1L,
+  min_reads = 1L,
   err = 0.01,
   conc = 20,
   fit_means = FALSE,
@@ -56,9 +56,9 @@ For \code{lbimpute} these only seed the start distribution (flat if absent).}
 \item{ref}{Reference value for the shared fit (default \code{median(values)},
 rounded for rtiger). Unused for \code{lbimpute} (no shared fit).}
 
-\item{min_cov}{Covered-marker filter before decoding (default \code{1L}); \code{0L} keeps
-all. \strong{No-op for \code{lbimpute}}, which keeps zero-coverage markers (flat
-emission) so the distance transition sees true marker spacing.}
+\item{min_reads}{Minimum read depth to keep a marker before decoding (default
+\code{1L}); \code{0L} keeps all. \strong{No-op for \code{lbimpute}}, which keeps zero-read markers
+(flat emission) so the distance transition sees true marker spacing.}
 
 \item{err, conc, fit_means}{nnil count-emission parameters (fixed across the grid).
 \code{err} is also LB-Impute's per-read error (\code{readerr}).}
