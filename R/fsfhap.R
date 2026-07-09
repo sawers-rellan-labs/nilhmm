@@ -59,7 +59,7 @@
 #' major allele. The result is the observation matrix the 5-state smoother
 #' consumes next.
 #'
-#' @param G Integer matrix, taxa x sites, canonical `g` in {0,1,2,3}; one family,
+#' @param G Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`; one family,
 #'   one chromosome, sites sorted by position.
 #' @param pos Integer marker positions (bp), length = ncol(G).
 #' @param max_missing Max missing proportion for the segregating-site test
@@ -119,7 +119,7 @@
 #' [fsfhap_fill_gaps_cpp()] (`fillGapsInAlignment`) if `fill_gaps`. Runs on the
 #' parent-called A/het/C frame from [.fsfhap_call_parents_bc()].
 #'
-#' @param G Integer matrix, taxa x sites, parent-called `g` in {0,1,2,3}.
+#' @param G Integer matrix, taxa x sites, parent-called `g` in `{0,1,2,3}`.
 #' @param pos Integer marker positions (bp), length = ncol(G).
 #' @param phet Expected heterozygosity. **Design-derived, no default** — the
 #'   caller supplies `(1 - F)/2` from the pedigree inbreeding coefficient
@@ -155,6 +155,10 @@
   if (length(F) == 1 && !is.na(F) && F >= 0 && F <= 1) (1 - F) / 2 else default
 }
 
+# seed window used by fsfhap_biparental_alleles_cpp (C++ BHF_WINDOW); the finder
+# cannot seed on fewer preFiltered sites than one window.
+.FSFHAP_BHF_WINDOW <- 100L
+
 #' FSFHap stage 2b: BiparentalHaplotypeFinder parent-calling (non-BC1 route)
 #'
 #' The non-backcross route: [fsfhap_prefilter_sites_cpp()] → reconstruct two
@@ -163,7 +167,7 @@
 #' coverage filter. Returns the same shape as [.fsfhap_call_parents_bc()] so the
 #' shared stage-3 imputation can consume it.
 #'
-#' @param G Integer matrix, taxa x sites, canonical `g` in {0,1,2,3}; one family,
+#' @param G Integer matrix, taxa x sites, canonical `g` in `{0,1,2,3}`; one family,
 #'   one chromosome, sites sorted.
 #' @param pos Integer marker positions (bp), length = ncol(G).
 #' @param min_maf,min_coverage,max_het_deviation,min_r2 preFilterSites knobs
@@ -172,10 +176,6 @@
 #' @return List `G` (recoded, kept taxa x kept sites), `keep_sites`, `keep_taxa`,
 #'   `pos`; empty if preFilterSites leaves too few sites or no seed is found.
 #' @keywords internal
-# seed window used by fsfhap_biparental_alleles_cpp (C++ BHF_WINDOW); the finder
-# cannot seed on fewer preFiltered sites than one window.
-.FSFHAP_BHF_WINDOW <- 100L
-
 .fsfhap_biparental_call <- function(G, pos, min_maf = 0.05, min_coverage = 0.2,
                                     max_het_deviation = 5, min_r2 = 0.2, min_gametes = 200L) {
   if (!is.matrix(G)) stop(".fsfhap_biparental_call(): G must be a taxa x sites matrix")
@@ -218,7 +218,7 @@
 #' emits per-marker states in the common REF/HET/ALT frame (major allele = the
 #' recurrent parent in a backcross → `0` REF, `1` HET, `2` ALT/donor).
 #'
-#' @param data Long table with `name, chr, pos, g` (`g` in {0,1,2,3}) and a
+#' @param data Long table with `name, chr, pos, g` (`g` in `{0,1,2,3}`) and a
 #'   `family` grouping column; optional `donor`.
 #' @param phet Design-derived expected heterozygosity ([.fsfhap_phet()]).
 #' @param source,donor Output `source`/`donor` labels (donor per-`name` if
@@ -232,7 +232,7 @@
 #'   cleanly onto [parallel::mclapply()] (unix only; serial [lapply()] elsewhere).
 #'   This is FSFHap's coarse-grained parallelism — the single-threaded per-unit
 #'   stages 1+3 are untouched, so results are identical to `threads = 1L`.
-#' @return `data.frame(source, donor, name, chr, pos, state)`, `state` in {0,1,2};
+#' @return `data.frame(source, donor, name, chr, pos, state)`, `state` in `{0,1,2}`;
 #'   uncalled markers (dropped by the filters, or still missing after gap-fill) are
 #'   simply absent. Feed to [to_segments()].
 #' @keywords internal

@@ -13,7 +13,7 @@ fsfhap_cluster_window_cpp(
 )
 }
 \arguments{
-\item{Gw}{Integer matrix, taxa x window-sites, canonical \code{g} in {0,1,2,3}.}
+\item{Gw}{Integer matrix, taxa x window-sites, canonical \code{g} in \verb{\{0,1,2,3\}}.}
 
 \item{maxdiff}{Distance threshold for \code{merge}/\code{move_biggest} (TASSEL
 \code{maxDifferenceScore}, 0 on the BC/finder path).}
@@ -34,8 +34,8 @@ they diverge only after merges.
 }
 \description{
 Faithful port of \code{HaplotypeClusterer.makeClusters} + \code{HaplotypeCluster}
-consensus, on the parent-origin frame (\code{g} in {0 A-hom, 1 het, 2 C-hom,
-3 missing}). Clusters group taxa whose window haplotypes are 0-distance
+consensus, on the parent-origin frame (\code{g} in \verb{\{0 A-hom, 1 het, 2 C-hom, 3 missing\}}).
+Clusters group taxa whose window haplotypes are 0-distance
 (identical modulo missing); a haplotype 0-distance to members of several
 clusters joins all of them with fractional score \code{1/count}. Clusters are
 returned sorted by score (desc) then size (desc) — \code{HaplotypeCluster.compareTo}.

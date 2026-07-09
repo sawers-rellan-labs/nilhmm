@@ -114,6 +114,10 @@ rigidity run. \code{binhmm} is unaffected (it drops truly-empty bins internally;
 future per-bin frequency gate would be a separate \code{min_freq}). (\code{atlas} has its
 own \code{atlas_min_reads} gate.)}
 
+\item{rtiger_fit}{\code{rtiger} caller only: a pre-computed RTIGER fit from
+\code{\link[=fit_rtiger]{fit_rtiger()}}, reused across per-chromosome decodes to avoid re-fitting
+(low-memory decode-reuse path). \code{NULL} (default) fits once internally.}
+
 \item{emission}{Optional emission override (\code{"count"}, \code{"gt"}) for the \code{nnil}
 caller; \code{NULL} uses the caller's default.}
 

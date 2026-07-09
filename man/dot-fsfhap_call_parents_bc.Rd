@@ -14,7 +14,7 @@
 )
 }
 \arguments{
-\item{G}{Integer matrix, taxa x sites, canonical \code{g} in {0,1,2,3}; one family,
+\item{G}{Integer matrix, taxa x sites, canonical \code{g} in \verb{\{0,1,2,3\}}; one family,
 one chromosome, sites sorted by position.}
 
 \item{pos}{Integer marker positions (bp), length = ncol(G).}

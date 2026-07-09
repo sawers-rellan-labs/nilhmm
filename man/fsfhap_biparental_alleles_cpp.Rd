@@ -7,7 +7,7 @@
 fsfhap_biparental_alleles_cpp(Gf)
 }
 \arguments{
-\item{Gf}{Integer matrix, taxa x sites, canonical \code{g} in {0,1,2,3}; the
+\item{Gf}{Integer matrix, taxa x sites, canonical \code{g} in \verb{\{0,1,2,3\}}; the
 ALREADY preFiltered chromosome (see \code{\link[=fsfhap_prefilter_sites_cpp]{fsfhap_prefilter_sites_cpp()}}).}
 }
 \value{
