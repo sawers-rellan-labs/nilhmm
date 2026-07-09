@@ -2,7 +2,6 @@
 % Please edit documentation in R/call_gt.R
 \name{call_gt}
 \alias{call_gt}
-\alias{call_gl}
 \title{Per-site genotype caller with a swappable prior}
 \usage{
 call_gt(
@@ -11,11 +10,8 @@ call_gt(
   prior = "hwe",
   af = NULL,
   error = 0.01,
-  return = c("call", "dosage", "post"),
-  ...
+  return = c("call", "dosage", "post")
 )
-
-call_gl(...)
 }
 \arguments{
 \item{n_ref, n_alt}{Reference / alternate read counts. Integer (or numeric)
@@ -37,9 +33,6 @@ numeric vector \code{c(f_REF, f_HET, f_ALT)} (fixed genome-wide, renormalized).}
 compute \code{gp[,,2]*1 + gp[,,3]*2}. \code{"post"}: the normalized genotype-posterior
 (GP) array \verb{markers x samples x 3} (\code{NA} rows at zero depth). "GP" is the VCF
 FORMAT field for \code{P(G | reads)}; the hard \code{"call"} is its MAP (argmax-GP).}
-
-\item{...}{Deprecated arguments. \code{prior = "breeding"} with \code{f = c(f_REF, f_HET, f_ALT)} is a soft-deprecated shim for the old API; pass the vector directly as
-\code{prior} instead.}
 }
 \value{
 For \code{"call"}/\code{"dosage"}: a matrix \verb{markers x samples} (a plain vector if

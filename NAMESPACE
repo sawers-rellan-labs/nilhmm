@@ -3,7 +3,6 @@
 export(build_marker_grid)
 export(calibrate_r)
 export(call_ancestry)
-export(call_gl)
 export(call_gt)
 export(call_states)
 export(caller_spec)

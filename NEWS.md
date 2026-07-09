@@ -1,3 +1,13 @@
+# nilHMM 0.3.0
+
+## Genotype calling — clean break (breaking)
+
+* Removed the `call_gl` alias entirely. Use `call_gt`. (Consumers must migrate;
+  there is no longer a soft-deprecated fallback.)
+* Removed the `prior = "breeding"` + `f` deprecation shim and the `f` formal.
+  `prior` now accepts only `"flat"`, `"hwe"` (+ `af`), or a length-3 numeric
+  vector `c(f_REF, f_HET, f_ALT)`. Build design priors with `design_prior()`.
+
 # nilHMM 0.2.0
 
 ## Genotype calling

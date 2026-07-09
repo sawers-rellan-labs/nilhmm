@@ -100,17 +100,11 @@ test_that("return = 'post' gives normalized posteriors summing to 1; NA at zero 
   expect_equal(unname(d), c(1, 0))   # (0 ref,1 alt)->HET=1 ; (1 ref,0 alt)->REF=0
 })
 
-test_that("deprecated shims still work but warn", {
-  # prior = 'breeding' + f is folded into the numeric-vector path.
-  expect_warning(x <- call_gt(0, 10, prior = "breeding", f = c(0.98, 0.01, 0.01)),
-                 "deprecated")
-  expect_equal(x, 2L)
-  expect_equal(suppressWarnings(call_gt(0, 1, prior = "breeding", f = c(0.98, 0.01, 0.01))),
-               call_gt(0, 1, prior = c(0.98, 0.01, 0.01)))
-  # 'breeding' without f is a clear error, not a silent flat prior.
-  expect_error(suppressWarnings(call_gt(0, 1, prior = "breeding")), "breeding")
-
-  # the call_gl() name is a soft-deprecated alias for call_gt().
-  expect_warning(y <- call_gl(0, 1, prior = "flat"), "call_gt")
-  expect_equal(y, 2L)
+test_that("removed shims are gone (clean break)", {
+  # the old prior = "breeding" + `f` API is removed: `f` is no longer an argument,
+  # and "breeding" is not a recognized prior keyword (only "flat"/"hwe"/vector).
+  expect_error(call_gt(0, 1, prior = "breeding", f = c(0.98, 0.01, 0.01)))
+  expect_error(call_gt(0, 1, prior = "breeding"))
+  # the call_gl() alias has been removed entirely.
+  expect_false(exists("call_gl", where = asNamespace("nilHMM"), inherits = FALSE))
 })
