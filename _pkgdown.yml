@@ -16,6 +16,7 @@ reference:
     contents:
       - call_ancestry
       - call_states
+      - refine_ancestry
       - caller_spec
       - caller_sweep
 
@@ -79,6 +80,7 @@ reference:
       the marker grid used to sample it.
     contents:
       - simulate_nil
+      - simulate_family
       - simulate_counts
       - load_map
       - build_marker_grid
