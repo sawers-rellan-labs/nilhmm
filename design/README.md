@@ -17,6 +17,10 @@ the roxygen help (`?call_ancestry`), and the pkgdown site.
   results.
 - **BRB_run_findings.md** — the 3′ RNA-seq (BrB) run: reference-bias / ALT-collapse
   findings that motivated EM-fit emission means.
+- **PEDIGREE_HMM.md** — pedigree-aware ancestry *refinement* (`refine_ancestry`):
+  structured loopy BP over the pedigree × genome grid that couples relatives to
+  correct per-individual `call_states()` calls; design decisions, C++ BP kernel,
+  and the R/C++ boundary.
 - **package_structure.md** — package organization and design decisions.
 - **Zv_RTIGER_divergence.md** — the Zv (parviglumis) low-divergence identifiability
   investigation.

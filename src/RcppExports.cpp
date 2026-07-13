@@ -232,6 +232,28 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// pedigree_bp_cpp
+List pedigree_bp_cpp(int M, IntegerVector parent, IntegerVector meioses, LogicalVector hasData, List emit, NumericMatrix rho, NumericMatrix pimat, NumericVector r, int root, int maxIters, double tol, double lambda);
+RcppExport SEXP _nilHMM_pedigree_bp_cpp(SEXP MSEXP, SEXP parentSEXP, SEXP meiosesSEXP, SEXP hasDataSEXP, SEXP emitSEXP, SEXP rhoSEXP, SEXP pimatSEXP, SEXP rSEXP, SEXP rootSEXP, SEXP maxItersSEXP, SEXP tolSEXP, SEXP lambdaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type M(MSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type parent(parentSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type meioses(meiosesSEXP);
+    Rcpp::traits::input_parameter< LogicalVector >::type hasData(hasDataSEXP);
+    Rcpp::traits::input_parameter< List >::type emit(emitSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type rho(rhoSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type pimat(pimatSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type r(rSEXP);
+    Rcpp::traits::input_parameter< int >::type root(rootSEXP);
+    Rcpp::traits::input_parameter< int >::type maxIters(maxItersSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    rcpp_result_gen = Rcpp::wrap(pedigree_bp_cpp(M, parent, meioses, hasData, emit, rho, pimat, r, root, maxIters, tol, lambda));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rtiger_getlogpsi_cpp
 NumericMatrix rtiger_getlogpsi_cpp(IntegerVector k, IntegerVector n, NumericVector a, NumericVector b);
 RcppExport SEXP _nilHMM_rtiger_getlogpsi_cpp(SEXP kSEXP, SEXP nSEXP, SEXP aSEXP, SEXP bSEXP) {
@@ -452,6 +474,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_lb_viterbi_cpp", (DL_FUNC) &_nilHMM_lb_viterbi_cpp, 5},
     {"_nilHMM_lb_viterbi_sweep_cpp", (DL_FUNC) &_nilHMM_lb_viterbi_sweep_cpp, 5},
     {"_nilHMM_pairwise_distance_cpp", (DL_FUNC) &_nilHMM_pairwise_distance_cpp, 3},
+    {"_nilHMM_pedigree_bp_cpp", (DL_FUNC) &_nilHMM_pedigree_bp_cpp, 12},
     {"_nilHMM_rtiger_getlogpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_getlogpsi_cpp, 4},
     {"_nilHMM_rtiger_productpsi_cpp", (DL_FUNC) &_nilHMM_rtiger_productpsi_cpp, 2},
     {"_nilHMM_rtiger_forward_cpp", (DL_FUNC) &_nilHMM_rtiger_forward_cpp, 5},
