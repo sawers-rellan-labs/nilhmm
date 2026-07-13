@@ -252,6 +252,9 @@ simulate_family <- function(design = "BC2S3", families = 10L, sibs = 10L,
                             prefix = "fam") {
   if (!requireNamespace("simcross", quietly = TRUE))
     stop("simulate_family() needs the 'simcross' package (kbroman/simcross)")
+  posint <- function(x) length(x) == 1L && is.finite(x) && x >= 1 && x == as.integer(x)
+  if (!posint(families)) stop("simulate_family(): `families` must be a positive integer")
+  if (!posint(sibs))     stop("simulate_family(): `sibs` must be a positive integer")
   if (!is.null(seed)) set.seed(seed)
   if (is.null(map)) map <- load_map()
   map <- as.data.frame(map, stringsAsFactors = FALSE)

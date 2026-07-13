@@ -24,13 +24,16 @@
   as.integer(mm[2])
 }
 
-# per-interval recombination fraction from genetic (cm, Haldane) or physical (rrate*bp) gaps
+# per-interval recombination fraction: Haldane on genetic distance where both
+# flanking cm are finite, else the physical rrate*bp fallback for that gap.
 .interval_r <- function(pos, cm = NULL, rrate = 0.01) {
-  if (!is.null(cm) && !all(is.na(cm))) {
-    d <- pmax(0, diff(cm)) / 100                     # Morgans
-    return(pmin(0.5, 0.5 * (1 - exp(-2 * d))))       # Haldane
-  }
-  pmin(0.5, rrate * pmax(0, diff(as.numeric(pos))))
+  phys <- pmin(0.5, rrate * pmax(0, diff(as.numeric(pos))))
+  if (is.null(cm) || all(is.na(cm))) return(phys)
+  d   <- pmax(0, diff(cm)) / 100                     # Morgans
+  gen <- pmin(0.5, 0.5 * (1 - exp(-2 * d)))          # Haldane
+  ok  <- is.finite(gen)
+  phys[ok] <- gen[ok]
+  phys
 }
 
 #' Refine per-individual ancestry calls over a pedigree
@@ -100,13 +103,15 @@ refine_ancestry <- function(mosaic, pedigree, design = "BC2S3",
            length(root), ")")
     # meioses = founder count + depth from root along parent links
     depth <- integer(length(taxa))
-    repeat {
+    for (iter in seq_len(length(taxa) + 1L)) {       # bounded: a valid tree converges in <= depth passes
       upd <- FALSE
       for (v in seq_along(taxa)) if (pidx[v] >= 0L) {
         nd <- depth[pidx[v] + 1L] + 1L
         if (nd != depth[v]) { depth[v] <- nd; upd <- TRUE }
       }
       if (!upd) break
+      if (iter == length(taxa) + 1L)
+        stop("refine_ancestry(): family '", fam, "' pedigree contains a cycle")
     }
     meioses <- fmfounder + depth
     hasData <- taxa %in% mo$name
@@ -146,6 +151,7 @@ refine_ancestry <- function(mosaic, pedigree, design = "BC2S3",
     }
   }
   refined <- do.call(rbind, out_parts)
+  if (is.null(refined)) return(mo[0, , drop = FALSE])   # no family produced output
   # restore original row order of the genotyped rows
   key_in  <- paste(mo$name, mo$chr, mo$pos)
   key_out <- paste(refined$name, refined$chr, refined$pos)

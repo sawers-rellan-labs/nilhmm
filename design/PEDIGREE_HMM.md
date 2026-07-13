@@ -108,7 +108,8 @@ independent per-haplotype chains sharing `B` force a *panmictic* stationary
 *regardless of generation*. For BC2S3 that over-weights het ~7× at every interior
 marker (0.219 vs. ~0.031). Independent haplotypes structurally cannot represent
 selfing-induced homozygosity; that needs correlated haplotypes (the copy-switch
-kernel, §18). So `B ⊗ B` is replaced by relax-to-`π_t`.
+kernel, §18). So `B ⊗ B` is replaced by relax-to-`π` (with `π` per the correction
+below).
 
 **CORRECTION (from the implementation + §16 validation).** An earlier draft set
 the stationary to the node's *own* generation marginal `π_t` at **every** node, to
@@ -210,8 +211,9 @@ inline double rEff(double r_interval, int meioses) {
 }
 
 // Relax-to-stationary dosage transition. Stationary == pi EXACTLY for any pi
-// (row-stochastic: (1-r) + r*sum(pi) = 1; pi*A = pi). `pi` is the node's
-// generation-aware genotype marginal from design_priors() (see sec 4).
+// (row-stochastic: (1-r) + r*sum(pi) = 1; pi*A = pi). `pi` is pi_0 for the
+// founder and UNIFORM for non-root nodes (sec 3/4); genotype frequencies flow in
+// via Tsib transmission, not the chain.
 inline std::array<std::array<double,K>,K>
 makeA(double r_interval, int meioses, const Col& pi) {
     double r = rEff(r_interval, meioses);
@@ -237,8 +239,8 @@ struct Node {
     bool hasData = false;
 
     Mat  emit;                   // M x K from emission_gt() over hard states (depth-blind); empty if !hasData
-    Col  rho;                    // marker-0 prior      = pi_t (this node's generation) [sec 4]
-    Col  pi;                     // generation stationary = pi_t; the transition relaxes to it [sec 3,4]
+    Col  rho;                    // marker-0 prior: pi_0 (root) / uniform (non-root) [sec 4]
+    Col  pi;                     // chain stationary: pi_0 (root) / uniform (non-root) [sec 3,4]
 
     Mat              upMsg;      // v -> parent      (parent states)
     std::vector<Mat> downMsg;    // v -> each child  (child states)
@@ -564,7 +566,7 @@ everything data-specific.
   refined <- refine_ancestry(
     mosaic,                       # call_states() per-marker table above
     pedigree = "pop.ped",         # path (dispatched via read_pedigree) OR a read_pedigree() df
-    design   = "BC2S3",           # -> per-node pi_t (rho/pi) + meioses via design_priors()
+    design   = "BC2S3",           # -> founder prior pi_0 + meioses via design_priors()
     err      = 0.02,              # emission_gt() call-error rate (see caveat below)
     rrate    = 0.01,              # recomb rate applied to pos deltas (or map = <cM> instead)
     maxiter  = 30, tol = 1e-4, lambda = 0.5
@@ -594,22 +596,23 @@ everything data-specific.
     `hasData=false`). `meioses` derives from generation depth + design backcross
     count; the FSFHap `F` column, when present, pins the founder het fraction
     directly (`phet = (1 - F)/2`).
-  - `design` feeds `design_priors()` for each node's `rho`/`pi` (the generation
-    marginal `π_t`, §4) and `meioses`.
+  - `design` feeds `design_priors()` for the founder prior `π_0` (`q = f_2 +
+    f_1/2`, §4) and per-node `meioses`; non-root `rho`/`pi` are uniform (§3).
   - The `caller_spec` table stays unchanged; `refine_ancestry` reuses the
     engine's per-interval `r` and adds only the pedigree-BP layer.
-- **Generation-aware stationary (het-inflation fix, now in v1)**: each node's
-  chain relaxes toward its own generation marginal `π_t` (§3, §4), not a shared
-  panmictic stationary, so deep low-coverage leaves are pulled toward the correct
-  high-homozygosity distribution instead of Hardy–Weinberg. Residual het-inflation
-  risk is now limited to the relax-to-`π_t` double-recomb permissiveness (§3
-  tradeoff) and the cavity leakage (§9); validation (§16) should still stratify
-  het accuracy by depth and selfing depth to confirm.
+- **Heterozygote inflation (handled by founder prior + transmission, §3)**: the
+  generation marginals `π_t` emerge from propagating `π_0` through `Tsib`, so the
+  chain need not (and must not) re-inject them; non-root chains are
+  marginal-neutral. The §16 run confirms refine *reduces* the HET false-call
+  rate. Residual risk is the relax-to-`π` double-recomb permissiveness (§3
+  tradeoff) and cavity leakage (§9); validation (§16) stratifies het accuracy by
+  depth and selfing depth.
 
 ## 18. Deferred to v2
 
-**Priority order** (from the design review): (1) generation-aware genotype
-priors/stationary — *done in v1* (§3, §4); (2) depth-aware pedigree emission;
+**Priority order** (from the design review): (1) generation-aware priors —
+*done in v1* via the founder prior `π_0` + transmission (§3 correction, §4);
+(2) depth-aware pedigree emission;
 (3) phased copy-switch transmission; (4) more-exact cavity inference. Improve the
 biological model (2, 3) before the inference approximation (4).
 

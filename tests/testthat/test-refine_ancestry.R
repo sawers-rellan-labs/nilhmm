@@ -14,8 +14,9 @@ test_that("pedigree_bp_cpp couples relatives: an informed leaf pulls an uninform
   A <- res[[2]][1, ]; B <- res[[3]][1, ]
   expect_equal(which.max(A), 3L)                 # informed leaf -> ALT
   # founder cannot be D/D (pi0[3]==0), so a D/D child forces founder HET, and the
-  # uninformative sib is pulled off its flat prior toward het/alt (P(REF) < 0.5)
-  expect_lt(B[1], 0.5)
+  # uninformative sib is pulled off its flat prior toward het/alt (P(REF) below
+  # the uninformed 1/3 baseline)
+  expect_lt(B[1], 1 / 3 - 0.02)
   expect_true(all(is.finite(unlist(res))))
 })
 
