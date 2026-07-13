@@ -61,6 +61,7 @@
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/paint_calls.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/pairwise_distance.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/pairwise_distance_cpp.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/pedigree_bp_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/plot_fragment_sizes.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/position_distance.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/read_counts.html</loc></url>
@@ -68,6 +69,7 @@
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/read_pedigree.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/read_plink.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/read_vcf_gt.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/refine_ancestry.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/rle_segments_batch_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/rle_segments_cpp.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/rtiger_backward_cpp.html</loc></url>
@@ -82,6 +84,7 @@
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/select_emission.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/select_independent.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_counts.html</loc></url>
+<url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_family.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_nil.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.html</loc></url>
 <url><loc>https://sawers-rellan-labs.github.io/nilhmm/reference/viterbi_batch_cpp.html</loc></url>

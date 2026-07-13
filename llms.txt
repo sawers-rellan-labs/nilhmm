@@ -206,6 +206,8 @@ The top-level API, the named-caller registry, and parameter sweeps.
   : Top-level ancestry-calling API (decode + segment)
 - [`call_states()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.md)
   : Coordinate-free ancestry decode (per-observation states)
+- [`refine_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/refine_ancestry.md)
+  : Refine per-individual ancestry calls over a pedigree
 - [`caller_spec()`](https://sawers-rellan-labs.github.io/nilhmm/reference/caller_spec.md)
   : Resolve a named caller into emission + duration specs
 - [`caller_sweep()`](https://sawers-rellan-labs.github.io/nilhmm/reference/caller_sweep.md)
@@ -320,6 +322,9 @@ and the marker grid used to sample it.
 
 - [`simulate_nil()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_nil.md)
   : Simulate the true donor mosaic of a cross via simcross
+- [`simulate_family()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_family.md)
+  : Simulate a tracked forest of BCnSm sibling families (shared
+  ancestry)
 - [`simulate_counts()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_counts.md)
   : Degrade simulated truth to observed allelic read counts
 - [`load_map()`](https://sawers-rellan-labs.github.io/nilhmm/reference/load_map.md)
