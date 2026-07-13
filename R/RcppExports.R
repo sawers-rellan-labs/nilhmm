@@ -328,6 +328,31 @@ pairwise_distance_cpp <- function(geno, method, base) {
     .Call(`_nilHMM_pairwise_distance_cpp`, geno, method, base)
 }
 
+#' Loopy belief propagation over one family's pedigree x genome grid
+#'
+#' Data-agnostic BP kernel for [refine_ancestry()]; processes ONE (family,
+#' chromosome). Node fields are pre-built in R. See design/PEDIGREE_HMM.md.
+#'
+#' @param M Number of markers (chromosome length).
+#' @param parent 0-based parent index per node (`-1` for the root).
+#' @param meioses Per-node accumulated meiosis count (transition block length).
+#' @param hasData Per-node logical; `TRUE` for genotyped leaves.
+#' @param emit Length-V list; for a `hasData` node an `M x 3` emission matrix
+#'   (P(obs | state)), otherwise ignored (latent nodes emit 1).
+#' @param rho V x 3 marker-0 prior per node.
+#' @param pimat V x 3 generation stationary per node (transition relaxes to it).
+#' @param r Length `M-1` per-interval recombination fraction (base; meiosis
+#'   compounding is applied per node).
+#' @param root 0-based index of the family root (founder).
+#' @param maxIters,tol,lambda Message-passing iterations, convergence tolerance,
+#'   damping.
+#' @return Length-V list of `M x 3` posterior belief matrices; attribute `iters`
+#'   records sweeps run.
+#' @keywords internal
+pedigree_bp_cpp <- function(M, parent, meioses, hasData, emit, rho, pimat, r, root, maxIters, tol, lambda) {
+    .Call(`_nilHMM_pedigree_bp_cpp`, M, parent, meioses, hasData, emit, rho, pimat, r, root, maxIters, tol, lambda)
+}
+
 #' RTIGER emission log-probabilities (getlogpsi)
 #'
 #' logpsi(i,t) = logpdf(BetaBinomial(n_t, a_i, b_i), k_t). Memoized over distinct

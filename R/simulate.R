@@ -213,3 +213,102 @@ simulate_counts <- function(truth, depth = 1, error = 0.01, p_missing = 0, seed 
     n_alt = as.integer(ifelse(present, alt, 0L)),
     g = as.integer(g), stringsAsFactors = FALSE)
 }
+
+#' Simulate a tracked forest of BC{n}S{m} sibling families (shared ancestry)
+#'
+#' Unlike [simulate_nil()] (independent lines with no relatives), this draws ONE
+#' \pkg{simcross} meiosis per family and reads off `sibs` terminal siblings from
+#' that single draw, so the sibs genuinely share the IBD blocks inherited through
+#' the (latent, ungenotyped) founder -> selfing chain. This is the ground-truth
+#' generator for validating a pedigree-aware refinement ([refine_ancestry()]):
+#' the coupling refine exploits only exists when relatives share ancestry.
+#'
+#' Returns both the per-marker `truth` for the genotyped sibs (a [simulate_nil()]
+#' table, so it feeds [simulate_counts()] / [to_segments()]) and a
+#' [read_pedigree()]-shaped `pedigree`: one row per taxon, with the founder and
+#' the intermediate selfing nodes present as **parent-only latent rows** (no
+#' genotype), the sibs as leaves. Family `f` is a star: founder `g0` -> `g1` ->
+#' ... -> `g{m-1}` -> `sibs` leaves; families are independent (independent founders).
+#'
+#' @param design "BC{n}S{m}" (default "BC2S3"); needs >= 1 selfing generation.
+#' @param families Number of independent families (independent founders).
+#' @param sibs Genotyped siblings per family (they share the founder + chain).
+#' @param map,n_markers,chr,m,p,seed,donor As in [simulate_nil()].
+#' @param prefix Family-id prefix for taxon/family names (default "fam").
+#' @return `list(truth = <per-marker table: source, donor, name, family, chr,
+#'   pos, cm, state>, pedigree = <data.frame taxon, family, parent1, parent2>)`.
+#' @seealso [simulate_nil()], [simulate_counts()], [read_pedigree()], [refine_ancestry()].
+#' @examples
+#' if (requireNamespace("simcross", quietly = TRUE)) {
+#'   fam <- simulate_family("BC2S3", families = 2, sibs = 3, chr = 1,
+#'                          n_markers = 100, seed = 1)
+#'   head(fam$pedigree)
+#'   table(fam$truth$name)
+#' }
+#' @export
+simulate_family <- function(design = "BC2S3", families = 10L, sibs = 10L,
+                            map = NULL, n_markers = 1000L, chr = NULL,
+                            m = 10L, p = 0, seed = NULL, donor = "B",
+                            prefix = "fam") {
+  if (!requireNamespace("simcross", quietly = TRUE))
+    stop("simulate_family() needs the 'simcross' package (kbroman/simcross)")
+  if (!is.null(seed)) set.seed(seed)
+  if (is.null(map)) map <- load_map()
+  map <- as.data.frame(map, stringsAsFactors = FALSE)
+  if (!all(c("chr", "cm", "bp") %in% names(map)))
+    stop("simulate_family(): `map` needs columns chr, cm, bp")
+  if (!is.null(chr)) map <- map[map$chr %in% chr, , drop = FALSE]
+  if (!nrow(map)) stop("simulate_family(): no markers left after the `chr` subset")
+  pd <- .parse_bcsft(design)
+  if (pd$n_self < 1L)
+    stop("simulate_family(): `design` needs >= 1 selfing generation (got ", design, ")")
+  grid <- build_marker_grid(map, n_markers)
+  chrs <- sort(unique(grid$chr))
+  L <- vapply(chrs, function(ch) max(map$cm[map$chr == ch]), numeric(1))
+
+  # simcross pedigree for ONE family: 1 = RP, 2 = donor, F1, then n_bc backcrosses
+  # to the recurrent -> founder (selfing depth 0); then (n_self - 1) SINGLE selfings
+  # (the latent chain g1..g{n_self-1}); then `sibs` terminal sibs off the last node.
+  id <- c(1L, 2L); mom <- c(0L, 0L); dad <- c(0L, 0L)
+  addn <- function(mm, dd) { i <- length(id) + 1L; id[i] <<- i; mom[i] <<- mm; dad[i] <<- dd; i }
+  cur <- addn(1L, 2L)                                  # F1
+  for (k in seq_len(pd$n_bc)) cur <- addn(1L, cur)     # BCk = recurrent x prev
+  for (j in seq_len(pd$n_self - 1L)) cur <- addn(cur, cur)  # single selfings g1..g{m-1}
+  sib_ids <- vapply(seq_len(sibs), function(s) addn(cur, cur), integer(1))  # terminal sibs
+  ped_sc <- data.frame(id = id, mom = mom, dad = dad,
+                       sex = ifelse(id %in% mom[mom > 0L], 0L, 1L), gen = 0L)
+
+  truth_rows <- vector("list", families * sibs); ti <- 0L
+  ped_rows <- vector("list", families)
+  for (f in seq_len(families)) {
+    fam    <- sprintf("%s%02d", prefix, f)
+    g_lab  <- sprintf("%s_g%d", fam, seq_len(pd$n_self) - 1L)  # depth 0 (founder) .. n_self-1
+    sib_lab<- sprintf("%s_L%02d", fam, seq_len(sibs))
+    n_lat  <- length(g_lab)
+    ped_rows[[f]] <- data.frame(
+      taxon   = c(g_lab, sib_lab), family = fam,
+      parent1 = c(NA_character_, g_lab[-n_lat], rep(g_lab[n_lat], sibs)),
+      parent2 = c(NA_character_, g_lab[-n_lat], rep(g_lab[n_lat], sibs)),
+      stringsAsFactors = FALSE)
+
+    sim <- simcross::sim_from_pedigree(ped_sc, L = L, m = m, p = p)  # one draw / family
+    hap_of <- if (length(L) == 1L) function(ci, iid) sim[[as.character(iid)]]
+              else                 function(ci, iid) sim[[ci]][[as.character(iid)]]
+    for (s in seq_len(sibs)) {
+      dose <- integer(nrow(grid))
+      for (ci in seq_along(chrs)) {
+        rows <- which(grid$chr == chrs[ci]); if (!length(rows)) next
+        hap <- hap_of(ci, sib_ids[s]); cm <- grid$cm[rows]
+        dose[rows] <- (.hap_allele_at(hap$mat, cm) == 2L) + (.hap_allele_at(hap$pat, cm) == 2L)
+      }
+      ti <- ti + 1L
+      truth_rows[[ti]] <- data.frame(
+        source = "sim", donor = donor, name = sib_lab[s], family = fam,
+        chr = as.integer(grid$chr), pos = as.integer(grid$pos), cm = grid$cm,
+        state = as.integer(dose), stringsAsFactors = FALSE)
+    }
+  }
+  truth <- do.call(rbind, truth_rows)
+  list(truth    = truth[order(truth$name, truth$chr, truth$pos), , drop = FALSE],
+       pedigree = do.call(rbind, ped_rows))
+}

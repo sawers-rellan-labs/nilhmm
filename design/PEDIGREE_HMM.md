@@ -83,17 +83,15 @@ baseline, dropped linkage is the first suspect and the phased copy-switch kernel
 ## 3. Chromosome transition (the ONLY change to the HMM engine)
 
 The spatial (along-chromosome) transition must do two things: (a) create blocks —
-adjacent markers usually share ancestry — and (b) have a **stationary
-distribution equal to the node's generation-appropriate genotype marginal `π_t`**
-(§4), so that between informative markers the chain smooths toward the *right*
-genotype frequencies. A relax-to-stationary transition does both:
+adjacent markers usually share ancestry — and (b) relax toward a stationary that
+does **not** re-inject a genotype-frequency prior already carried by the
+transmission messages. A relax-to-stationary transition does both:
 
-    A[x][y] = (1 - r_eff) * δ_xy  +  r_eff * π_t[y]
+    A[x][y] = (1 - r_eff) * δ_xy  +  r_eff * π[y]
 
-- **Stationary = `π_t` exactly** (`π_t A = π_t`) for any `π_t`. This is what
-  cures heterozygote inflation: an inbred BC2S3 node relaxes toward high
-  homozygosity, not Hardy–Weinberg. `π_t` is per node (depends on selfing depth)
-  and design-derived (§4).
+- **Stationary = `π` exactly** (`π A = π`) for any `π`. **Which `π`?** — see the
+  correction below. The founder uses `π = π_0`; **non-root nodes use `π = uniform`**
+  (marginal-neutral smoothing).
 - `r_eff` is the **meiosis-compounded** recombination fraction (block-length
   control), the probability of an odd number of crossovers over `meioses`
   meioses:
@@ -112,8 +110,28 @@ marker (0.219 vs. ~0.031). Independent haplotypes structurally cannot represent
 selfing-induced homozygosity; that needs correlated haplotypes (the copy-switch
 kernel, §18). So `B ⊗ B` is replaced by relax-to-`π_t`.
 
-**Tradeoff** (state in methods): relax-to-`π_t` permits a direct 0→2 step at rate
-`r_eff·π_t(2)`, i.e. it does **not** suppress double recombination the way
+**CORRECTION (from the implementation + §16 validation).** An earlier draft set
+the stationary to the node's *own* generation marginal `π_t` at **every** node, to
+"cure heterozygote inflation." That **double-counts**: applying `Tsib` to `π_0`
+already yields `π_1`, `π_2`, ... , so the transmission messages propagate the
+generation marginal downward on their own. Injecting `π_t` *again* as each node's
+chain stationary multiplies the prior against the transmission message and
+**over-suppresses conditionally-correct heterozygosity** (a selfing child of a
+HET parent is genuinely 50% het at that locus; `π_t` wrongly pulls it toward the
+3% population marginal). The smoke test confirmed the skew, and the fix restored
+the correct `(0.25,0.5,0.25)` behavior. So:
+
+- **Founder (root)**: `rho = π_0`, chain stationary `π = π_0` (its only prior; §4).
+- **Non-root nodes**: `rho = uniform`, chain stationary `π = uniform`
+  (marginal-neutral). Genotype frequencies flow in through `Tsib` transmission,
+  not the chain. This is what [refine_ancestry()] implements.
+
+Heterozygote inflation is then handled correctly by the founder prior +
+transmission (not a per-node stationary), and is further checked by sibling
+consensus. The §16 run bears this out: refine *reduces* the HET false-call rate.
+
+**Tradeoff** (state in methods): relax-to-`π` permits a direct 0→2 step at rate
+`r_eff·π(2)`, i.e. it does **not** suppress double recombination the way
 `B ⊗ B` did (which required both haplotypes to flip). At the tiny per-interval
 `r_eff` of 20k SNPs this is negligible; the phased kernel (§18) recovers exact
 double-recomb suppression **and** the inbred stationary together.
@@ -129,31 +147,28 @@ the C++. This keeps the design assumptions in one auditable place
   kernel as a pedigree; the kernel never inspects names. Families are fully
   separable → process (and parallelize) independently.
 - **Root** of each tree = the founder (NOT the donor).
-- **Generation-aware genotype marginal `π_t`** (the key object). With donor
-  *genome* fraction `q = 2^-(n_bc + 1)` (BC2 → `q = 1/8`; selfing preserves the
-  mean) and residual heterozygosity `H_t = H_0 · (1/2)^t` decaying over selfing
-  depth `t` from the founder het `H_0 = 2q` (at BC2 one whole haplotype is fixed
-  RP, so all donor content is heterozygous → `H_0 = 1/4`):
+- **Founder prior `π_0`** (the only genotype-frequency prior in the model; §3
+  correction). With donor *genome* fraction `q = f_2 + f_1/2` derived from
+  `design_priors()` (BC2S3 → `q = 0.1094 + 0.0312/2 = 0.125`; selfing preserves
+  the mean), the founder is heterozygous for all its donor content (at BC2 one
+  whole haplotype is fixed RP), so founder het `H_0 = 2q` and
 
-      π_t = { 1 - q - H_t/2 ,   H_t ,   q - H_t/2 }        # (P0, P1, P2)
+      π_0 = { 1 - 2q ,   2q ,   0 }        # (P0, P1, P2); BC2 → {0.75, 0.25, 0}
 
-  `design_priors()` returns this per node from `(n_bc, t)`; no literals in C++.
-  - `t = 0` (founder) → `{1-2q, 2q, 0}` = `{0.75, 0.25, 0}` (D/D absent, all
-    donor content het). This unifies the founder prior as the `t=0` case; do
-    **not** hard-code `{0.875, 0.125, 0}` (that conflates genome fraction with
-    het).
-  - `t = 3` (BC2S3 leaf) → `≈{0.859, 0.031, 0.109}`.
-- **Per-node stationary** `nd.pi = π_{t(node)}` is passed to the transition (§3,
-  §6) — this is what fixes interior-marker het inflation. **`meioses`** per node
-  = meioses accumulated to the founder (state the count + derivation — backcross
-  generations plus the F1 cross — not "~3"); +1 per descending selfing edge.
+  Do **not** hard-code `{0.875, 0.125, 0}` (that conflates genome fraction with
+  het). The deeper `π_t` marginals (`≈{0.859,0.031,0.109}` for a BC2S3 leaf) are
+  **emergent**, not injected: applying `Tsib` to `π_0` gives `π_1, π_2, ...`, so
+  the transmission messages carry them downward automatically (§3 correction).
+- **Per-node stationary** `nd.pi`: `π_0` for the founder, **uniform** for every
+  non-root node (marginal-neutral; §3). **`meioses`** per node = meioses
+  accumulated to the founder (backcross generations + the F1 cross; BC2 → 3),
+  +1 per descending selfing edge. Both derived in R (`.founder_prior()` /
+  depth-from-root in [refine_ancestry()]), passed in per node.
 - **Marker-0 prior** `rho`: founder uses `rho_root = π_0 = {0.75, 0.25, 0}`;
-  non-root nodes use `rho = π_{t(node)}` (their own generation marginal — the
-  correct spatial boundary condition). `rho` touches only `alpha[0]`, so it fixes
-  one marker per chromosome; the interior fix is the transition stationary above.
-  Note a minor double-count at marker 0 between `rho` and the marker-0 downward
-  message (both ≈ the inherited marginal); one marker, negligible. If it ever
-  matters, set non-root `rho = {1/3,1/3,1/3}` and let the message carry it.
+  non-root nodes use `rho = uniform` (the inherited prior arrives through the
+  marker-0 downward message, so an informative `rho` there would double-count it —
+  the same reason non-root chains are marginal-neutral, §3). `rho` touches only
+  `alpha[0]`.
 
 ## 5. Data types
 
