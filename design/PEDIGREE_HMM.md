@@ -171,10 +171,18 @@ static const double Tsib[K][K] = {
 
 inline void normalize(Col& c) {
     double s = c[0] + c[1] + c[2];
-    if (s <= 0) { c = {1.0/3, 1.0/3, 1.0/3}; return; }
+    if (s <= 0) { c = {1.0/3, 1.0/3, 1.0/3}; return; }  // see note below
     for (double& v : c) v /= s;
 }
 ```
+
+The `s <= 0` branch is a **deliberate** guard, not a silent bug-hider: an
+all-floored column (every entry driven to `FLOOR` by cavity division against a
+deterministic `Tsib` row, §9/§14) is a legitimate transient state, and falling
+back to uniform is the correct recovery — erroring there would abort valid loopy
+BP mid-sweep. It is *not* a place to absorb corrupt data: non-finite/negative
+inputs are rejected at the R boundary (§17) before the kernel runs, so `s` here
+is only ever a small non-negative sum, never `NaN`.
 
 ## 6. Transition construction
 
@@ -502,6 +510,12 @@ everything data-specific.
   `rho`, `pi`, `r`, `maxIters`, `tol`, `lambda`) and returning the per-node
   `belief` matrices. Regenerate with `Rcpp::compileAttributes()` +
   `devtools::document()`; never hand-edit `RcppExports.*`.
+  - **Boundary validation (fail fast in R, before the kernel runs)**: the R
+    wrapper `stopifnot`-checks `M >= 1`, `length(r) == M-1`, every `emit`/message
+    matrix is `M × 3`, all `parent`/`kids` indices are in range and acyclic, and
+    every `rho`/`pi` row is finite, non-negative, and sums to > 0. The kernel
+    trusts its inputs (tight inner loops over 20k × |V|); malformed R input must
+    never reach it, so all shape/finiteness/index guards live at this boundary.
 - **Decode → segments (R)**: per genotyped leaf, `argmax` over `belief[i]` gives
   dosage 0/1/2, mapped to `REF`/`HET`/`ALT`, then RLE to the common schema via
   the existing `to_segments()` (`segments.cpp`). Only `hasData` leaves are
@@ -515,9 +529,14 @@ everything data-specific.
   `call_ancestry(data, params)` contract, because the unit of work is a
   family/forest. The input is the **per-marker hard-state mosaic** from
   `call_states()` — NOT `call_ancestry()`'s RLE segments. Reason: BP runs on the
-  marker grid, and the per-marker table is self-contained (`pos` gives the
-  per-interval `r`, `state` gives the emission), whereas RLE segments
-  (`start_bp, end_bp`) have dropped the grid. No depth, no map, no counts needed.
+  marker grid, and the per-marker table carries it (`chr, pos, state`), whereas
+  RLE segments (`start_bp, end_bp`) have dropped the grid. No depth, no counts
+  needed. **Recombination source**: `pos` alone does *not* give the per-interval
+  `r` — bp gaps become recombination fractions only through a rate or a genetic
+  map. `refine_ancestry` derives the size-`M-1` `r` vector exactly as the engine
+  does: a uniform `rrate` (default from the engine, same units as `call_states`)
+  applied to `pos` deltas, or a genetic `map` (cM) when supplied (Haldane), via
+  `load_map()`/`cm_to_mb`. State which was used in methods.
 
   Concrete end-to-end (real function names, no pseudocode):
 
@@ -532,6 +551,7 @@ everything data-specific.
     pedigree = "pop.ped",         # path (dispatched via read_pedigree) OR a read_pedigree() df
     design   = "BC2S3",           # -> per-node pi_t (rho/pi) + meioses via design_priors()
     err      = 0.02,              # emission_gt() call-error rate (see caveat below)
+    rrate    = 0.01,              # recomb rate applied to pos deltas (or map = <cM> instead)
     maxiter  = 30, tol = 1e-4, lambda = 0.5
   )                               # -> refined per-marker states, same columns as `mosaic`
 
