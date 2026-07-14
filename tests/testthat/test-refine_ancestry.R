@@ -103,3 +103,45 @@ test_that("refine_ancestry improves full-grid dosage accuracy over an LOCF basel
   # refine should at least match the per-individual LOCF baseline (small tolerance)
   expect_gte(mean(rf == ts), mean(base == ts) - 0.005)
 })
+
+test_that("call_states(caller='pedigree') count path == refine_ancestry(emission='count')", {
+  skip_if_not_installed("simcross")
+  sim   <- simulate_family("BC2S3", families = 4, sibs = 8, chr = 1,
+                           n_markers = 200, seed = 5)
+  truth <- sim$truth
+  obs   <- simulate_counts(truth, depth = 0.5, error = 0.01, seed = 5)
+  obs$cm <- truth$cm[match(paste(obs$name, obs$chr, obs$pos),
+                           paste(truth$name, truth$chr, truth$pos))]
+  cs <- call_states(obs, caller = "pedigree", pedigree = sim$pedigree, design = "BC2S3")
+  rf <- refine_ancestry(obs, sim$pedigree, design = "BC2S3", emission = "count")
+  expect_setequal(names(cs), c("source", "donor", "name", "chr", "pos", "state"))
+  expect_true(all(cs$state %in% c(0L, 1L, 2L)))
+  m_cs <- stats::setNames(cs$state, paste(cs$name, cs$chr, cs$pos))
+  m_rf <- stats::setNames(rf$state, paste(rf$name, rf$chr, rf$pos))
+  common <- intersect(names(m_cs), names(m_rf))
+  expect_gt(length(common), 0L)
+  expect_equal(unname(m_cs[common]), unname(m_rf[common]))   # same kernel -> identical calls
+})
+
+test_that("call_states(caller='pedigree') accepts a hard-call state mosaic (gt path)", {
+  skip_if_not_installed("simcross")
+  sim   <- simulate_family("BC2S3", families = 3, sibs = 5, chr = 1,
+                           n_markers = 150, seed = 3)
+  truth <- sim$truth
+  obs   <- simulate_counts(truth, depth = 0.5, error = 0.01, seed = 3)
+  calls <- call_states(obs, caller = "rtiger", design = "BC2S3", rigidity = 3L)
+  mo <- truth[, c("name", "chr", "pos", "cm")]
+  mo$state <- calls$state[match(paste(mo$name, mo$chr, mo$pos),
+                                paste(calls$name, calls$chr, calls$pos))]
+  mo$state[is.na(mo$state)] <- 3L                 # explicit missing (g=3) category
+  cs <- call_states(mo, caller = "pedigree", pedigree = sim$pedigree, design = "BC2S3")
+  expect_true(all(cs$state %in% c(0L, 1L, 2L)))
+  expect_false(anyNA(cs$state))
+})
+
+test_that("caller='pedigree' requires a pedigree and a design", {
+  obs <- data.frame(name = "x", chr = 1L, pos = (1:3) * 1e5,
+                    n_ref = c(5L, 4L, 6L), n_alt = c(0L, 0L, 5L))
+  expect_error(call_states(obs, caller = "pedigree", design = "BC2S3"), "pedigree")
+  expect_error(call_states(obs, caller = "pedigree", pedigree = data.frame()), "design")
+})

@@ -1,5 +1,18 @@
 # nilHMM 0.3.0
 
+## Pedigree-aware ancestry calling
+
+* New `call_ancestry(caller = "pedigree", pedigree = ...)`: a family-coupled caller
+  that couples relatives by loopy belief propagation over the (pedigree × genome)
+  grid (kernel `src/pedigree_bp.cpp`). It shares the engine's emission axis —
+  read counts give a depth-aware count/BetaBinomial *de novo* call (missing = zero
+  depth → flat), while a hard-call `state`/`g` column gives the categorical gt path.
+  Requires `design`; groups by `family` from the pedigree and dispatches per family
+  (like `fsfhap`). New args: `pedigree`, `ped_format`, `ped_maxiter/ped_tol/ped_lambda`.
+* `refine_ancestry()` is now a thin wrapper over the same shared `.pedigree_states()`
+  kernel for the hard-call refinement use — unchanged behaviour, return shape, and
+  `emission = c("gt", "count")` modes.
+
 ## Genotype calling — clean break (breaking)
 
 * Removed the `call_gl` alias entirely. Use `call_gt`. (Consumers must migrate;

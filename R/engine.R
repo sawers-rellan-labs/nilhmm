@@ -186,9 +186,21 @@ decode <- function(model, obs) {
 #'   [read_vcf_gt()]; auto-selects `caller = "nnil"`, `emission = "gt"`).
 #'   Optionally `donor`.
 #' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`, `"lbimpute"`,
-#'   `"fsfhap"`.
+#'   `"fsfhap"`, `"pedigree"`.
 #' @param family `fsfhap` caller only: per-row family grouping (a vector length
 #'   `nrow(data)`, or supply a `family` column on `data`). FSFHap pools each family.
+#' @param pedigree `pedigree` caller only (**required** there): a [read_pedigree()]
+#'   data.frame (`taxon, family, parent1, parent2`) or a path. `taxon` joins to
+#'   `data$name`; a `taxon` used as a parent but absent from `data` is a latent
+#'   ungenotyped ancestor. The `pedigree` caller couples a family's relatives by
+#'   loopy belief propagation over the (pedigree x genome) grid; its emission is
+#'   input-detected --- read counts give the count/BetaBinomial (de novo) path,
+#'   a hard-call `state`/`g` column gives the categorical gt path (equivalent to
+#'   [refine_ancestry()]). It requires `design` and dispatches per family.
+#' @param ped_format `pedigree` caller only: [read_pedigree()] format when
+#'   `pedigree` is a path (`"fam"` / `"fsfhap"`).
+#' @param ped_maxiter,ped_tol,ped_lambda `pedigree` caller only: BP sweeps,
+#'   convergence tolerance, and damping for the message passing.
 #' @param phet `fsfhap` caller only: expected heterozygosity. If `NULL`, derived
 #'   from `design` as `(1 - F)/2` (BC1S4 → 0.03125); the `fsfhap` port supports
 #'   **BC1 designs** (`"BC1S{m}"`) — other designs route to unported TASSEL paths.
@@ -299,8 +311,10 @@ decode <- function(model, obs) {
 #' to_segments(st)                       # or, in one step:
 #' call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #' @export
-call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap"),
+call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap", "pedigree"),
                         family = NULL, phet = NULL,
+                        pedigree = NULL, ped_format = c("fam", "fsfhap"),
+                        ped_maxiter = 30L, ped_tol = 1e-4, ped_lambda = 0.5,
                         design = NULL, rrate = 0.01, rigidity = NULL,
                         err = 0.01, conc = 20,
                         fit_means = FALSE, xrate = 0.01,
@@ -318,12 +332,17 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
   has_counts <- all(c("n_ref", "n_alt") %in% names(data))
   has_gt     <- "g" %in% names(data)          # pre-called hard genotype (0/1/2/3), e.g. from read_vcf_gt()
   has_af     <- "alt_freq" %in% names(data)   # pre-binned binhmm input (bin summary done upstream)
+  has_state  <- "state" %in% names(data)      # hard ancestry call (0/1/2), e.g. a call_states() mosaic
   if (!all(c("name", "chr", "pos") %in% names(data)))
     stop("call_states(): data needs columns name, chr, pos")
   if (caller == "binhmm") {
     if (!(has_counts || has_af))
       stop("call_states(): caller = 'binhmm' needs (n_ref, n_alt) read counts to bin, ",
            "or a pre-binned `alt_freq` column (with start_bp, end_bp)")
+  } else if (caller == "pedigree") {
+    if (!(has_counts || has_gt || has_state))
+      stop("call_states(): caller = 'pedigree' needs (n_ref, n_alt) read counts ",
+           "or a hard-call `state`/`g` column")
   } else if (!(has_counts || has_gt)) {
     stop("call_states(): caller = '", caller, "' needs (n_ref, n_alt) read counts ",
          "or a `g` genotype column")
@@ -335,9 +354,9 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
   # MolBreeding regime). It only makes sense for caller = "nnil" + the gt emission
   # (the count/rtiger/binhmm/atlas paths all need read counts).
   if (has_gt && !has_counts) {
-    if (!caller %in% c("nnil", "fsfhap"))
-      stop("call_states(): a `g` genotype input (no read counts) requires caller = 'nnil' ",
-           "or 'fsfhap'; '", caller, "' needs n_ref/n_alt read counts")
+    if (!caller %in% c("nnil", "fsfhap", "pedigree"))
+      stop("call_states(): a `g` genotype input (no read counts) requires caller = 'nnil', ",
+           "'fsfhap', or 'pedigree'; '", caller, "' needs n_ref/n_alt read counts")
     if (caller == "nnil") emission <- "gt"
   }
 
@@ -370,6 +389,44 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
     }
     return(.fsfhap_states(data, phet = ph, source = source, donor = donor,
                           has_donor = has_donor, route = fsfhap_route, threads = threads))
+  }
+
+  # Pedigree caller (R/refine_ancestry.R, src/pedigree_bp.cpp): family-coupled loopy
+  # belief propagation over the (pedigree x genome) grid. The unit of work is a
+  # FAMILY, so like fsfhap it dispatches early and bypasses the per-sample/batched
+  # path. Emission is input-detected (the swappable observation channel): read
+  # counts -> count/BetaBinomial (de novo; missing = zero depth -> flat); a hard-call
+  # column (`state` from call_states(), or `g` from read_vcf_gt()) -> gt/categorical
+  # (missing = the explicit g=3 column). `refine_ancestry()` is the thin wrapper for
+  # the hard-call refinement use; this is the same kernel. See design/PEDIGREE_HMM.md.
+  if (caller == "pedigree") {
+    if (is.null(pedigree))
+      stop("call_states(): caller = 'pedigree' needs a `pedigree` (a read_pedigree() ",
+           "data.frame or a path)")
+    if (is.null(design))
+      stop("call_states(): caller = 'pedigree' needs `design` (e.g. 'BC2S3') for the ",
+           "founder prior and meiosis count")
+    ped <- if (is.character(pedigree)) read_pedigree(pedigree, match.arg(ped_format))
+           else as.data.frame(pedigree, stringsAsFactors = FALSE)
+    ped_em <- if (has_counts) "count" else "gt"      # counts -> de novo; hard calls -> gt
+    d <- data
+    if (ped_em == "gt" && !("state" %in% names(d))) {
+      if ("g" %in% names(d)) d$state <- as.integer(d$g)  # read_vcf_gt() hard genotype
+      else stop("call_states(): caller = 'pedigree' needs (n_ref, n_alt) read counts ",
+                "or a hard-call `state`/`g` column")
+    }
+    err_ped <- if (ped_em == "gt") germ else err     # gt uses germ; count uses per-read err
+    st <- .pedigree_states(d, ped, design = design, emission = ped_em, err = err_ped,
+                           gert = gert, conc = conc, rrate = rrate,
+                           maxiter = ped_maxiter, tol = ped_tol, lambda = ped_lambda)
+    if (!nrow(st))
+      return(data.frame(source = character(), donor = character(), name = character(),
+                        chr = integer(), pos = integer(), state = integer(),
+                        stringsAsFactors = FALSE))
+    st$source <- source
+    if (all(is.na(st$donor))) st$donor <- donor
+    st <- st[, c("source", "donor", "name", "chr", "pos", "state"), drop = FALSE]
+    return(st[order(st$donor, st$name, st$chr, st$pos), , drop = FALSE])
   }
 
   # Required priors are a caller-argument problem, not a data problem, so validate

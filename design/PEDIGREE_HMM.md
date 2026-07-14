@@ -612,16 +612,20 @@ everything data-specific.
 
 **Priority order** (from the design review): (1) generation-aware priors —
 *done in v1* via the founder prior `π_0` + transmission (§3 correction, §4);
-(2) depth-aware pedigree emission;
+(2) depth-aware pedigree emission — ***done*** (see below);
 (3) phased copy-switch transmission; (4) more-exact cavity inference. Improve the
 biological model (2, 3) before the inference approximation (4).
 
-- **Depth-aware pedigree caller** (a new caller, not "refine"): run the same BP
-  directly on read counts with the BetaBinomial `emission_count()` instead of the
-  depth-blind `emission_gt()` over hard calls, so pedigree information and
-  per-marker depth confidence combine in one pass. Recovers the depth weighting
-  the refine stage discards (see §17 depth caveat); benchmark against
-  refine-over-`call_states()` to decide whether the extra coupling earns its cost.
+- **Depth-aware pedigree caller** — ***IMPLEMENTED*** as
+  `call_ancestry(caller = "pedigree")` (shared core `.pedigree_states()`,
+  `R/refine_ancestry.R`). It runs the same BP directly on read counts with the
+  BetaBinomial `emission_count()` instead of the depth-blind `emission_gt()` over
+  hard calls, so pedigree information and per-marker depth confidence combine in one
+  pass (missing = zero depth → flat), recovering the depth weighting the refine
+  stage discards (§17 depth caveat). The emission is input-detected: counts → count
+  (de novo caller), a hard-call `state`/`g` column → gt (the refinement path, also
+  reachable via `refine_ancestry()`). Both are the same kernel; the caller is the
+  count front door, `refine_ancestry()` the hard-call one.
 - Phased copy-switch transmission kernel (preserves transmission linkage).
 - Breakpoint-consensus approximation (Implementation 2): pass per-interval
   recombination posteriors r_v(i) = Σ_{x≠x'} xi_v(i,x,x') and do coincidence-
