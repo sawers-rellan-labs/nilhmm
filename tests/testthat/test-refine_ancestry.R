@@ -56,6 +56,27 @@ test_that("refine_ancestry returns a valid same-shape mosaic and imputes missing
   expect_false(anyNA(ref$state))
 })
 
+test_that("refine_ancestry(emission='count') runs depth-aware on read counts", {
+  skip_if_not_installed("simcross")
+  sim   <- simulate_family("BC2S3", families = 4, sibs = 8, chr = 1,
+                           n_markers = 200, seed = 5)
+  truth <- sim$truth
+  obs   <- simulate_counts(truth, depth = 0.5, error = 0.01, seed = 5)
+  obs$cm <- truth$cm[match(paste(obs$name, obs$chr, obs$pos),
+                           paste(truth$name, truth$chr, truth$pos))]
+  ref <- refine_ancestry(obs, sim$pedigree, design = "BC2S3",
+                         emission = "count", err = 0.01, conc = 20, maxiter = 20L)
+  expect_equal(nrow(ref), nrow(obs))                  # full grid, incl zero-coverage
+  expect_true(all(ref$state %in% c(0L, 1L, 2L)))
+  expect_false(anyNA(ref$state))
+  ts <- truth$state[match(paste(ref$name, ref$chr, ref$pos),
+                          paste(truth$name, truth$chr, truth$pos))]
+  expect_gt(mean(ref$state == ts), 0.9)               # depth-aware pedigree call is accurate
+  # count mode requires the count columns
+  expect_error(refine_ancestry(obs[, c("name","chr","pos")], sim$pedigree,
+                               design = "BC2S3", emission = "count"), "n_ref")
+})
+
 test_that("refine_ancestry improves full-grid dosage accuracy over an LOCF baseline", {
   skip_if_not_installed("simcross")
   sim   <- simulate_family("BC2S3", families = 5, sibs = 10, chr = 1:2,

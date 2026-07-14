@@ -40,22 +40,29 @@
 #'
 #' Couples relatives through the pedigree to correct per-individual `call_states()`
 #' calls: structured loopy belief propagation over the pedigree x genome grid
-#' (see [pedigree_bp_cpp()], design/PEDIGREE_HMM.md). Depth-blind refinement --
-#' emission is [emission_gt()] over the hard `state` calls. Families are processed
+#' (see [pedigree_bp_cpp()], design/PEDIGREE_HMM.md). Two emission modes: `"gt"`
+#' (depth-blind, [emission_gt()] over hard `state` calls) or `"count"` (depth-aware
+#' "counts-first" pedigree calling -- [emission_count()] BetaBinomial over read
+#' depths, so a zero-coverage marker emits flat and the pedigree fills it in
+#' weighted by how confident the relatives are). Families are processed
 #' independently; latent ungenotyped ancestors (taxa named as parents but absent
 #' from `mosaic`) impose chromosome continuity across siblings.
 #'
-#' @param mosaic Per-marker state table from [call_states()]: needs `name, chr,
-#'   pos, state` (+ optional `source, donor, cm`). `state` in `{0 REF, 1 HET,
-#'   2 ALT, 3 missing}`.
+#' @param mosaic Per-marker table keyed by `name, chr, pos` (+ optional `source,
+#'   donor, cm`). For `emission = "gt"` needs `state` in `{0,1,2,3=missing}` (from
+#'   [call_states()]); for `emission = "count"` needs `n_ref, n_alt` read depths.
 #' @param pedigree A pedigree: a path (read via [read_pedigree()]) or a
 #'   [read_pedigree()]-shaped data.frame (`taxon, family, parent1, parent2`).
 #'   `taxon` joins to `mosaic$name`; a `taxon` used as a parent but absent from
 #'   `mosaic` is a latent ancestor.
 #' @param design Breeding design `"BC{n}S{m}"` -> founder prior `pi_0` and
 #'   per-node `meioses` (via [design_priors()]).
-#' @param err,gert [emission_gt()] genotyping-error rates (call-level, not raw
-#'   sequencing error -- see the depth caveat in design/PEDIGREE_HMM.md).
+#' @param emission `"gt"` (depth-blind, over hard states) or `"count"`
+#'   (depth-aware BetaBinomial over `n_ref`/`n_alt`).
+#' @param err Genotyping/read error: [emission_gt()] `germ` when `emission="gt"`
+#'   (default 0.05), per-read error when `emission="count"` (default 0.01).
+#' @param gert [emission_gt()] genotyping-error-rate-in-transmission (`"gt"` only).
+#' @param conc [emission_count()] BetaBinomial concentration (`"count"` only).
 #' @param rrate Per-bp recombination fraction applied to `pos` gaps when `mosaic`
 #'   has no `cm` column (else Haldane on `cm`).
 #' @param maxiter,tol,lambda BP sweeps, convergence tolerance, damping.
@@ -72,12 +79,18 @@
 #' }
 #' @export
 refine_ancestry <- function(mosaic, pedigree, design = "BC2S3",
-                            err = 0.05, gert = 0.10, rrate = 0.01,
+                            emission = c("gt", "count"),
+                            err = NULL, gert = 0.10, conc = 20, rrate = 0.01,
                             maxiter = 30L, tol = 1e-4, lambda = 0.5,
                             ped_format = c("fam", "fsfhap")) {
+  emission <- match.arg(emission)
+  if (is.null(err)) err <- if (emission == "gt") 0.05 else 0.01
   mo <- as.data.frame(mosaic, stringsAsFactors = FALSE)
-  if (!all(c("name", "chr", "pos", "state") %in% names(mo)))
-    stop("refine_ancestry(): `mosaic` needs columns name, chr, pos, state")
+  need <- if (emission == "gt") c("name", "chr", "pos", "state")
+          else                  c("name", "chr", "pos", "n_ref", "n_alt")
+  if (!all(need %in% names(mo)))
+    stop("refine_ancestry(): `mosaic` (emission='", emission, "') needs columns ",
+         paste(need, collapse = ", "))
   ped <- if (is.character(pedigree)) read_pedigree(pedigree, match.arg(ped_format))
          else as.data.frame(pedigree, stringsAsFactors = FALSE)
   if (!all(c("taxon", "family", "parent1") %in% names(ped)))
@@ -86,7 +99,10 @@ refine_ancestry <- function(mosaic, pedigree, design = "BC2S3",
   pi0    <- .founder_prior(design)
   uni    <- c(1, 1, 1) / 3
   fmfounder <- .n_bc(design) + 1L                    # founder meiosis count
-  emimat <- .gt_emimat(emission_gt(germ = err, gert = gert))   # 3 states x 4 obs
+  # emission builder: gt (depth-blind, over hard states) or count (BetaBinomial
+  # over read depths -- depth-aware "counts-first" pedigree calling).
+  emimat <- if (emission == "gt") .gt_emimat(emission_gt(germ = err, gert = gert)) else NULL
+  ctheta <- if (emission == "count") .emission_theta(emission_count(err = err, conc = conc)) else NULL
 
   fams <- unique(ped$family)
   out_parts <- list()
@@ -131,9 +147,16 @@ refine_ancestry <- function(mosaic, pedigree, design = "BC2S3",
       for (v in seq_along(taxa)) {
         if (!hasData[v]) { emit[[v]] <- matrix(1, M, 3); next }
         sv <- moc[moc$name == taxa[v], , drop = FALSE]
-        g  <- sv$state[match(pos, sv$pos)]           # 0/1/2, NA -> missing
-        g[is.na(g)] <- 3L
-        emit[[v]] <- t(emimat[, g + 1L, drop = FALSE])   # M x 3 = P(obs | state)
+        if (emission == "gt") {
+          g  <- sv$state[match(pos, sv$pos)]           # 0/1/2, NA -> missing
+          g[is.na(g)] <- 3L
+          emit[[v]] <- t(emimat[, g + 1L, drop = FALSE])   # M x 3 = P(obs | state)
+        } else {                                        # count: BetaBinomial over depths
+          nref <- sv$n_ref[match(pos, sv$pos)]; nref[is.na(nref)] <- 0L
+          nalt <- sv$n_alt[match(pos, sv$pos)]; nalt[is.na(nalt)] <- 0L
+          n <- as.integer(nref + nalt); a <- as.integer(nalt)   # depth, alt reads
+          emit[[v]] <- exp(count_emission_loglik_cpp(n, a, ctheta, conc))  # M x 3; n=0 -> flat
+        }
       }
 
       bel <- pedigree_bp_cpp(M, as.integer(pidx), as.integer(meioses),
