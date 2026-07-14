@@ -1,20 +1,15 @@
 # Refine per-individual ancestry calls over a pedigree
 
-Couples relatives through the pedigree to correct per-individual
+Thin wrapper on the shared pedigree belief-propagation kernel
+([`call_states()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.md)
+`caller = "pedigree"`) for the **hard-call refinement** use: couple a
+family's relatives to correct a per-marker mosaic produced by another
+caller. Same engine as `caller = "pedigree"`; the difference is
+ergonomic — `refine_ancestry()` takes and returns a mosaic in place (so
+a
 [`call_states()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.md)
-calls: structured loopy belief propagation over the pedigree x genome
-grid (see
-[`pedigree_bp_cpp()`](https://sawers-rellan-labs.github.io/nilhmm/reference/pedigree_bp_cpp.md),
-design/PEDIGREE_HMM.md). Two emission modes: `"gt"` (depth-blind,
-[`emission_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_gt.md)
-over hard `state` calls) or `"count"` (depth-aware "counts-first"
-pedigree calling –
-[`emission_count()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_count.md)
-BetaBinomial over read depths, so a zero-coverage marker emits flat and
-the pedigree fills it in weighted by how confident the relatives are).
-Families are processed independently; latent ungenotyped ancestors (taxa
-named as parents but absent from `mosaic`) impose chromosome continuity
-across siblings.
+output goes in and a same-shape corrected mosaic comes back), whereas
+the caller takes the raw observation table. See design/PEDIGREE_HMM.md.
 
 ## Usage
 
@@ -100,13 +95,28 @@ refine_ancestry(
 
 ## Value
 
-`mosaic` with `state` replaced by the refined per-marker calls (same
-columns and row order; genotyped leaves only). Feed to
+`mosaic` with the refined per-marker calls in its `state` column —
+replaced when a `state` column is present (`emission = "gt"`), or
+appended when absent (`emission = "count"`) — preserving the input
+columns and row order (genotyped leaves only). Feed to
 [`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md).
+
+## Details
+
+Two emission modes (the swappable observation channel): `"gt"` (default;
+depth-blind,
+[`emission_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_gt.md)
+over the hard `state` calls) or `"count"` (depth-aware,
+[`emission_count()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_count.md)
+BetaBinomial over read depths). The count mode is identical to
+`call_ancestry(caller = "pedigree")` on the same counts; prefer the
+caller for de novo calling and reserve `refine_ancestry()` for
+correcting an existing hard-call mosaic.
 
 ## See also
 
-[`call_states()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.md),
+[`call_states()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.md)
+(`caller = "pedigree"`),
 [`simulate_family()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_family.md),
 [`pedigree_bp_cpp()`](https://sawers-rellan-labs.github.io/nilhmm/reference/pedigree_bp_cpp.md),
 [`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md).

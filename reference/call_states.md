@@ -18,9 +18,14 @@ never reads paths.
 ``` r
 call_states(
   data,
-  caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap"),
+  caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap", "pedigree"),
   family = NULL,
   phet = NULL,
+  pedigree = NULL,
+  ped_format = c("fam", "fsfhap"),
+  ped_maxiter = 30L,
+  ped_tol = 1e-04,
+  ped_lambda = 0.5,
   design = NULL,
   rrate = 0.01,
   rigidity = NULL,
@@ -74,7 +79,7 @@ call_states(
 - caller:
 
   One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`, `"lbimpute"`,
-  `"fsfhap"`.
+  `"fsfhap"`, `"pedigree"`.
 
 - family:
 
@@ -88,6 +93,31 @@ call_states(
   `design` as `(1 - F)/2` (BC1S4 → 0.03125); the `fsfhap` port supports
   **BC1 designs** (`"BC1S{m}"`) — other designs route to unported TASSEL
   paths.
+
+- pedigree:
+
+  `pedigree` caller only (**required** there): a
+  [`read_pedigree()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_pedigree.md)
+  data.frame (`taxon, family, parent1, parent2`) or a path. `taxon`
+  joins to `data$name`; a `taxon` used as a parent but absent from
+  `data` is a latent ungenotyped ancestor. The `pedigree` caller couples
+  a family's relatives by loopy belief propagation over the (pedigree x
+  genome) grid; its emission is input-detected — read counts give the
+  count/BetaBinomial (de novo) path, a hard-call `state`/`g` column
+  gives the categorical gt path (equivalent to
+  [`refine_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/refine_ancestry.md)).
+  It requires `design` and dispatches per family.
+
+- ped_format:
+
+  `pedigree` caller only:
+  [`read_pedigree()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_pedigree.md)
+  format when `pedigree` is a path (`"fam"` / `"fsfhap"`).
+
+- ped_maxiter, ped_tol, ped_lambda:
+
+  `pedigree` caller only: BP sweeps, convergence tolerance, and damping
+  for the message passing.
 
 - design:
 
@@ -104,6 +134,9 @@ call_states(
   backcross + self meioses, Haldane & Waddington), and it is optimizable
   from data by KS-vs-sim
   ([`calibrate_r()`](https://sawers-rellan-labs.github.io/nilhmm/reference/calibrate_r.md)).
+  The `pedigree` caller also uses `rrate` as the per-bp recombination
+  fraction for its chromosome transition when `data` has no `cm` column
+  (else Haldane on `cm`).
 
 - rigidity:
 
