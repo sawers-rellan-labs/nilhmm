@@ -8,8 +8,10 @@ refine_ancestry(
   mosaic,
   pedigree,
   design = "BC2S3",
-  err = 0.05,
+  emission = c("gt", "count"),
+  err = NULL,
   gert = 0.1,
+  conc = 20,
   rrate = 0.01,
   maxiter = 30L,
   tol = 1e-04,
@@ -18,7 +20,8 @@ refine_ancestry(
 )
 }
 \arguments{
-\item{mosaic}{Per-marker state table from \code{\link[=call_states]{call_states()}}: needs \verb{name, chr, pos, state} (+ optional \verb{source, donor, cm}). \code{state} in \verb{\{0 REF, 1 HET, 2 ALT, 3 missing\}}.}
+\item{mosaic}{Per-marker table keyed by \verb{name, chr, pos} (+ optional \verb{source, donor, cm}). For \code{emission = "gt"} needs \code{state} in \verb{\{0,1,2,3=missing\}} (from
+\code{\link[=call_states]{call_states()}}); for \code{emission = "count"} needs \verb{n_ref, n_alt} read depths.}
 
 \item{pedigree}{A pedigree: a path (read via \code{\link[=read_pedigree]{read_pedigree()}}) or a
 \code{\link[=read_pedigree]{read_pedigree()}}-shaped data.frame (\verb{taxon, family, parent1, parent2}).
@@ -28,8 +31,15 @@ refine_ancestry(
 \item{design}{Breeding design \code{"BC{n}S{m}"} -> founder prior \code{pi_0} and
 per-node \code{meioses} (via \code{\link[=design_priors]{design_priors()}}).}
 
-\item{err, gert}{\code{\link[=emission_gt]{emission_gt()}} genotyping-error rates (call-level, not raw
-sequencing error -- see the depth caveat in design/PEDIGREE_HMM.md).}
+\item{emission}{\code{"gt"} (depth-blind, over hard states) or \code{"count"}
+(depth-aware BetaBinomial over \code{n_ref}/\code{n_alt}).}
+
+\item{err}{Genotyping/read error: \code{\link[=emission_gt]{emission_gt()}} \code{germ} when \code{emission="gt"}
+(default 0.05), per-read error when \code{emission="count"} (default 0.01).}
+
+\item{gert}{\code{\link[=emission_gt]{emission_gt()}} genotyping-error-rate-in-transmission (\code{"gt"} only).}
+
+\item{conc}{\code{\link[=emission_count]{emission_count()}} BetaBinomial concentration (\code{"count"} only).}
 
 \item{rrate}{Per-bp recombination fraction applied to \code{pos} gaps when \code{mosaic}
 has no \code{cm} column (else Haldane on \code{cm}).}
@@ -45,8 +55,11 @@ columns and row order; genotyped leaves only). Feed to \code{\link[=to_segments]
 \description{
 Couples relatives through the pedigree to correct per-individual \code{call_states()}
 calls: structured loopy belief propagation over the pedigree x genome grid
-(see \code{\link[=pedigree_bp_cpp]{pedigree_bp_cpp()}}, design/PEDIGREE_HMM.md). Depth-blind refinement --
-emission is \code{\link[=emission_gt]{emission_gt()}} over the hard \code{state} calls. Families are processed
+(see \code{\link[=pedigree_bp_cpp]{pedigree_bp_cpp()}}, design/PEDIGREE_HMM.md). Two emission modes: \code{"gt"}
+(depth-blind, \code{\link[=emission_gt]{emission_gt()}} over hard \code{state} calls) or \code{"count"} (depth-aware
+"counts-first" pedigree calling -- \code{\link[=emission_count]{emission_count()}} BetaBinomial over read
+depths, so a zero-coverage marker emits flat and the pedigree fills it in
+weighted by how confident the relatives are). Families are processed
 independently; latent ungenotyped ancestors (taxa named as parents but absent
 from \code{mosaic}) impose chromosome continuity across siblings.
 }
