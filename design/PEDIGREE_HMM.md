@@ -589,9 +589,10 @@ everything data-specific.
     low-depth miscall looks as trustworthy as a high-depth correct one. `err`
     must reflect the *upstream caller's* per-marker error rate, not raw
     sequencing error, and per-marker depth weighting is unrecoverable at this
-    stage. If that loss matters, the depth-aware alternative is to run the same
-    BP directly on counts with the BetaBinomial `emission_count()` (deferred
-    alongside the phased kernel, §18) — but that is a new caller, not "refine".
+    stage. If that loss matters, use the depth-aware path instead: the same BP run
+    directly on read counts with the BetaBinomial `emission_count()`, now
+    implemented as `call_ancestry(caller = "pedigree")` on counts (missing = zero
+    depth → flat) — a de novo caller rather than a "refine" step.
   - `pedigree` reuses `read_pedigree()` (`format = "fam"` for PLINK-style
     `FID IID PID MID`, or `"fsfhap"`). Its `taxon` column joins to `mosaic$name`;
     `parent1`/`parent2` build the forest, **including latent ungenotyped
