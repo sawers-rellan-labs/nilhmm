@@ -5,11 +5,16 @@ Couples relatives through the pedigree to correct per-individual
 calls: structured loopy belief propagation over the pedigree x genome
 grid (see
 [`pedigree_bp_cpp()`](https://sawers-rellan-labs.github.io/nilhmm/reference/pedigree_bp_cpp.md),
-design/PEDIGREE_HMM.md). Depth-blind refinement – emission is
+design/PEDIGREE_HMM.md). Two emission modes: `"gt"` (depth-blind,
 [`emission_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_gt.md)
-over the hard `state` calls. Families are processed independently;
-latent ungenotyped ancestors (taxa named as parents but absent from
-`mosaic`) impose chromosome continuity across siblings.
+over hard `state` calls) or `"count"` (depth-aware "counts-first"
+pedigree calling –
+[`emission_count()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_count.md)
+BetaBinomial over read depths, so a zero-coverage marker emits flat and
+the pedigree fills it in weighted by how confident the relatives are).
+Families are processed independently; latent ungenotyped ancestors (taxa
+named as parents but absent from `mosaic`) impose chromosome continuity
+across siblings.
 
 ## Usage
 
@@ -18,8 +23,10 @@ refine_ancestry(
   mosaic,
   pedigree,
   design = "BC2S3",
-  err = 0.05,
+  emission = c("gt", "count"),
+  err = NULL,
   gert = 0.1,
+  conc = 20,
   rrate = 0.01,
   maxiter = 30L,
   tol = 1e-04,
@@ -32,10 +39,11 @@ refine_ancestry(
 
 - mosaic:
 
-  Per-marker state table from
-  [`call_states()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.md):
-  needs `name, chr, pos, state` (+ optional `source, donor, cm`).
-  `state` in `{0 REF, 1 HET, 2 ALT, 3 missing}`.
+  Per-marker table keyed by `name, chr, pos` (+ optional
+  `source, donor, cm`). For `emission = "gt"` needs `state` in
+  `{0,1,2,3=missing}` (from
+  [`call_states()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.md));
+  for `emission = "count"` needs `n_ref, n_alt` read depths.
 
 - pedigree:
 
@@ -53,11 +61,27 @@ refine_ancestry(
   `meioses` (via
   [`design_priors()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_priors.md)).
 
-- err, gert:
+- emission:
+
+  `"gt"` (depth-blind, over hard states) or `"count"` (depth-aware
+  BetaBinomial over `n_ref`/`n_alt`).
+
+- err:
+
+  Genotyping/read error:
+  [`emission_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_gt.md)
+  `germ` when `emission="gt"` (default 0.05), per-read error when
+  `emission="count"` (default 0.01).
+
+- gert:
 
   [`emission_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_gt.md)
-  genotyping-error rates (call-level, not raw sequencing error – see the
-  depth caveat in design/PEDIGREE_HMM.md).
+  genotyping-error-rate-in-transmission (`"gt"` only).
+
+- conc:
+
+  [`emission_count()`](https://sawers-rellan-labs.github.io/nilhmm/reference/emission_count.md)
+  BetaBinomial concentration (`"count"` only).
 
 - rrate:
 
