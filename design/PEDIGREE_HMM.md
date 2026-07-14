@@ -542,13 +542,16 @@ everything data-specific.
   of length `M-1`), consistent with nilHMM's chromosome-separate rule and sorted
   markers. R loops families × chromosomes and concatenates segments; the founder
   marker-0 `rho` is applied per chromosome.
-- **API surface**: a standalone verb, not a subcase of the per-individual
-  `call_ancestry(data, params)` contract, because the unit of work is a
-  family/forest. The input is the **per-marker hard-state mosaic** from
-  `call_states()` — NOT `call_ancestry()`'s RLE segments. Reason: BP runs on the
-  marker grid, and the per-marker table carries it (`chr, pos, state`), whereas
-  RLE segments (`start_bp, end_bp`) have dropped the grid. No depth, no counts
-  needed. **Recombination source**: `pos` alone does *not* give the per-interval
+- **API surface** (implemented): **two front doors over one kernel**
+  (`.pedigree_states()`). (1) `call_ancestry(caller = "pedigree", pedigree = ...)` ---
+  a first-class member of the caller family, taking read counts (the depth-aware
+  de novo path) or a hard-call `state`/`g` column (the categorical gt path),
+  dispatched per family. (2) `refine_ancestry(mosaic, pedigree, ...)` --- the thin
+  wrapper for the hard-call refinement use, taking and returning a per-marker mosaic
+  in place. Either way the unit of work is a family/forest, so it groups by `family`
+  and works on the marker grid the per-marker table carries (`chr, pos, state` or
+  counts), never `call_ancestry()`'s RLE segments (`start_bp, end_bp` have dropped
+  the grid). **Recombination source**: `pos` alone does *not* give the per-interval
   `r` — bp gaps become recombination fractions only through a rate or a genetic
   map. `refine_ancestry` derives the size-`M-1` `r` vector exactly as the engine
   does: a uniform `rrate` (default from the engine, same units as `call_states`)
@@ -614,7 +617,7 @@ everything data-specific.
 *done in v1* via the founder prior `π_0` + transmission (§3 correction, §4);
 (2) depth-aware pedigree emission — ***done*** (see below);
 (3) phased copy-switch transmission; (4) more-exact cavity inference. Improve the
-biological model (2, 3) before the inference approximation (4).
+remaining biological model (3) before the inference approximation (4).
 
 - **Depth-aware pedigree caller** — ***IMPLEMENTED*** as
   `call_ancestry(caller = "pedigree")` (shared core `.pedigree_states()`,

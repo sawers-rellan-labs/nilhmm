@@ -212,7 +212,9 @@ decode <- function(model, obs) {
 #'   `2 * total_cM / (100 * n_markers)` (~`30 / n_markers` for a 1500 cM maize
 #'   map; the factor 2 is the RIL-like doubling for the backcross + self meioses,
 #'   Haldane & Waddington), and it is optimizable from data by KS-vs-sim
-#'   ([calibrate_r()]).
+#'   ([calibrate_r()]). The `pedigree` caller also uses `rrate` as the per-bp
+#'   recombination fraction for its chromosome transition when `data` has no `cm`
+#'   column (else Haldane on `cm`).
 #' @param rigidity `rtiger` caller only: integer minimum run length (e.g. `5`).
 #' @param xrate Exit rate of nilHMM's **rigidity duration** ([duration_rigidity()]):
 #'   the per-marker switch probability at the free (post-minimum-run) state — the
@@ -425,6 +427,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
                         stringsAsFactors = FALSE))
     st$source <- source
     if (all(is.na(st$donor))) st$donor <- donor
+    st$chr <- as.integer(st$chr); st$pos <- as.integer(st$pos)   # call_states() integer schema
     st <- st[, c("source", "donor", "name", "chr", "pos", "state"), drop = FALSE]
     return(st[order(st$donor, st$name, st$chr, st$pos), , drop = FALSE])
   }

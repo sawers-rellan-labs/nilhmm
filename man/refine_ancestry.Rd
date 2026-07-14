@@ -49,8 +49,10 @@ has no \code{cm} column (else Haldane on \code{cm}).}
 \item{ped_format}{Passed to \code{\link[=read_pedigree]{read_pedigree()}} when \code{pedigree} is a path.}
 }
 \value{
-\code{mosaic} with \code{state} replaced by the refined per-marker calls (same
-columns and row order; genotyped leaves only). Feed to \code{\link[=to_segments]{to_segments()}}.
+\code{mosaic} with the refined per-marker calls in its \code{state} column ---
+replaced when a \code{state} column is present (\code{emission = "gt"}), or appended when
+absent (\code{emission = "count"}) --- preserving the input columns and row order
+(genotyped leaves only). Feed to \code{\link[=to_segments]{to_segments()}}.
 }
 \description{
 Thin wrapper on the shared pedigree belief-propagation kernel

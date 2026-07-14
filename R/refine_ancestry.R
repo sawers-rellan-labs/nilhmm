@@ -137,8 +137,11 @@
         if (!hasData[v]) next
         state <- max.col(bel[[v]], ties.method = "first") - 1L    # argmax dosage
         sv <- moc[moc$name == taxa[v], , drop = FALSE]
+        # Preserve chr/pos types from the input: coercing here would mismatch the
+        # un-coerced `mosaic` in refine_ancestry()'s paste()-key match and silently
+        # drop rows (call_states() coerces to its integer schema downstream instead).
         out_parts[[length(out_parts) + 1L]] <- data.frame(
-          name  = sv$name, chr = as.integer(sv$chr), pos = as.integer(sv$pos),
+          name  = sv$name, chr = sv$chr, pos = sv$pos,
           donor = if (has_donor) sv$donor else NA_character_,
           state = as.integer(state[match(sv$pos, pos)]),
           stringsAsFactors = FALSE)
@@ -188,8 +191,10 @@
 #'   has no `cm` column (else Haldane on `cm`).
 #' @param maxiter,tol,lambda BP sweeps, convergence tolerance, damping.
 #' @param ped_format Passed to [read_pedigree()] when `pedigree` is a path.
-#' @return `mosaic` with `state` replaced by the refined per-marker calls (same
-#'   columns and row order; genotyped leaves only). Feed to [to_segments()].
+#' @return `mosaic` with the refined per-marker calls in its `state` column ---
+#'   replaced when a `state` column is present (`emission = "gt"`), or appended when
+#'   absent (`emission = "count"`) --- preserving the input columns and row order
+#'   (genotyped leaves only). Feed to [to_segments()].
 #' @seealso [call_states()] (`caller = "pedigree"`), [simulate_family()],
 #'   [pedigree_bp_cpp()], [to_segments()].
 #' @examples

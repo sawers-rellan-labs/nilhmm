@@ -91,7 +91,9 @@ A resolution hyperparameter, not an MLE. Holland's nNIL sets it to
 \code{2 * total_cM / (100 * n_markers)} (~\code{30 / n_markers} for a 1500 cM maize
 map; the factor 2 is the RIL-like doubling for the backcross + self meioses,
 Haldane & Waddington), and it is optimizable from data by KS-vs-sim
-(\code{\link[=calibrate_r]{calibrate_r()}}).}
+(\code{\link[=calibrate_r]{calibrate_r()}}). The \code{pedigree} caller also uses \code{rrate} as the per-bp
+recombination fraction for its chromosome transition when \code{data} has no \code{cm}
+column (else Haldane on \code{cm}).}
 
 \item{rigidity}{\code{rtiger} caller only: integer minimum run length (e.g. \code{5}).}
 
