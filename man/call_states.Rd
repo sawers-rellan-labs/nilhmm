@@ -6,9 +6,14 @@
 \usage{
 call_states(
   data,
-  caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap"),
+  caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap", "pedigree"),
   family = NULL,
   phet = NULL,
+  pedigree = NULL,
+  ped_format = c("fam", "fsfhap"),
+  ped_maxiter = 30L,
+  ped_tol = 1e-04,
+  ped_lambda = 0.5,
   design = NULL,
   rrate = 0.01,
   rigidity = NULL,
@@ -53,7 +58,7 @@ atlas paths) or a pre-called hard-genotype column \code{g} in \verb{\{0,1,2,3\}}
 Optionally \code{donor}.}
 
 \item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}, \code{"atlas"}, \code{"lbimpute"},
-\code{"fsfhap"}.}
+\code{"fsfhap"}, \code{"pedigree"}.}
 
 \item{family}{\code{fsfhap} caller only: per-row family grouping (a vector length
 \code{nrow(data)}, or supply a \code{family} column on \code{data}). FSFHap pools each family.}
@@ -61,6 +66,21 @@ Optionally \code{donor}.}
 \item{phet}{\code{fsfhap} caller only: expected heterozygosity. If \code{NULL}, derived
 from \code{design} as \code{(1 - F)/2} (BC1S4 → 0.03125); the \code{fsfhap} port supports
 \strong{BC1 designs} (\code{"BC1S{m}"}) — other designs route to unported TASSEL paths.}
+
+\item{pedigree}{\code{pedigree} caller only (\strong{required} there): a \code{\link[=read_pedigree]{read_pedigree()}}
+data.frame (\verb{taxon, family, parent1, parent2}) or a path. \code{taxon} joins to
+\code{data$name}; a \code{taxon} used as a parent but absent from \code{data} is a latent
+ungenotyped ancestor. The \code{pedigree} caller couples a family's relatives by
+loopy belief propagation over the (pedigree x genome) grid; its emission is
+input-detected --- read counts give the count/BetaBinomial (de novo) path,
+a hard-call \code{state}/\code{g} column gives the categorical gt path (equivalent to
+\code{\link[=refine_ancestry]{refine_ancestry()}}). It requires \code{design} and dispatches per family.}
+
+\item{ped_format}{\code{pedigree} caller only: \code{\link[=read_pedigree]{read_pedigree()}} format when
+\code{pedigree} is a path (\code{"fam"} / \code{"fsfhap"}).}
+
+\item{ped_maxiter, ped_tol, ped_lambda}{\code{pedigree} caller only: BP sweeps,
+convergence tolerance, and damping for the message passing.}
 
 \item{design}{Breeding-design key for priors (e.g. \code{"BC2S2"}, \code{"BC2S3"}).
 Required unless \code{f_1}/\code{f_2} are supplied.}
@@ -71,7 +91,9 @@ A resolution hyperparameter, not an MLE. Holland's nNIL sets it to
 \code{2 * total_cM / (100 * n_markers)} (~\code{30 / n_markers} for a 1500 cM maize
 map; the factor 2 is the RIL-like doubling for the backcross + self meioses,
 Haldane & Waddington), and it is optimizable from data by KS-vs-sim
-(\code{\link[=calibrate_r]{calibrate_r()}}).}
+(\code{\link[=calibrate_r]{calibrate_r()}}). The \code{pedigree} caller also uses \code{rrate} as the per-bp
+recombination fraction for its chromosome transition when \code{data} has no \code{cm}
+column (else Haldane on \code{cm}).}
 
 \item{rigidity}{\code{rtiger} caller only: integer minimum run length (e.g. \code{5}).}
 

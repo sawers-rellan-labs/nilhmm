@@ -49,19 +49,27 @@ has no \code{cm} column (else Haldane on \code{cm}).}
 \item{ped_format}{Passed to \code{\link[=read_pedigree]{read_pedigree()}} when \code{pedigree} is a path.}
 }
 \value{
-\code{mosaic} with \code{state} replaced by the refined per-marker calls (same
-columns and row order; genotyped leaves only). Feed to \code{\link[=to_segments]{to_segments()}}.
+\code{mosaic} with the refined per-marker calls in its \code{state} column ---
+replaced when a \code{state} column is present (\code{emission = "gt"}), or appended when
+absent (\code{emission = "count"}) --- preserving the input columns and row order
+(genotyped leaves only). Feed to \code{\link[=to_segments]{to_segments()}}.
 }
 \description{
-Couples relatives through the pedigree to correct per-individual \code{call_states()}
-calls: structured loopy belief propagation over the pedigree x genome grid
-(see \code{\link[=pedigree_bp_cpp]{pedigree_bp_cpp()}}, design/PEDIGREE_HMM.md). Two emission modes: \code{"gt"}
-(depth-blind, \code{\link[=emission_gt]{emission_gt()}} over hard \code{state} calls) or \code{"count"} (depth-aware
-"counts-first" pedigree calling -- \code{\link[=emission_count]{emission_count()}} BetaBinomial over read
-depths, so a zero-coverage marker emits flat and the pedigree fills it in
-weighted by how confident the relatives are). Families are processed
-independently; latent ungenotyped ancestors (taxa named as parents but absent
-from \code{mosaic}) impose chromosome continuity across siblings.
+Thin wrapper on the shared pedigree belief-propagation kernel
+(\code{\link[=call_states]{call_states()}} \code{caller = "pedigree"}) for the \strong{hard-call refinement} use:
+couple a family's relatives to correct a per-marker mosaic produced by another
+caller. Same engine as \code{caller = "pedigree"}; the difference is ergonomic ---
+\code{refine_ancestry()} takes and returns a mosaic in place (so a
+\code{call_states()} output goes in and a same-shape corrected mosaic comes back),
+whereas the caller takes the raw observation table. See design/PEDIGREE_HMM.md.
+}
+\details{
+Two emission modes (the swappable observation channel): \code{"gt"} (default;
+depth-blind, \code{\link[=emission_gt]{emission_gt()}} over the hard \code{state} calls) or \code{"count"}
+(depth-aware, \code{\link[=emission_count]{emission_count()}} BetaBinomial over read depths). The count mode
+is identical to \code{call_ancestry(caller = "pedigree")} on the same counts; prefer
+the caller for de novo calling and reserve \code{refine_ancestry()} for correcting an
+existing hard-call mosaic.
 }
 \examples{
 \dontrun{
@@ -72,5 +80,6 @@ ref   <- refine_ancestry(calls, sim$pedigree, design = "BC2S3")
 }
 }
 \seealso{
-\code{\link[=call_states]{call_states()}}, \code{\link[=simulate_family]{simulate_family()}}, \code{\link[=pedigree_bp_cpp]{pedigree_bp_cpp()}}, \code{\link[=to_segments]{to_segments()}}.
+\code{\link[=call_states]{call_states()}} (\code{caller = "pedigree"}), \code{\link[=simulate_family]{simulate_family()}},
+\code{\link[=pedigree_bp_cpp]{pedigree_bp_cpp()}}, \code{\link[=to_segments]{to_segments()}}.
 }
