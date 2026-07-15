@@ -10,6 +10,16 @@ from sequencing data. It is a single **duration-aware 3-state (REF / HET
 - **duration** — `geometric`, `rigidity` (a minimum-run-length prior),
   or `hsmm`.
 
+![The nilHMM engine: one duration-aware three-state HMM with two
+swappable axes, emission (count vs. categorical) and duration (geometric
+vs. rigidity); each named caller is a coordinate in that
+emission-by-duration space.](reference/figures/fig_engine.png)
+
+The nilHMM engine: one duration-aware three-state HMM with two swappable
+axes, emission (count vs. categorical) and duration (geometric
+vs. rigidity); each named caller is a coordinate in that
+emission-by-duration space.
+
 Those choices, plus a per-unit calling rule, express a family of named
 **callers**: `nnil`, `rtiger`, `binhmm`, `atlas`, `lbimpute`, and
 `fsfhap`. The package is **data-agnostic** — every function takes

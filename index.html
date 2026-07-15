@@ -67,6 +67,9 @@
 <li>
 <strong>duration</strong> — <code>geometric</code>, <code>rigidity</code> (a minimum-run-length prior), or <code>hsmm</code>.</li>
 </ul>
+<div class="float">
+<img src="reference/figures/fig_engine.png" alt="The nilHMM engine: one duration-aware three-state HMM with two swappable axes, emission (count vs. categorical) and duration (geometric vs. rigidity); each named caller is a coordinate in that emission-by-duration space."><div class="figcaption">The nilHMM engine: one duration-aware three-state HMM with two swappable axes, emission (count vs. categorical) and duration (geometric vs. rigidity); each named caller is a coordinate in that emission-by-duration space.</div>
+</div>
 <p>Those choices, plus a per-unit calling rule, express a family of named <strong>callers</strong>: <code>nnil</code>, <code>rtiger</code>, <code>binhmm</code>, <code>atlas</code>, <code>lbimpute</code>, and <code>fsfhap</code>. The package is <strong>data-agnostic</strong> — every function takes <code>(data, params)</code> and returns calls; pipeline scripts own file paths and sample lists. The whole API is one verb:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">data</span>, caller <span class="op">=</span> <span class="va">...</span>, design <span class="op">=</span> <span class="va">...</span>, r <span class="op">=</span> <span class="va">...</span>, err <span class="op">=</span> <span class="va">...</span><span class="op">)</span></span></code></pre></div>
