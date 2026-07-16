@@ -37,11 +37,12 @@ scripts own file paths and sample lists. The whole API is one verb:
 call_ancestry(data, caller = ..., design = ..., rrate = ..., err = ...)
 ```
 
-nilHMM began as a Python package on Jim Holland’s
+nilHMM began as my Python optimization of Jim Holland’s
 [nNIL](https://github.com/ncsumaize/nNIL) methodology; it is now an R +
-Rcpp package. The Python original is frozen at
+Rcpp package. My Python optimization is frozen at
 [`legacy/python/`](https://sawers-rellan-labs.github.io/nilhmm/legacy/python/)
-(tag `python-final`).
+(tag `python-final`); Jim’s original nNIL lives at
+[`ncsumaize/nNIL`](https://github.com/ncsumaize/nNIL).
 
 ## Installation
 

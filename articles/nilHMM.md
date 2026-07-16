@@ -20,6 +20,35 @@ for full-sib families.
 library(nilHMM)
 ```
 
+## Ancestry mosaics, not genotype calls
+
+nilHMM infers **ancestry** — the REF/HET/ALT donor-introgression state
+*along each chromosome* (the “mosaic”), reconstructed by borrowing
+strength across neighbouring markers through the HMM’s linkage
+(duration) model. That is a different operation from **genotype
+calling** — deciding the genotype at a marker from *that marker’s own
+read observations*, one site at a time, with no linkage. The package
+keeps the two apart on purpose:
+
+- **Genotype calling** is
+  [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+  — per site, no linkage (`prior = "flat"` = maximum-likelihood call;
+  `prior = "hwe"` = the het-excess HWE-MAP baseline). Its output is a
+  genotype `0/1/2`: an observation, not an ancestry inference.
+- **Ancestry inference** is the family of **callers**, run through
+  [`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md).
+  Its output is the common segment schema — the ancestry mosaic.
+
+The wall is enforced, not incidental: an ancestry caller never silently
+calls genotypes for you (`nnil`/`catiger` require *called* genotypes and
+will not threshold read counts), and
+[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+is not dispatchable through
+[`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md).
+The rest of this vignette is about the **ancestry** side;
+[`vignette("callers")`](https://sawers-rellan-labs.github.io/nilhmm/articles/callers.md)
+walks the wall in detail.
+
 ## The one-verb API
 
 Everything funnels through a single call:

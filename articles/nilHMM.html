@@ -84,6 +84,36 @@ vignette covers the common workflow; see
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/sawers-rellan-labs/nilhmm" class="external-link">nilHMM</a></span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
+<h2 id="ancestry-mosaics-not-genotype-calls">Ancestry mosaics, not genotype calls<a class="anchor" aria-label="anchor" href="#ancestry-mosaics-not-genotype-calls"></a>
+</h2>
+<p>nilHMM infers <strong>ancestry</strong> — the REF/HET/ALT
+donor-introgression state <em>along each chromosome</em> (the “mosaic”),
+reconstructed by borrowing strength across neighbouring markers through
+the HMM’s linkage (duration) model. That is a different operation from
+<strong>genotype calling</strong> — deciding the genotype at a marker
+from <em>that marker’s own read observations</em>, one site at a time,
+with no linkage. The package keeps the two apart on purpose:</p>
+<ul>
+<li>
+<strong>Genotype calling</strong> is <code><a href="../reference/call_gt.html">call_gt()</a></code> — per
+site, no linkage (<code>prior = "flat"</code> = maximum-likelihood call;
+<code>prior = "hwe"</code> = the het-excess HWE-MAP baseline). Its
+output is a genotype <code>0/1/2</code>: an observation, not an ancestry
+inference.</li>
+<li>
+<strong>Ancestry inference</strong> is the family of
+<strong>callers</strong>, run through <code><a href="../reference/call_ancestry.html">call_ancestry()</a></code>. Its
+output is the common segment schema — the ancestry mosaic.</li>
+</ul>
+<p>The wall is enforced, not incidental: an ancestry caller never
+silently calls genotypes for you (<code>nnil</code>/<code>catiger</code>
+require <em>called</em> genotypes and will not threshold read counts),
+and <code><a href="../reference/call_gt.html">call_gt()</a></code> is not dispatchable through
+<code><a href="../reference/call_ancestry.html">call_ancestry()</a></code>. The rest of this vignette is about the
+<strong>ancestry</strong> side; <code><a href="../articles/callers.html">vignette("callers")</a></code> walks
+the wall in detail.</p>
+</div>
+<div class="section level2">
 <h2 id="the-one-verb-api">The one-verb API<a class="anchor" aria-label="anchor" href="#the-one-verb-api"></a>
 </h2>
 <p>Everything funnels through a single call:</p>
