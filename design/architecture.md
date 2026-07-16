@@ -139,6 +139,22 @@ Uses `hmmlearn.MultinomialHMM` with:
 - Genotype matrix: samples × markers × 4 bytes
 - For 1000 samples × 100K markers ≈ 400MB RAM
 
+#### Long-format input cost at dense-GT scale (known trade-off)
+`call_ancestry()`/`call_states()` take a **long** observation table (one row per
+sample × marker: `name, chr, pos` + `g` or `n_ref/n_alt`). This is uniform across
+callers, but it is *not* memory-optimal for dense saturated GT. A 1,400-sample ×
+50,000-marker cohort is **70M rows** ≈ **1.4 GB** as an R `data.frame` (the
+character `name` column — 70M pointers — is ~40% of it), and `split(data, name)`
+per sample transiently roughly **doubles** peak to ~2.8 GB. The equivalent wide
+markers × samples integer matrix (nNIL's native form) is ~0.28 GB — about **5×
+leaner** — because it does not repeat the `(name, chr, pos)` key on every row.
+This is a deliberate convenience/uniformity-vs-memory trade, not a bug; it has run
+fine in practice at this scale. Do **not** optimize speculatively. If a symptom
+appears (an out-of-memory error, a much larger cohort, or slow iteration), measure
+first, then the cheapest fix is factor/integer-encoding `name` (halves that column,
+no API change) before anything as invasive as a dedicated matrix-input path for the
+gt callers.
+
 ### Computational Complexity
 - Per chromosome: O(T × N² × M) where T=markers, N=states, M=samples
 - Total runtime: Linear in number of markers and samples
