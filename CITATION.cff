@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use nilHMM, please cite both the software and the nNIL population paper it builds on."
+message: "If you use nilHMM, please cite the nilHMM methods paper (in preparation), the software, and the nNIL population paper it builds on."
 title: "nilHMM: Duration-Aware HMM Ancestry Caller for NIL Sequencing Data"
 abstract: >-
   A unified R + Rcpp reimplementation of the nilHMM ancestry-calling family for
@@ -25,6 +25,21 @@ keywords:
   - introgression
   - bioinformatics
 references:
+  - type: unpublished
+    title: >-
+      Simulation calibrated HMM ancestry calling for Near Isogenic Lines across
+      sequencing modalities (nilHMM)
+    authors:
+      - family-names: "Rodriguez-Zapata"
+        given-names: Fausto
+      - family-names: Tandukar
+        given-names: Nirwan
+      - family-names: Holland
+        given-names: James B.
+      - family-names: "Rellan-Alvarez"
+        given-names: Ruben
+    year: 2026
+    notes: "Manuscript in preparation."
   - type: article
     title: >-
       A maize near-isogenic line population designed for gene discovery and
