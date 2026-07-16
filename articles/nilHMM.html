@@ -84,34 +84,43 @@ vignette covers the common workflow; see
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/sawers-rellan-labs/nilhmm" class="external-link">nilHMM</a></span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
-<h2 id="ancestry-mosaics-not-genotype-calls">Ancestry mosaics, not genotype calls<a class="anchor" aria-label="anchor" href="#ancestry-mosaics-not-genotype-calls"></a>
+<h2 id="genotype-calls-and-ancestry-inference">Genotype calls and ancestry inference<a class="anchor" aria-label="anchor" href="#genotype-calls-and-ancestry-inference"></a>
 </h2>
-<p>nilHMM infers <strong>ancestry</strong> — the REF/HET/ALT
-donor-introgression state <em>along each chromosome</em> (the “mosaic”),
-reconstructed by borrowing strength across neighbouring markers through
-the HMM’s linkage (duration) model. That is a different operation from
-<strong>genotype calling</strong> — deciding the genotype at a marker
-from <em>that marker’s own read observations</em>, one site at a time,
-with no linkage. The package keeps the two apart on purpose:</p>
-<ul>
-<li>
-<strong>Genotype calling</strong> is <code><a href="../reference/call_gt.html">call_gt()</a></code> — per
-site, no linkage (<code>prior = "flat"</code> = maximum-likelihood call;
-<code>prior = "hwe"</code> = the het-excess HWE-MAP baseline). Its
-output is a genotype <code>0/1/2</code>: an observation, not an ancestry
-inference.</li>
-<li>
-<strong>Ancestry inference</strong> is the family of
-<strong>callers</strong>, run through <code><a href="../reference/call_ancestry.html">call_ancestry()</a></code>. Its
-output is the common segment schema — the ancestry mosaic.</li>
-</ul>
-<p>The wall is enforced, not incidental: an ancestry caller never
-silently calls genotypes for you (<code>nnil</code>/<code>catiger</code>
-require <em>called</em> genotypes and will not threshold read counts),
-and <code><a href="../reference/call_gt.html">call_gt()</a></code> is not dispatchable through
-<code><a href="../reference/call_ancestry.html">call_ancestry()</a></code>. The rest of this vignette is about the
-<strong>ancestry</strong> side; <code><a href="../articles/callers.html">vignette("callers")</a></code> walks
-the wall in detail.</p>
+<p>nilHMM reconstructs ancestry with a hidden Markov model, and the way
+the package is organized follows from keeping the model’s output
+separate from the data it was computed on. Two different questions get
+asked of the same sequencing reads.</p>
+<p>The first is local. At a single marker, what genotype does this
+sample carry? That is decided from the read counts at that one position
+— the reference and alternate depths, <code>n_ref</code> and
+<code>n_alt</code> — and nothing else. <code><a href="../reference/call_gt.html">call_gt()</a></code> does this,
+one marker at a time, without looking at any neighbouring marker. Its
+answer is a genotype (<code>0</code>, <code>1</code>, or <code>2</code>)
+that summarizes the reads at that site: with a flat prior it is the
+maximum-likelihood call, and with a Hardy–Weinberg prior it is the MAP
+call, which at low depth leans toward heterozygous — the naive baseline
+the HMM is meant to improve on.</p>
+<p>The second question is the one the HMM answers. Given all the markers
+along a chromosome, what is the most likely ancestry state — REF, HET,
+or ALT — at each position? Neighbouring markers matter here, because
+ancestry only changes at recombination breakpoints, so a stretch of
+consecutive markers shares one state. The HMM uses that linkage to pool
+the per-position observations — read counts for the count callers, or
+already-called genotypes for the categorical ones — and then projects an
+ancestry state back onto every input position. That projection is a
+model result, not a direct reading of the observation at any single
+site, and it can disagree with a per-site genotype call exactly where
+linkage outweighs a noisy one.</p>
+<p>Because a per-site summary of the reads and a linkage-based inference
+across the chromosome are different things, nilHMM keeps them in
+separate functions. Genotype calling is <code><a href="../reference/call_gt.html">call_gt()</a></code>, which
+takes read counts. Ancestry inference is the family of callers, run
+through <code><a href="../reference/call_ancestry.html">call_ancestry()</a></code>, which return the segment schema —
+the mosaic. The callers that model called genotypes (<code>nnil</code>,
+<code>catiger</code>) therefore expect genotypes you have already called
+and will not threshold read counts on their own, so that the
+hard-calling step, when you take it, stays a deliberate choice rather
+than something the ancestry caller did silently.</p>
 </div>
 <div class="section level2">
 <h2 id="the-one-verb-api">The one-verb API<a class="anchor" aria-label="anchor" href="#the-one-verb-api"></a>
@@ -228,83 +237,60 @@ chromosome (REF gold / HET green / ALT purple):</p>
 <p><img src="nilHMM_files/figure-html/plot-1.png" class="r-plt" alt="" width="672"></p>
 </div>
 <div class="section level2">
-<h2 id="which-caller">Which caller?<a class="anchor" aria-label="anchor" href="#which-caller"></a>
+<h2 id="the-callers">The callers<a class="anchor" aria-label="anchor" href="#the-callers"></a>
 </h2>
-<p>All callers share the REF/HET/ALT chain and the design priors; they
-differ in the emission model, the duration prior, and the input they
-expect.</p>
-<table class="table">
-<colgroup>
-<col width="33%">
-<col width="33%">
-<col width="33%">
-</colgroup>
-<thead><tr class="header">
-<th>caller</th>
-<th>input</th>
-<th>when</th>
-</tr></thead>
-<tbody>
-<tr class="odd">
-<td><code>nnil</code></td>
-<td>called <code>GT</code> (hard genotypes)</td>
-<td>categorical (gt) + geometric; Holland’s nNIL on hard calls</td>
-</tr>
-<tr class="even">
-<td><code>bbnil</code></td>
-<td>allelic read counts</td>
-<td>count/BetaBinomial + geometric; low-coverage skim/BrB</td>
-</tr>
-<tr class="odd">
-<td><code>catiger</code></td>
-<td>called <code>GT</code> (hard genotypes)</td>
-<td>categorical (gt) + rigidity</td>
-</tr>
-<tr class="even">
-<td><code>rtiger</code></td>
-<td>allelic read counts</td>
-<td>count + minimum-run-length (rigidity) segmentation</td>
-</tr>
-<tr class="odd">
-<td><code>binhmm</code></td>
-<td>allelic read counts</td>
-<td>per-bin calling for noisy/uneven coverage</td>
-</tr>
-<tr class="even">
-<td><code>googa</code></td>
-<td>recurrent/donor counts</td>
-<td>competitive-alignment RNA-seq (faithful GOOGA; gt + geometric)</td>
-</tr>
-<tr class="odd">
-<td><code>atlas</code></td>
-<td>recurrent/donor counts</td>
-<td>competitive-alignment RNA-seq (this work; gt + rigidity)</td>
-</tr>
-<tr class="even">
-<td><code>lbimpute</code></td>
-<td>allelic read counts</td>
-<td>biallelic imputation (LB-Impute port; distance-dependent
-transition)</td>
-</tr>
-<tr class="odd">
-<td><code>fsfhap</code></td>
-<td>called <code>GT</code> + a <code>family</code>
-</td>
-<td>full-sib families (TASSEL FSFHap)</td>
-</tr>
-<tr class="even">
-<td><code>pedigree</code></td>
-<td>counts or hard-call <code>state</code>/<code>g</code> + a
-pedigree</td>
-<td>family-coupled belief propagation</td>
-</tr>
-</tbody>
-</table>
-<p><code><a href="../articles/callers.html">vignette("callers")</a></code> gives runnable examples for the
-per-sample callers (see <code><a href="../articles/fsfhap.html">vignette("fsfhap")</a></code> for the family
-workflow). The no-HMM per-site <em>genotype</em> baseline (the
-het-excess “control”) is <code><a href="../reference/call_gt.html">call_gt()</a></code>, not an ancestry caller
-— see <code><a href="../reference/call_gt.html">?call_gt</a></code>.</p>
+<p>Four callers form the core family — the grid in panel B of the paper
+— laid out over two choices. The first is the <strong>emission</strong>:
+how a marker’s observation becomes evidence for each state, either a
+BetaBinomial on the read counts or a categorical model on an
+already-called genotype. The second is the <strong>duration</strong>:
+how readily the ancestry state is allowed to switch between adjacent
+markers, either a plain geometric per-marker switch probability or a
+rigidity model that requires a minimum run length before a switch. The
+four cells are those two choices crossed:</p>
+<ul>
+<li>
+<code>bbnil</code> — BetaBinomial on read counts, geometric
+duration. The read-count caller for low-coverage skim/BrB data.</li>
+<li>
+<code>nnil</code> — categorical on called genotypes, geometric
+duration. Holland’s original nNIL, for saturated genotype data.</li>
+<li>
+<code>rtiger</code> — BetaBinomial on read counts, rigidity
+duration. The RTIGER segmentation (a Julia-free port), robust at low
+depth.</li>
+<li>
+<code>catiger</code> — categorical on called genotypes, rigidity
+duration.</li>
+</ul>
+<p>Read across the grid, the emission follows the data you have (read
+counts vs called genotypes) and the duration sets how hard short
+segments are smoothed away.</p>
+<p><code>googa</code> and <code>atlas</code> are the same categorical
+HMM applied to RNA-seq. When reads are competitively aligned to the two
+parents, expression and allele-specific expression distort the allele
+fraction, so a BetaBinomial on the counts would be misled. Both callers
+instead threshold the competitive counts to hard genotype calls (GOOGA’s
+rule) and then run the categorical model — differing only in duration:
+<code>googa</code> uses the geometric duration (a faithful reproduction
+of GOOGA) and <code>atlas</code> uses the rigidity duration.</p>
+<p><code>pedigree</code> is the one that leaves the per-sample pattern.
+The callers above decode each line on its own; <code>pedigree</code>
+couples relatives, passing ancestry information across a family through
+the pedigree so a thinly-covered line borrows from its better-covered
+relatives.</p>
+<p>The rest are specialized or external. <code>binhmm</code> sits off
+the grid: it bins the genome and calls a per-bin state from a Gaussian
+emission, an option for dense data with uneven coverage.
+<code>lbimpute</code> and <code>fsfhap</code> are faithful ports of
+established biparental imputers — LB-Impute (Fragoso et al., a
+distance-dependent transition) and TASSEL’s FSFHap (per-family haplotype
+imputation) — carried as comparison baselines; each keeps its own
+internal model but returns the same segment schema.</p>
+<p><code><a href="../articles/callers.html">vignette("callers")</a></code> runs one example of each
+(<code><a href="../articles/fsfhap.html">vignette("fsfhap")</a></code> for the family workflow). The per-site
+genotype baseline of the previous section is <code><a href="../reference/call_gt.html">call_gt()</a></code> —
+<code><a href="../reference/call_gt.html">?call_gt</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="next-steps">Next steps<a class="anchor" aria-label="anchor" href="#next-steps"></a>
