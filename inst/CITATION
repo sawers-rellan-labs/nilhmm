@@ -1,4 +1,15 @@
-citHeader("If you use nilHMM, please cite both the software and the nNIL population paper it builds on.")
+citHeader("If you use nilHMM, please cite the nilHMM methods paper (in preparation), the software, and the nNIL population paper it builds on.")
+
+bibentry(
+  bibtype  = "Unpublished",
+  title    = "Simulation calibrated HMM ancestry calling for Near Isogenic Lines across sequencing modalities (nilHMM)",
+  author   = c(person("Fausto", "Rodriguez-Zapata"),
+               person("Nirwan", "Tandukar"),
+               person("James B.", "Holland"),
+               person("Ruben", "Rellan-Alvarez")),
+  year     = "2026",
+  note     = "Manuscript in preparation"
+)
 
 bibentry(
   bibtype  = "Manual",

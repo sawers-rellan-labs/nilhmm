@@ -190,8 +190,12 @@ documentation for the full reference.
 
 ## Citation
 
-If you use nilHMM, please cite the nNIL population paper it is built on, and (once
-released) the nilHMM methods paper — see `CITATION`.
+If you use nilHMM, please cite the nilHMM methods paper, the software, and the
+nNIL population paper it is built on — see `CITATION`.
+
+> Rodríguez-Zapata, F., Tandukar, N., Holland, J.B., & Rellán-Álvarez, R. (2026).
+> *Simulation calibrated HMM ancestry calling for Near Isogenic Lines across
+> sequencing modalities (nilHMM)*. **Manuscript in preparation.**
 
 ```
 Zhong, T., Mullens, A., Morales, L., Swarts, K.L., Stafstrom, W.C., He, Y.,
