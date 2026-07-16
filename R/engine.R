@@ -180,19 +180,23 @@ decode <- function(model, obs) {
 #' collapse into common-schema segments; [call_ancestry()] chains the two.
 #' Data-agnostic: pass the observations in; this function never reads paths.
 #'
-#' @param data Long observation table with columns `name, chr, pos` and either
-#'   `n_ref, n_alt` read counts (from [read_counts()]; for the count callers
-#'   `bbnil`/`rtiger`, `binhmm`, the competitive-alignment callers `googa`/`atlas`,
-#'   `lbimpute`, `ml`/`hwemap`) or a pre-called hard-genotype column `g` in
-#'   `{0,1,2,3}` (from [read_vcf_gt()]; the categorical gt callers
-#'   `nnil`/`catiger`). Optionally `donor`.
+#' @param data Long observation table with columns `name, chr, pos` and one of:
+#'   `n_ref, n_alt` read counts (from [read_counts()]; accepted by every
+#'   count/threshold caller --- `bbnil`/`rtiger`, `binhmm`, `googa`/`atlas`,
+#'   `lbimpute`, and the gt callers `nnil`/`catiger`, which hard-call the counts
+#'   internally); a pre-called hard-genotype column `g` in `{0,1,2,3}` (from
+#'   [read_vcf_gt()]; the gt callers `nnil`/`catiger`, plus `fsfhap`/`pedigree`);
+#'   or a pre-binned `alt_freq` (with `start_bp, end_bp`) for `binhmm`. Optionally
+#'   `donor`.
 #' @param caller One of `"nnil"`, `"bbnil"`, `"catiger"`, `"rtiger"`, `"binhmm"`,
-#'   `"googa"`, `"atlas"`, `"lbimpute"`, `"fsfhap"`, `"ml"`, `"hwemap"`,
-#'   `"pedigree"`. The six gt/count grid cells: `nnil` (gt + geometric),
-#'   `bbnil` (count + geometric), `catiger` (gt + rigidity), `rtiger` (count +
-#'   rigidity), plus the GOOGA-threshold transcript pair `googa` (gt + geometric,
-#'   faithful GOOGA) and `atlas` (gt + rigidity, this work). `ml`/`hwemap` are the
-#'   no-HMM per-site genotype baselines (flat = maximum likelihood, HWE = MAP).
+#'   `"googa"`, `"atlas"`, `"lbimpute"`, `"fsfhap"`, `"pedigree"`. The six gt/count
+#'   grid cells: `nnil` (gt + geometric), `bbnil` (count + geometric), `catiger`
+#'   (gt + rigidity), `rtiger` (count + rigidity), plus the GOOGA-threshold
+#'   transcript pair `googa` (gt + geometric, faithful GOOGA) and `atlas` (gt +
+#'   rigidity, this work). For the no-HMM per-site genotype baseline (the paper's
+#'   "control"), call the genotype caller [call_gt()] directly (`prior = "flat"`
+#'   for the maximum-likelihood call, `prior = "hwe"` for the HWE MAP) --- it is a
+#'   *genotype* caller, deliberately separate from the ancestry callers here.
 #' @param family `fsfhap` caller only: per-row family grouping (a vector length
 #'   `nrow(data)`, or supply a `family` column on `data`). FSFHap pools each family.
 #' @param pedigree `pedigree` caller only (**required** there): a [read_pedigree()]
@@ -255,8 +259,7 @@ decode <- function(model, obs) {
 #'   geometric callers' fragmentation, and dilute the rigidity run. `binhmm` is
 #'   unaffected (it drops truly-empty bins internally; a future per-bin frequency
 #'   gate would be a separate `min_freq`); `googa`/`atlas` have their own
-#'   `atlas_min_reads` gate; `ml`/`hwemap` keep every covered marker (low depth is
-#'   the point of the het-excess baseline).
+#'   `atlas_min_reads` gate.
 #' @param bin_size,cluster_method `binhmm` caller only: genomic bin width in bp
 #'   (default 1 Mb) and the per-bin genotyping backend --- `"gauss"` (default: the
 #'   anchored 3-state Gaussian-emission HMM; fixes the HET over-call and
@@ -321,7 +324,7 @@ decode <- function(model, obs) {
 #' to_segments(st)                       # or, in one step:
 #' call_ancestry(toy, caller = "bbnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #' @export
-call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "binhmm", "googa", "atlas", "lbimpute", "fsfhap", "ml", "hwemap", "pedigree"),
+call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "binhmm", "googa", "atlas", "lbimpute", "fsfhap", "pedigree"),
                         family = NULL, phet = NULL,
                         pedigree = NULL, ped_format = c("fam", "fsfhap"),
                         ped_maxiter = 30L, ped_tol = 1e-4, ped_lambda = 0.5,
@@ -364,7 +367,7 @@ call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "
   # MolBreeding regime). It only makes sense for the categorical gt callers
   # `nnil`/`catiger` (whose emission consumes `g` directly), plus `fsfhap`/
   # `pedigree`. The count-input callers (`bbnil`/`rtiger`/`binhmm`/`googa`/`atlas`/
-  # `lbimpute`/`ml`/`hwemap`) all need read counts.
+  # `lbimpute`) all need read counts.
   if (has_gt && !has_counts) {
     if (!caller %in% c("nnil", "catiger", "fsfhap", "pedigree"))
       stop("call_states(): a `g` genotype input (no read counts) requires caller = 'nnil', ",
@@ -439,21 +442,6 @@ call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "
     st$chr <- as.integer(st$chr); st$pos <- as.integer(st$pos)   # call_states() integer schema
     st <- st[, c("source", "donor", "name", "chr", "pos", "state"), drop = FALSE]
     return(st[order(st$donor, st$name, st$chr, st$pos), , drop = FALSE])
-  }
-
-  # ml / hwemap callers: the no-HMM per-site genotype baselines (R/call_gt.R).
-  # Each (marker, sample) is decided independently from its own (n_ref, n_alt) --
-  # no linkage, no duration, no design prior. `ml` uses a flat prior (pure
-  # argmax genotype-likelihood = maximum likelihood; het-blind at depth 1).
-  # `hwemap` uses the per-marker Hardy-Weinberg prior (posterior mode = MAP;
-  # het-EXCESS at low depth) -- the paper's het-excess "control" reference the HMM
-  # callers must beat. Dispatched early: with no transition model the shared
-  # duration/prior machinery below does not apply.
-  if (caller %in% c("ml", "hwemap")) {
-    if (!has_counts)
-      stop("call_states(): caller = '", caller, "' needs (n_ref, n_alt) read counts")
-    return(.gt_states(data, prior = if (caller == "ml") "flat" else "hwe",
-                      error = err, source = source, donor = donor, has_donor = has_donor))
   }
 
   # Required priors are a caller-argument problem, not a data problem, so validate

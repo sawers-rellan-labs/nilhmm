@@ -44,16 +44,16 @@ Numeric states: **0 = REF** (recurrent hom, e.g. B73), **1 = HET**, **2 = ALT**
 - **Engine** — `fit()` (EM / parameter fitting) then `decode()` (Viterbi /
   posteriors) → `to_segments()` (RLE to the common schema).
 
-### The callers (HMM callers share the REF/HET/ALT chain + design priors; `ml`/`hwemap` are no-HMM per-site baselines)
+### The callers (all share the REF/HET/ALT chain + design priors)
 
 The four **grid** callers are the pure (emission × duration) cells; the rest sit
 off the grid.
 
 | caller | emission | duration | typical input | lineage |
 |---|---|---|---|---|
-| `nnil` | `gt` (categorical) | geometric | called `GT` (or counts → hard call) | Holland nNIL |
+| `nnil` | `gt` (categorical) | geometric | called `GT` (hard genotypes) | Holland nNIL |
 | `bbnil` | `count` (BetaBinomial) | geometric | allelic read counts (skim/BrB) | low-coverage count extension of nNIL |
-| `catiger` | `gt` (categorical) | rigidity | called `GT` (or counts → hard call) | categorical + rigidity |
+| `catiger` | `gt` (categorical) | rigidity | called `GT` (hard genotypes) | categorical + rigidity |
 | `rtiger` | `count` (BetaBinomial) | rigidity | allelic read counts | RTIGER (Julia-free port) |
 | `binhmm` | anchored Gaussian on binned alt-freq | per-bin HMM | allelic read counts | "ancestry by bins" |
 | `googa` | `gt` (GOOGA thresholds) | geometric | competitive-alignment RNA-seq counts | GOOGA (Flagel 2019 / Veltsos 2024), faithful |
@@ -61,8 +61,6 @@ off the grid.
 | `lbimpute` | coverage-aware (bounded by `genotypeerr`) | distance-based (double-recomb penalty) | very low-coverage (<1×) allelic read counts | LB-Impute (Fragoso 2014, native port) |
 | `fsfhap` | genotype-error (5-state EM) | family-pooled Haldane | called `GT` for full-sib families | FSFHap (Swarts 2014, TASSEL) |
 | `pedigree` | count or `gt` (input-detected) | BP over pedigree × genome | counts or hard-call `state`/`g` + a pedigree | family-coupled belief propagation |
-| `ml` | per-site GL, flat prior | none (no HMM) | allelic read counts | maximum-likelihood genotype call (het-blind) |
-| `hwemap` | per-site GL, HWE prior | none (no HMM) | allelic read counts | HWE-MAP genotype call (het-excess control) |
 
 `nnil` = categorical `gt` + geometric; `bbnil` swaps in the count/BetaBinomial
 emission (same geometric duration); `catiger` swaps the rigidity duration onto the
@@ -70,11 +68,13 @@ emission (same geometric duration); `catiger` swaps the rigidity duration onto t
 thresholding (`atlas_thresh`/`atlas_het`/`atlas_min_reads`): `googa` = gt +
 **geometric** is the faithful reproduction (GOOGA's recombination-fraction F2 HMM
 has **no** rigidity/minimum-run duration), and `atlas` = gt + **rigidity** is this
-work's transcript caller. `ml`/`hwemap` are the no-HMM per-site baselines (backed
-by `call_gt()`):
-`ml` = flat-prior maximum likelihood, `hwemap` = HWE-prior MAP (the het-excess
-reference). Neither involves `interpolate_genotype()`, which is a separate
-deterministic densifier, not a caller.
+work's transcript caller. The no-HMM per-site **genotype** baseline (the paper's
+"control": flat prior = maximum likelihood, HWE prior = MAP / het-excess) is
+`call_gt()` — a *genotype* caller, deliberately **not** an ancestry caller
+(`call_ancestry` does not dispatch it). This keeps the terminology wall between the
+ancestry mosaic and genotypes (`design/TERMINOLOGY.md`); if a genotype baseline is
+wanted in an ancestry comparison, the consumer converts it (`to_segments()`) itself.
+`call_gt()` is also distinct from `interpolate_genotype()`, a deterministic densifier.
 
 See `README.md` for per-caller detail and `?call_ancestry`. `lbimpute` is a native
 port of LB-Impute: it keeps LB-Impute's coverage-aware emission and
