@@ -100,9 +100,9 @@ at <- call_ancestry(counts, caller = "atlas", design = "BC2S2", rigidity = 5L,
 head(gg, 3); head(at, 3)
 ```
 
-## `lbimpute` — very low coverage
+## `lbimpute` — LB-Impute port (distance-dependent transition)
 
-A native port of LB-Impute (Fragoso et al. 2014) for `<1×` biallelic populations: a
+A native port of LB-Impute (Fragoso et al. 2014) for biallelic populations: a
 coverage-aware emission bounded by `genotypeerr`, and a distance-dependent
 transition (recombination scales with the marker gap over `recombdist`). No design
 priors needed.
