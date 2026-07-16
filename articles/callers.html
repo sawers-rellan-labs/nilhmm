@@ -68,11 +68,13 @@
 
     
     
-<p>nilHMM ships six named callers. They all share the 3-state
-REF/HET/ALT chain and the breeding-design priors, and all return the
-same segment schema — so you can run several on the same data and
-compare directly. They differ in the <strong>emission</strong> model,
-the <strong>duration</strong> prior, and the <strong>input</strong> they
+<p>nilHMM ships eleven named callers. The HMM callers share the 3-state
+REF/HET/ALT chain and the breeding-design priors (the two no-HMM
+baselines <code>ml</code>/<code>hwemap</code> use a flat /
+Hardy–Weinberg prior instead), and all return the same segment schema —
+so you can run several on the same data and compare directly. They
+differ in the <strong>emission</strong> model, the
+<strong>duration</strong> prior, and the <strong>input</strong> they
 expect. This vignette runs one minimal example of each on self-contained
 synthetic data.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
@@ -96,30 +98,47 @@ callers):</p>
 <span><span class="va">gt</span>     <span class="op">&lt;-</span> <span class="va">obs</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"name"</span>, <span class="st">"donor"</span>, <span class="st">"chr"</span>, <span class="st">"pos"</span>, <span class="st">"g"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="nnil-count-and-genotype">
-<code>nnil</code> — count and genotype<a class="anchor" aria-label="anchor" href="#nnil-count-and-genotype"></a>
+<h2 id="the-four-grid-callers-emission-duration">The four grid callers (emission × duration)<a class="anchor" aria-label="anchor" href="#the-four-grid-callers-emission-duration"></a>
 </h2>
-<p>Holland’s nNIL caller. With allelic counts it pools single-read
-observations along a segment via a BetaBinomial emission
-(<code>err</code>, <code>conc</code>; <code>fit_means = TRUE</code>
-EM-fits the per-state alt fractions). Given only a called genotype
-<code>g</code>, it switches to the categorical genotype emission
-automatically.</p>
+<p>The pure cells of the engine’s grid share the REF/HET/ALT chain and
+differ only in two axes: the emission (categorical <code>gt</code> vs
+count/BetaBinomial) and the duration (geometric vs rigidity).</p>
+<ul>
+<li>
+<strong><code>nnil</code></strong> — Holland’s nNIL: categorical
+<code>gt</code> emission + geometric duration. A called genotype
+<code>g</code> is used directly; read counts are first hard-called
+(1/3–2/3 cutoffs). Error model: <code>germ</code>, <code>gert</code>,
+<code>p</code>, <code>mr</code>, <code>nir</code>.</li>
+<li>
+<strong><code>bbnil</code></strong> — the low-coverage count
+extension: count/BetaBinomial emission (<code>err</code>,
+<code>conc</code>; <code>fit_means = TRUE</code> EM-fits the per-state
+alt fractions) + the same geometric duration.</li>
+<li>
+<strong><code>catiger</code></strong> — categorical <code>gt</code>
+emission + rigidity duration.</li>
+<li>
+<strong><code>rtiger</code></strong> — count/BetaBinomial emission +
+rigidity duration (below).</li>
+</ul>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">nnil_count</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"nnil"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>,</span>
-<span>                            rrate <span class="op">=</span> <span class="fl">1e-4</span>, err <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span></span>
-<span><span class="va">nnil_gt</span>    <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">gt</span>, caller <span class="op">=</span> <span class="st">"nnil"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span><span class="op">)</span>  <span class="co"># g-only -&gt; gt emission</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">nnil_count</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">nnil_gt</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="va">nnil</span>    <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">gt</span>,     caller <span class="op">=</span> <span class="st">"nnil"</span>,    design <span class="op">=</span> <span class="st">"BC2S2"</span><span class="op">)</span>           <span class="co"># gt + geometric</span></span>
+<span><span class="va">bbnil</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"bbnil"</span>,   design <span class="op">=</span> <span class="st">"BC2S2"</span>,</span>
+<span>                         rrate <span class="op">=</span> <span class="fl">1e-4</span>, err <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span>                               <span class="co"># count + geometric</span></span>
+<span><span class="va">catiger</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">gt</span>,     caller <span class="op">=</span> <span class="st">"catiger"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>, rigidity <span class="op">=</span> <span class="fl">5L</span><span class="op">)</span>  <span class="co"># gt + rigidity</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">nnil</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">bbnil</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">catiger</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 51</span></span>
 <span><span class="co">#&gt; [1] 50</span></span>
-<span><span class="co">#&gt; [1] 51</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 47</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="rtiger-rigidity-segmentation">
 <code>rtiger</code> — rigidity segmentation<a class="anchor" aria-label="anchor" href="#rtiger-rigidity-segmentation"></a>
 </h2>
 <p>A Julia-free port of the RTIGER rigidity HMM (EM + Viterbi + border
-re-placement). <code>rigidity</code> is the integer minimum run
-length.</p>
+re-placement), the count-emission rigidity cell. <code>rigidity</code>
+is the integer minimum run length.</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">rt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"rtiger"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>,</span>
 <span>                    rigidity <span class="op">=</span> <span class="fl">5L</span>, seed <span class="op">=</span> <span class="fl">1L</span><span class="op">)</span></span>
@@ -145,16 +164,29 @@ coverage.</p>
 <span><span class="co">#&gt; 3 nilHMM     B NIL01   2    98554 243484148     0</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="atlas-competitive-alignment-googa">
-<code>atlas</code> — competitive-alignment (GOOGA)<a class="anchor" aria-label="anchor" href="#atlas-competitive-alignment-googa"></a>
+<h2 id="googa-atlas-competitive-alignment-transcript-ancestry">
+<code>googa</code> / <code>atlas</code> — competitive-alignment
+(transcript ancestry)<a class="anchor" aria-label="anchor" href="#googa-atlas-competitive-alignment-transcript-ancestry"></a>
 </h2>
 <p>For transcript / competitive-alignment data:
 <code>n_ref</code>/<code>n_alt</code> are the recurrent and donor read
-counts, thresholded into genotype calls (GOOGA style) then smoothed.</p>
+counts, thresholded into hard genotype calls (<code>atlas_thresh</code>,
+<code>atlas_het</code>, <code>atlas_min_reads</code>) then smoothed.
+<strong><code>googa</code></strong> is the faithful reproduction — gt +
+<strong>geometric</strong>, matching GOOGA’s recombination-fraction F2
+HMM (Flagel 2019; Veltsos 2024), which carries no rigidity.
+<strong><code>atlas</code></strong> is this work’s transcript caller:
+the same thresholding with the <strong>rigidity</strong> duration.</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">at</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"atlas"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>,</span>
+<code class="sourceCode R"><span><span class="va">gg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"googa"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>,</span>
 <span>                    atlas_thresh <span class="op">=</span> <span class="fl">0.95</span>, atlas_het <span class="op">=</span> <span class="fl">0.25</span>, atlas_min_reads <span class="op">=</span> <span class="fl">5L</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">at</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="va">at</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"atlas"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>, rigidity <span class="op">=</span> <span class="fl">5L</span>,</span>
+<span>                    atlas_thresh <span class="op">=</span> <span class="fl">0.95</span>, atlas_het <span class="op">=</span> <span class="fl">0.25</span>, atlas_min_reads <span class="op">=</span> <span class="fl">5L</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">gg</span>, <span class="fl">3</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">at</span>, <span class="fl">3</span><span class="op">)</span></span>
+<span><span class="co">#&gt;   source donor  name chr start_bp    end_bp state</span></span>
+<span><span class="co">#&gt; 1 nilHMM     B NIL01   1    37410  27727705     2</span></span>
+<span><span class="co">#&gt; 2 nilHMM     B NIL01   1 29573725 308322690     0</span></span>
+<span><span class="co">#&gt; 3 nilHMM     B NIL01   2    98554 243484148     0</span></span>
 <span><span class="co">#&gt;   source donor  name chr start_bp    end_bp state</span></span>
 <span><span class="co">#&gt; 1 nilHMM     B NIL01   1    37410  27727705     2</span></span>
 <span><span class="co">#&gt; 2 nilHMM     B NIL01   1 29573725 308322690     0</span></span>
@@ -178,6 +210,27 @@ No design priors needed.</p>
 <span><span class="co">#&gt; 3 nilHMM     B NIL01   2    98554 223047189     0</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="ml-hwemap-no-hmm-per-site-baselines">
+<code>ml</code> / <code>hwemap</code> — no-HMM per-site
+baselines<a class="anchor" aria-label="anchor" href="#ml-hwemap-no-hmm-per-site-baselines"></a>
+</h2>
+<p>Two per-site genotype callers with <strong>no</strong>
+linkage/duration model — each <code>(marker, sample)</code> is decided
+independently from its own read counts (backed by
+<code><a href="../reference/call_gt.html">call_gt()</a></code>). <code>ml</code> uses a flat prior (pure argmax
+genotype-likelihood = maximum likelihood; het-blind at depth 1).
+<code>hwemap</code> uses the per-marker Hardy–Weinberg prior (posterior
+MAP; deliberately het-<strong>excess</strong> at low depth) — the
+reference the HMM callers must beat. These are not to be confused with
+the deterministic <code><a href="../reference/interpolate_genotype.html">interpolate_genotype()</a></code> densifier.</p>
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ml_calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"ml"</span>,     design <span class="op">=</span> <span class="st">"BC2S2"</span><span class="op">)</span></span>
+<span><span class="va">hw_calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"hwemap"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">ml_calls</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">hw_calls</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 207</span></span>
+<span><span class="co">#&gt; [1] 241</span></span></code></pre></div>
+</div>
+<div class="section level2">
 <h2 id="fsfhap-full-sib-families">
 <code>fsfhap</code> — full-sib families<a class="anchor" aria-label="anchor" href="#fsfhap-full-sib-families"></a>
 </h2>
@@ -186,7 +239,7 @@ No design priors needed.</p>
 grouping and a called genotype <code>g</code>. See
 <code><a href="../articles/fsfhap.html">vignette("fsfhap")</a></code> for the full workflow (HapMap + pedigree
 input, design routing, parallelism).</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">fam</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">gt</span>, family <span class="op">=</span> <span class="va">donor</span><span class="op">)</span>          <span class="co"># a family grouping on the genotype table</span></span>
 <span><span class="co"># (a real family needs enough segregating markers; see vignette("fsfhap"))</span></span></code></pre></div>
 </div>
@@ -196,16 +249,22 @@ input, design routing, parallelism).</p>
 <p>Because the output schema is shared, comparison is a table join away
 — e.g. how many segments and which states each caller produced on the
 same counts:</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">summ</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>segments <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, states <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">state</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>nnil <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">nnil_count</span><span class="op">)</span>, rtiger <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">rt</span><span class="op">)</span>, binhmm <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">bh</span><span class="op">)</span>,</span>
-<span>      atlas <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">at</span><span class="op">)</span>, lbimpute <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">lb</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>nnil <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">nnil</span><span class="op">)</span>, bbnil <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">bbnil</span><span class="op">)</span>, catiger <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">catiger</span><span class="op">)</span>,</span>
+<span>      rtiger <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">rt</span><span class="op">)</span>, binhmm <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">bh</span><span class="op">)</span>, googa <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">gg</span><span class="op">)</span>, atlas <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">at</span><span class="op">)</span>,</span>
+<span>      lbimpute <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">lb</span><span class="op">)</span>, ml <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">ml_calls</span><span class="op">)</span>, hwemap <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">hw_calls</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;          segments states</span></span>
-<span><span class="co">#&gt; nnil           50      3</span></span>
+<span><span class="co">#&gt; nnil           51      3</span></span>
+<span><span class="co">#&gt; bbnil          50      3</span></span>
+<span><span class="co">#&gt; catiger        47      3</span></span>
 <span><span class="co">#&gt; rtiger         48      3</span></span>
 <span><span class="co">#&gt; binhmm         32      2</span></span>
-<span><span class="co">#&gt; atlas          48      3</span></span>
-<span><span class="co">#&gt; lbimpute       51      3</span></span></code></pre></div>
+<span><span class="co">#&gt; googa          48      3</span></span>
+<span><span class="co">#&gt; atlas          44      3</span></span>
+<span><span class="co">#&gt; lbimpute       51      3</span></span>
+<span><span class="co">#&gt; ml            207      3</span></span>
+<span><span class="co">#&gt; hwemap        241      3</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="chromosome-painting">Chromosome painting<a class="anchor" aria-label="anchor" href="#chromosome-painting"></a>
 </h3>
@@ -223,9 +282,10 @@ depth and missingness). <code><a href="../reference/paint_calls.html">paint_call
 the callers: <code>rbind</code> each track’s segments with a column
 naming it, and pass that column as <code>track</code> (its levels stack
 top-down, so truth goes first).</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">tracks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"nnil (count)"</span> <span class="op">=</span> <span class="va">nnil_count</span>, <span class="st">"nnil (gt)"</span> <span class="op">=</span> <span class="va">nnil_gt</span>,</span>
-<span>               rtiger <span class="op">=</span> <span class="va">rt</span>, binhmm <span class="op">=</span> <span class="va">bh</span>, atlas <span class="op">=</span> <span class="va">at</span>, lbimpute <span class="op">=</span> <span class="va">lb</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">tracks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"nnil (gt)"</span> <span class="op">=</span> <span class="va">nnil</span>, <span class="st">"bbnil (count)"</span> <span class="op">=</span> <span class="va">bbnil</span>, catiger <span class="op">=</span> <span class="va">catiger</span>,</span>
+<span>               rtiger <span class="op">=</span> <span class="va">rt</span>, binhmm <span class="op">=</span> <span class="va">bh</span>, googa <span class="op">=</span> <span class="va">gg</span>, atlas <span class="op">=</span> <span class="va">at</span>, lbimpute <span class="op">=</span> <span class="va">lb</span>,</span>
+<span>               ml <span class="op">=</span> <span class="va">ml_calls</span>, hwemap <span class="op">=</span> <span class="va">hw_calls</span><span class="op">)</span></span>
 <span><span class="va">comparison</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Map</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">seg</span>, <span class="va">m</span><span class="op">)</span> <span class="op">{</span> <span class="va">seg</span><span class="op">$</span><span class="va">method</span> <span class="op">&lt;-</span> <span class="va">m</span>; <span class="va">seg</span> <span class="op">}</span>,</span>
 <span>                                 <span class="va">tracks</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">tracks</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>

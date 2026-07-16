@@ -213,15 +213,17 @@ loop per (sample, chromosome) for you:</p>
 <code class="sourceCode R"><span><span class="va">spec</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/caller_spec.html">caller_spec</a></span><span class="op">(</span><span class="st">"nnil"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">spec</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "emission" "duration"</span></span></code></pre></div>
-<p>So <code>nnil</code> is
-<code>emission_count × duration_geometric</code>, <code>rtiger</code> is
-<code>emission_count × duration_rigidity</code>, and the genotype
-callers swap in <code>emission_gt</code>. The <code>binhmm</code>,
-<code>lbimpute</code>, and <code>fsfhap</code> callers carry extra
-structure (binning, a coverage-aware emission, family pooling) and have
-their own drivers, but they emit the same segment schema. See
-<code><a href="../articles/callers.html">vignette("callers")</a></code> for a runnable example of each and
-<code><a href="../reference/caller_spec.html">?caller_spec</a></code> for the axis defaults. ```</p>
+<p>So the four grid cells are <code>nnil</code> =
+<code>emission_gt × duration_geometric</code>, <code>bbnil</code> =
+<code>emission_count × duration_geometric</code>, <code>catiger</code> =
+<code>emission_gt × duration_rigidity</code>, and <code>rtiger</code> =
+<code>emission_count × duration_rigidity</code>. The
+<code>binhmm</code>, <code>lbimpute</code>, and <code>fsfhap</code>
+callers carry extra structure (binning, a coverage-aware emission,
+family pooling) and have their own drivers, but they emit the same
+segment schema. See <code><a href="../articles/callers.html">vignette("callers")</a></code> for a runnable
+example of each and <code><a href="../reference/caller_spec.html">?caller_spec</a></code> for the axis defaults.
+```</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

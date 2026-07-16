@@ -18,7 +18,8 @@ never reads paths.
 ``` r
 call_states(
   data,
-  caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap", "pedigree"),
+  caller = c("nnil", "bbnil", "catiger", "rtiger", "binhmm", "googa", "atlas",
+    "lbimpute", "fsfhap", "ml", "hwemap", "pedigree"),
   family = NULL,
   phet = NULL,
   pedigree = NULL,
@@ -43,7 +44,6 @@ call_states(
   postprocess = TRUE,
   min_reads = 1L,
   rtiger_fit = NULL,
-  emission = NULL,
   bin_size = 1e+06,
   cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
   joint_clust = FALSE,
@@ -70,16 +70,23 @@ call_states(
   Long observation table with columns `name, chr, pos` and either
   `n_ref, n_alt` read counts (from
   [`read_counts()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_counts.md);
-  for the count/rtiger/binhmm/ atlas paths) or a pre-called
-  hard-genotype column `g` in `{0,1,2,3}` (from
+  for the count callers `bbnil`/`rtiger`, `binhmm`, the
+  competitive-alignment callers `googa`/`atlas`, `lbimpute`,
+  `ml`/`hwemap`) or a pre-called hard-genotype column `g` in `{0,1,2,3}`
+  (from
   [`read_vcf_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_vcf_gt.md);
-  auto-selects `caller = "nnil"`, `emission = "gt"`). Optionally
-  `donor`.
+  the categorical gt callers `nnil`/`catiger`). Optionally `donor`.
 
 - caller:
 
-  One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`, `"lbimpute"`,
-  `"fsfhap"`, `"pedigree"`.
+  One of `"nnil"`, `"bbnil"`, `"catiger"`, `"rtiger"`, `"binhmm"`,
+  `"googa"`, `"atlas"`, `"lbimpute"`, `"fsfhap"`, `"ml"`, `"hwemap"`,
+  `"pedigree"`. The six gt/count grid cells: `nnil` (gt + geometric),
+  `bbnil` (count + geometric), `catiger` (gt + rigidity), `rtiger`
+  (count + rigidity), plus the GOOGA-threshold transcript pair `googa`
+  (gt + geometric, faithful GOOGA) and `atlas` (gt + rigidity, this
+  work). `ml`/`hwemap` are the no-HMM per-site genotype baselines (flat
+  = maximum likelihood, HWE = MAP).
 
 - family:
 
@@ -126,7 +133,7 @@ call_states(
 
 - rrate:
 
-  Count/geometric callers (`nnil`, `atlas`): expected per-marker
+  Geometric callers (`nnil`, `bbnil`, `googa`): expected per-marker
   **recombination rate** for the geometric duration (self-stay =
   `1 - rrate`). A resolution hyperparameter, not an MLE. Holland's nNIL
   sets it to `2 * total_cM / (100 * n_markers)` (~`30 / n_markers` for a
@@ -140,7 +147,8 @@ call_states(
 
 - rigidity:
 
-  `rtiger` caller only: integer minimum run length (e.g. `5`).
+  Rigidity callers (`catiger`, `rtiger`, `atlas`): integer minimum run
+  length (e.g. `5`).
 
 - err, conc, fit_means:
 
@@ -197,15 +205,17 @@ call_states(
 
   Minimum read depth to keep a marker before decoding (default `1L`;
   `0L` keeps everything). Drops markers with `n_ref + n_alt < min_reads`
-  for the count callers (`nnil` count path and `rtiger`), and missing
-  genotypes (`g == 3`) on the `nnil` gt path. The intent is uniform —
-  never make a confident call from no data, and keep the count callers
-  on the same support for comparability. Zero-read markers carry no
-  emission signal — they only slow decoding, marginally inflate `nnil`
-  fragmentation, and dilute `rtiger`'s rigidity run. `binhmm` is
-  unaffected (it drops truly-empty bins internally; a future per-bin
-  frequency gate would be a separate `min_freq`). (`atlas` has its own
-  `atlas_min_reads` gate.)
+  for the count-input grid callers (`nnil`, `bbnil`, `catiger`,
+  `rtiger`), and missing genotypes (`g == 3`) on the gt-input path
+  (`nnil`/`catiger` from a `g` column). The intent is uniform — never
+  make a confident call from no data, and keep the callers on the same
+  support for comparability. Zero-read markers carry no emission signal
+  — they only slow decoding, marginally inflate the geometric callers'
+  fragmentation, and dilute the rigidity run. `binhmm` is unaffected (it
+  drops truly-empty bins internally; a future per-bin frequency gate
+  would be a separate `min_freq`); `googa`/`atlas` have their own
+  `atlas_min_reads` gate; `ml`/`hwemap` keep every covered marker (low
+  depth is the point of the het-excess baseline).
 
 - rtiger_fit:
 
@@ -213,11 +223,6 @@ call_states(
   [`fit_rtiger()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fit_rtiger.md),
   reused across per-chromosome decodes to avoid re-fitting (low-memory
   decode-reuse path). `NULL` (default) fits once internally.
-
-- emission:
-
-  Optional emission override (`"count"`, `"gt"`) for the `nnil` caller;
-  `NULL` uses the caller's default.
 
 - bin_size, cluster_method:
 
@@ -246,12 +251,13 @@ call_states(
 
 - atlas_thresh, atlas_het, atlas_min_reads:
 
-  `atlas` caller only: GOOGA genotype-call thresholds on the donor read
-  fraction — homozygous call when a parent's fraction \>= `atlas_thresh`
-  (0.95), HET when both parents \>= `atlas_het` (0.25), and a minimum of
-  `atlas_min_reads` (5) informative reads per gene (else missing). For
-  `atlas`, `n_ref`/`n_alt` are the recurrent/donor competitive-alignment
-  read counts (ambiguous excluded upstream).
+  `googa`/`atlas` callers only: GOOGA genotype-call thresholds on the
+  donor read fraction — homozygous call when a parent's fraction \>=
+  `atlas_thresh` (0.95), HET when both parents \>= `atlas_het` (0.25),
+  and a minimum of `atlas_min_reads` (5) informative reads per gene
+  (else missing). For `googa`/`atlas`, `n_ref`/`n_alt` are the
+  recurrent/donor competitive-alignment read counts (ambiguous excluded
+  upstream).
 
 - genotypeerr, recombdist, drp, unit:
 
@@ -286,8 +292,9 @@ call_states(
   the platform's real error rate is the native cure for
   over-fragmentation (isolated miscalled markers are absorbed as errors
   rather than opening 1-marker segments); calibrate to a clean control,
-  don't crank blindly. Used by the gt emission (`emission = "gt"`, a `g`
-  genotype input, or the `atlas` caller).
+  don't crank blindly. Used by the gt (categorical) callers `nnil`,
+  `catiger`, `googa`, and `atlas` (whether the `g` comes from a genotype
+  column or is derived from read counts).
 
 ## Value
 
@@ -306,12 +313,12 @@ toy <- data.frame(
   name  = "NIL1", chr = 1L, pos = seq_len(40L) * 1e5L,
   n_ref = c(rpois(20, 8), rpois(20, 4)),
   n_alt = c(rpois(20, 0), rpois(20, 4)))
-st <- call_states(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
+st <- call_states(toy, caller = "bbnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 to_segments(st)                       # or, in one step:
 #>   source donor name chr start_bp  end_bp state
 #> 1 nilHMM  <NA> NIL1   1   100000 2000000     0
 #> 2 nilHMM  <NA> NIL1   1  2100000 4000000     1
-call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
+call_ancestry(toy, caller = "bbnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #>   source donor name chr start_bp  end_bp state
 #> 1 nilHMM  <NA> NIL1   1   100000 2000000     0
 #> 2 nilHMM  <NA> NIL1   1  2100000 4000000     1

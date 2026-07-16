@@ -5,8 +5,10 @@ Lines and related backcross/full-sib populations from sequencing data.
 Under the hood it is a single **duration-aware 3-state (REF / HET / ALT)
 HMM engine** with two swappable axes (emission × duration); their
 combinations, plus breeding-design priors, express a family of named
-callers (`nnil`, `rtiger`, `binhmm`, `atlas`, `lbimpute`, `fsfhap`).
-This vignette covers the common workflow; see
+callers (the grid cells `nnil`, `bbnil`, `catiger`, `rtiger`, plus
+`googa`, `atlas`, `binhmm`, `lbimpute`, `fsfhap`, `pedigree`, and the
+no-HMM baselines `ml`/`hwemap`). This vignette covers the common
+workflow; see
 [`vignette("callers")`](https://sawers-rellan-labs.github.io/nilhmm/articles/callers.md)
 to choose a caller,
 [`vignette("engine")`](https://sawers-rellan-labs.github.io/nilhmm/articles/engine.md)
@@ -69,11 +71,11 @@ head(counts)
 #> 6 NIL01     B   1 9267509     0     9
 ```
 
-Call ancestry with the `nnil` count caller and BC2S2 design priors:
+Call ancestry with the `bbnil` count caller and BC2S2 design priors:
 
 ``` r
 
-calls <- call_ancestry(counts, caller = "nnil", design = "BC2S2",
+calls <- call_ancestry(counts, caller = "bbnil", design = "BC2S2",
                        rrate = 1e-4, err = 0.01)
 head(calls)
 #>   source donor  name chr  start_bp    end_bp state
@@ -121,18 +123,24 @@ paint_calls(calls)
 
 ## Which caller?
 
-All callers share the REF/HET/ALT chain and the design priors; they
+The HMM callers share the REF/HET/ALT chain and the design priors (the
+no-HMM baselines `ml`/`hwemap` use a flat / HWE prior instead); they
 differ in the emission model, the duration prior, and the input they
 expect.
 
 | caller | input | when |
 |----|----|----|
-| `nnil` | allelic counts, or called `GT` | general-purpose NILs (low-cov skim or saturated GT) |
-| `rtiger` | allelic counts | minimum-run-length (rigidity) segmentation |
+| `nnil` | called `GT` (or counts → hard call) | categorical (gt) + geometric; Holland’s nNIL on hard calls |
+| `bbnil` | allelic counts | count/BetaBinomial + geometric; low-coverage skim/BrB |
+| `catiger` | called `GT` (or counts → hard call) | categorical (gt) + rigidity |
+| `rtiger` | allelic counts | count + minimum-run-length (rigidity) segmentation |
 | `binhmm` | allelic counts | per-bin calling for noisy/uneven coverage |
-| `atlas` | recurrent/donor counts | competitive-alignment RNA-seq (GOOGA) |
+| `googa` | recurrent/donor counts | competitive-alignment RNA-seq (faithful GOOGA; gt + geometric) |
+| `atlas` | recurrent/donor counts | competitive-alignment RNA-seq (this work; gt + rigidity) |
 | `lbimpute` | very low-cov counts (\<1×) | GBS/skim imputation (LB-Impute) |
 | `fsfhap` | called `GT` + a `family` | full-sib families (TASSEL FSFHap) |
+| `pedigree` | counts or hard-call `state`/`g` + a pedigree | family-coupled belief propagation |
+| `ml` / `hwemap` | allelic counts | no-HMM per-site baselines (ML / HWE-MAP; het-excess control) |
 
 [`vignette("callers")`](https://sawers-rellan-labs.github.io/nilhmm/articles/callers.md)
 gives a runnable example for each.

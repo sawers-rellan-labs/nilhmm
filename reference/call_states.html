@@ -63,7 +63,8 @@ Data-agnostic: pass the observations in; this function never reads paths.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">call_states</span><span class="op">(</span></span>
 <span>  <span class="va">data</span>,</span>
-<span>  caller <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"nnil"</span>, <span class="st">"rtiger"</span>, <span class="st">"binhmm"</span>, <span class="st">"atlas"</span>, <span class="st">"lbimpute"</span>, <span class="st">"fsfhap"</span>, <span class="st">"pedigree"</span><span class="op">)</span>,</span>
+<span>  caller <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"nnil"</span>, <span class="st">"bbnil"</span>, <span class="st">"catiger"</span>, <span class="st">"rtiger"</span>, <span class="st">"binhmm"</span>, <span class="st">"googa"</span>, <span class="st">"atlas"</span>,</span>
+<span>    <span class="st">"lbimpute"</span>, <span class="st">"fsfhap"</span>, <span class="st">"ml"</span>, <span class="st">"hwemap"</span>, <span class="st">"pedigree"</span><span class="op">)</span>,</span>
 <span>  family <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  phet <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  pedigree <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -88,7 +89,6 @@ Data-agnostic: pass the observations in; this function never reads paths.</p>
 <span>  postprocess <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  min_reads <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  rtiger_fit <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  emission <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  bin_size <span class="op">=</span> <span class="fl">1e+06</span>,</span>
 <span>  cluster_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gauss"</span>, <span class="st">"gmm"</span>, <span class="st">"kmeans"</span>, <span class="st">"rebmix"</span><span class="op">)</span>,</span>
 <span>  joint_clust <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -114,15 +114,21 @@ Data-agnostic: pass the observations in; this function never reads paths.</p>
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>Long observation table with columns <code>name, chr, pos</code> and either
-<code>n_ref, n_alt</code> read counts (from <code><a href="read_counts.html">read_counts()</a></code>; for the count/rtiger/binhmm/
-atlas paths) or a pre-called hard-genotype column <code>g</code> in <code>{0,1,2,3}</code> (from
-<code><a href="read_vcf_gt.html">read_vcf_gt()</a></code>; auto-selects <code>caller = "nnil"</code>, <code>emission = "gt"</code>).
-Optionally <code>donor</code>.</p></dd>
+<code>n_ref, n_alt</code> read counts (from <code><a href="read_counts.html">read_counts()</a></code>; for the count callers
+<code>bbnil</code>/<code>rtiger</code>, <code>binhmm</code>, the competitive-alignment callers <code>googa</code>/<code>atlas</code>,
+<code>lbimpute</code>, <code>ml</code>/<code>hwemap</code>) or a pre-called hard-genotype column <code>g</code> in
+<code>{0,1,2,3}</code> (from <code><a href="read_vcf_gt.html">read_vcf_gt()</a></code>; the categorical gt callers
+<code>nnil</code>/<code>catiger</code>). Optionally <code>donor</code>.</p></dd>
 
 
 <dt id="arg-caller">caller<a class="anchor" aria-label="anchor" href="#arg-caller"></a></dt>
-<dd><p>One of <code>"nnil"</code>, <code>"rtiger"</code>, <code>"binhmm"</code>, <code>"atlas"</code>, <code>"lbimpute"</code>,
-<code>"fsfhap"</code>, <code>"pedigree"</code>.</p></dd>
+<dd><p>One of <code>"nnil"</code>, <code>"bbnil"</code>, <code>"catiger"</code>, <code>"rtiger"</code>, <code>"binhmm"</code>,
+<code>"googa"</code>, <code>"atlas"</code>, <code>"lbimpute"</code>, <code>"fsfhap"</code>, <code>"ml"</code>, <code>"hwemap"</code>,
+<code>"pedigree"</code>. The six gt/count grid cells: <code>nnil</code> (gt + geometric),
+<code>bbnil</code> (count + geometric), <code>catiger</code> (gt + rigidity), <code>rtiger</code> (count +
+rigidity), plus the GOOGA-threshold transcript pair <code>googa</code> (gt + geometric,
+faithful GOOGA) and <code>atlas</code> (gt + rigidity, this work). <code>ml</code>/<code>hwemap</code> are the
+no-HMM per-site genotype baselines (flat = maximum likelihood, HWE = MAP).</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
@@ -163,7 +169,7 @@ Required unless <code>f_1</code>/<code>f_2</code> are supplied.</p></dd>
 
 
 <dt id="arg-rrate">rrate<a class="anchor" aria-label="anchor" href="#arg-rrate"></a></dt>
-<dd><p>Count/geometric callers (<code>nnil</code>, <code>atlas</code>): expected per-marker
+<dd><p>Geometric callers (<code>nnil</code>, <code>bbnil</code>, <code>googa</code>): expected per-marker
 <strong>recombination rate</strong> for the geometric duration (self-stay = <code>1 - rrate</code>).
 A resolution hyperparameter, not an MLE. Holland's nNIL sets it to
 <code>2 * total_cM / (100 * n_markers)</code> (~<code>30 / n_markers</code> for a 1500 cM maize
@@ -175,7 +181,8 @@ column (else Haldane on <code>cm</code>).</p></dd>
 
 
 <dt id="arg-rigidity">rigidity<a class="anchor" aria-label="anchor" href="#arg-rigidity"></a></dt>
-<dd><p><code>rtiger</code> caller only: integer minimum run length (e.g. <code>5</code>).</p></dd>
+<dd><p>Rigidity callers (<code>catiger</code>, <code>rtiger</code>, <code>atlas</code>): integer
+minimum run length (e.g. <code>5</code>).</p></dd>
 
 
 <dt id="arg-err-conc-fit-means">err, conc, fit_means<a class="anchor" aria-label="anchor" href="#arg-err-conc-fit-means"></a></dt>
@@ -227,25 +234,22 @@ threads. <code>fsfhap</code>: family x chromosome units decoded in parallel
 <dt id="arg-min-reads">min_reads<a class="anchor" aria-label="anchor" href="#arg-min-reads"></a></dt>
 <dd><p>Minimum read depth to keep a marker before decoding (default
 <code>1L</code>; <code>0L</code> keeps everything). Drops markers with <code>n_ref + n_alt &lt; min_reads</code>
-for the count callers (<code>nnil</code> count path and <code>rtiger</code>), and missing genotypes
-(<code>g == 3</code>) on the <code>nnil</code> gt path. The intent is uniform — never make a
-confident call from no data, and keep the count callers on the same support
-for comparability. Zero-read markers carry no emission signal — they only slow
-decoding, marginally inflate <code>nnil</code> fragmentation, and dilute <code>rtiger</code>'s
-rigidity run. <code>binhmm</code> is unaffected (it drops truly-empty bins internally; a
-future per-bin frequency gate would be a separate <code>min_freq</code>). (<code>atlas</code> has its
-own <code>atlas_min_reads</code> gate.)</p></dd>
+for the count-input grid callers (<code>nnil</code>, <code>bbnil</code>, <code>catiger</code>, <code>rtiger</code>), and
+missing genotypes (<code>g == 3</code>) on the gt-input path (<code>nnil</code>/<code>catiger</code> from a
+<code>g</code> column). The intent is uniform — never make a confident call from no data,
+and keep the callers on the same support for comparability. Zero-read markers
+carry no emission signal — they only slow decoding, marginally inflate the
+geometric callers' fragmentation, and dilute the rigidity run. <code>binhmm</code> is
+unaffected (it drops truly-empty bins internally; a future per-bin frequency
+gate would be a separate <code>min_freq</code>); <code>googa</code>/<code>atlas</code> have their own
+<code>atlas_min_reads</code> gate; <code>ml</code>/<code>hwemap</code> keep every covered marker (low depth is
+the point of the het-excess baseline).</p></dd>
 
 
 <dt id="arg-rtiger-fit">rtiger_fit<a class="anchor" aria-label="anchor" href="#arg-rtiger-fit"></a></dt>
 <dd><p><code>rtiger</code> caller only: a pre-computed RTIGER fit from
 <code><a href="fit_rtiger.html">fit_rtiger()</a></code>, reused across per-chromosome decodes to avoid re-fitting
 (low-memory decode-reuse path). <code>NULL</code> (default) fits once internally.</p></dd>
-
-
-<dt id="arg-emission">emission<a class="anchor" aria-label="anchor" href="#arg-emission"></a></dt>
-<dd><p>Optional emission override (<code>"count"</code>, <code>"gt"</code>) for the <code>nnil</code>
-caller; <code>NULL</code> uses the caller's default.</p></dd>
 
 
 <dt id="arg-bin-size-cluster-method">bin_size, cluster_method<a class="anchor" aria-label="anchor" href="#arg-bin-size-cluster-method"></a></dt>
@@ -273,12 +277,12 @@ weight the (gmm) clustering fit by each bin's informative-variant count
 
 
 <dt id="arg-atlas-thresh-atlas-het-atlas-min-reads">atlas_thresh, atlas_het, atlas_min_reads<a class="anchor" aria-label="anchor" href="#arg-atlas-thresh-atlas-het-atlas-min-reads"></a></dt>
-<dd><p><code>atlas</code> caller only: GOOGA
-genotype-call thresholds on the donor read fraction — homozygous call when
-a parent's fraction &gt;= <code>atlas_thresh</code> (0.95), HET when both parents &gt;=
+<dd><p><code>googa</code>/<code>atlas</code> callers only:
+GOOGA genotype-call thresholds on the donor read fraction — homozygous call
+when a parent's fraction &gt;= <code>atlas_thresh</code> (0.95), HET when both parents &gt;=
 <code>atlas_het</code> (0.25), and a minimum of <code>atlas_min_reads</code> (5) informative reads
-per gene (else missing). For <code>atlas</code>, <code>n_ref</code>/<code>n_alt</code> are the recurrent/donor
-competitive-alignment read counts (ambiguous excluded upstream).</p></dd>
+per gene (else missing). For <code>googa</code>/<code>atlas</code>, <code>n_ref</code>/<code>n_alt</code> are the
+recurrent/donor competitive-alignment read counts (ambiguous excluded upstream).</p></dd>
 
 
 <dt id="arg-genotypeerr-recombdist-drp-unit">genotypeerr, recombdist, drp, unit<a class="anchor" aria-label="anchor" href="#arg-genotypeerr-recombdist-drp-unit"></a></dt>
@@ -312,7 +316,8 @@ true heterozygotes, <code>p</code> fraction of hom errors called het, <code>mr</
 real error rate is the native cure for over-fragmentation (isolated
 miscalled markers are absorbed as errors rather than opening 1-marker
 segments); calibrate to a clean control, don't crank blindly. Used by the gt
-emission (<code>emission = "gt"</code>, a <code>g</code> genotype input, or the <code>atlas</code> caller).</p></dd>
+(categorical) callers <code>nnil</code>, <code>catiger</code>, <code>googa</code>, and <code>atlas</code> (whether the <code>g</code>
+comes from a genotype column or is derived from read counts).</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -330,12 +335,12 @@ carries per-bin <code>start_bp, end_bp</code>). Pass to <code><a href="to_segmen
 <span class="r-in"><span>  name  <span class="op">=</span> <span class="st">"NIL1"</span>, chr <span class="op">=</span> <span class="fl">1L</span>, pos <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq_len</a></span><span class="op">(</span><span class="fl">40L</span><span class="op">)</span> <span class="op">*</span> <span class="fl">1e5L</span>,</span></span>
 <span class="r-in"><span>  n_ref <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Poisson.html" class="external-link">rpois</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">8</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Poisson.html" class="external-link">rpois</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span>,</span></span>
 <span class="r-in"><span>  n_alt <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Poisson.html" class="external-link">rpois</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">0</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/stats/Poisson.html" class="external-link">rpois</a></span><span class="op">(</span><span class="fl">20</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="va">st</span> <span class="op">&lt;-</span> <span class="fu">call_states</span><span class="op">(</span><span class="va">toy</span>, caller <span class="op">=</span> <span class="st">"nnil"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>, rrate <span class="op">=</span> <span class="fl">1e-4</span>, err <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">st</span> <span class="op">&lt;-</span> <span class="fu">call_states</span><span class="op">(</span><span class="va">toy</span>, caller <span class="op">=</span> <span class="st">"bbnil"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>, rrate <span class="op">=</span> <span class="fl">1e-4</span>, err <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="to_segments.html">to_segments</a></span><span class="op">(</span><span class="va">st</span><span class="op">)</span>                       <span class="co"># or, in one step:</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   source donor name chr start_bp  end_bp state</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1 nilHMM  &lt;NA&gt; NIL1   1   100000 2000000     0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2 nilHMM  &lt;NA&gt; NIL1   1  2100000 4000000     1</span>
-<span class="r-in"><span><span class="fu"><a href="call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">toy</span>, caller <span class="op">=</span> <span class="st">"nnil"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>, rrate <span class="op">=</span> <span class="fl">1e-4</span>, err <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">toy</span>, caller <span class="op">=</span> <span class="st">"bbnil"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>, rrate <span class="op">=</span> <span class="fl">1e-4</span>, err <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   source donor name chr start_bp  end_bp state</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1 nilHMM  &lt;NA&gt; NIL1   1   100000 2000000     0</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2 nilHMM  &lt;NA&gt; NIL1   1  2100000 4000000     1</span>

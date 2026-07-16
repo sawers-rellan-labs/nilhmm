@@ -1,11 +1,12 @@
 # The callers: one example each
 
-nilHMM ships six named callers. They all share the 3-state REF/HET/ALT
-chain and the breeding-design priors, and all return the same segment
-schema — so you can run several on the same data and compare directly.
-They differ in the **emission** model, the **duration** prior, and the
-**input** they expect. This vignette runs one minimal example of each on
-self-contained synthetic data.
+nilHMM ships eleven named callers. The HMM callers share the 3-state
+REF/HET/ALT chain and the breeding-design priors (the two no-HMM
+baselines `ml`/`hwemap` use a flat / Hardy–Weinberg prior instead), and
+all return the same segment schema — so you can run several on the same
+data and compare directly. They differ in the **emission** model, the
+**duration** prior, and the **input** they expect. This vignette runs
+one minimal example of each on self-contained synthetic data.
 
 ``` r
 
@@ -31,28 +32,40 @@ counts <- obs[c("name", "donor", "chr", "pos", "n_ref", "n_alt")]
 gt     <- obs[c("name", "donor", "chr", "pos", "g")]
 ```
 
-## `nnil` — count and genotype
+## The four grid callers (emission × duration)
 
-Holland’s nNIL caller. With allelic counts it pools single-read
-observations along a segment via a BetaBinomial emission (`err`, `conc`;
-`fit_means = TRUE` EM-fits the per-state alt fractions). Given only a
-called genotype `g`, it switches to the categorical genotype emission
-automatically.
+The pure cells of the engine’s grid share the REF/HET/ALT chain and
+differ only in two axes: the emission (categorical `gt` vs
+count/BetaBinomial) and the duration (geometric vs rigidity).
+
+- **`nnil`** — Holland’s nNIL: categorical `gt` emission + geometric
+  duration. A called genotype `g` is used directly; read counts are
+  first hard-called (1/3–2/3 cutoffs). Error model: `germ`, `gert`, `p`,
+  `mr`, `nir`.
+- **`bbnil`** — the low-coverage count extension: count/BetaBinomial
+  emission (`err`, `conc`; `fit_means = TRUE` EM-fits the per-state alt
+  fractions) + the same geometric duration.
+- **`catiger`** — categorical `gt` emission + rigidity duration.
+- **`rtiger`** — count/BetaBinomial emission + rigidity duration
+  (below).
 
 ``` r
 
-nnil_count <- call_ancestry(counts, caller = "nnil", design = "BC2S2",
-                            rrate = 1e-4, err = 0.01)
-nnil_gt    <- call_ancestry(gt, caller = "nnil", design = "BC2S2")  # g-only -> gt emission
-nrow(nnil_count); nrow(nnil_gt)
-#> [1] 50
+nnil    <- call_ancestry(gt,     caller = "nnil",    design = "BC2S2")           # gt + geometric
+bbnil   <- call_ancestry(counts, caller = "bbnil",   design = "BC2S2",
+                         rrate = 1e-4, err = 0.01)                               # count + geometric
+catiger <- call_ancestry(gt,     caller = "catiger", design = "BC2S2", rigidity = 5L)  # gt + rigidity
+nrow(nnil); nrow(bbnil); nrow(catiger)
 #> [1] 51
+#> [1] 50
+#> [1] 47
 ```
 
 ## `rtiger` — rigidity segmentation
 
 A Julia-free port of the RTIGER rigidity HMM (EM + Viterbi + border
-re-placement). `rigidity` is the integer minimum run length.
+re-placement), the count-emission rigidity cell. `rigidity` is the
+integer minimum run length.
 
 ``` r
 
@@ -80,17 +93,27 @@ head(bh, 3)
 #> 3 nilHMM     B NIL01   2    98554 243484148     0
 ```
 
-## `atlas` — competitive-alignment (GOOGA)
+## `googa` / `atlas` — competitive-alignment (transcript ancestry)
 
 For transcript / competitive-alignment data: `n_ref`/`n_alt` are the
-recurrent and donor read counts, thresholded into genotype calls (GOOGA
-style) then smoothed.
+recurrent and donor read counts, thresholded into hard genotype calls
+(`atlas_thresh`, `atlas_het`, `atlas_min_reads`) then smoothed.
+**`googa`** is the faithful reproduction — gt + **geometric**, matching
+GOOGA’s recombination-fraction F2 HMM (Flagel 2019; Veltsos 2024), which
+carries no rigidity. **`atlas`** is this work’s transcript caller: the
+same thresholding with the **rigidity** duration.
 
 ``` r
 
-at <- call_ancestry(counts, caller = "atlas", design = "BC2S2",
+gg <- call_ancestry(counts, caller = "googa", design = "BC2S2",
                     atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L)
-head(at, 3)
+at <- call_ancestry(counts, caller = "atlas", design = "BC2S2", rigidity = 5L,
+                    atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L)
+head(gg, 3); head(at, 3)
+#>   source donor  name chr start_bp    end_bp state
+#> 1 nilHMM     B NIL01   1    37410  27727705     2
+#> 2 nilHMM     B NIL01   1 29573725 308322690     0
+#> 3 nilHMM     B NIL01   2    98554 243484148     0
 #>   source donor  name chr start_bp    end_bp state
 #> 1 nilHMM     B NIL01   1    37410  27727705     2
 #> 2 nilHMM     B NIL01   1 29573725 308322690     0
@@ -112,6 +135,29 @@ head(lb, 3)
 #> 1 nilHMM     B NIL01   1    37410  27727705     2
 #> 2 nilHMM     B NIL01   1 29573725 308322690     0
 #> 3 nilHMM     B NIL01   2    98554 223047189     0
+```
+
+## `ml` / `hwemap` — no-HMM per-site baselines
+
+Two per-site genotype callers with **no** linkage/duration model — each
+`(marker, sample)` is decided independently from its own read counts
+(backed by
+[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)).
+`ml` uses a flat prior (pure argmax genotype-likelihood = maximum
+likelihood; het-blind at depth 1). `hwemap` uses the per-marker
+Hardy–Weinberg prior (posterior MAP; deliberately het-**excess** at low
+depth) — the reference the HMM callers must beat. These are not to be
+confused with the deterministic
+[`interpolate_genotype()`](https://sawers-rellan-labs.github.io/nilhmm/reference/interpolate_genotype.md)
+densifier.
+
+``` r
+
+ml_calls <- call_ancestry(counts, caller = "ml",     design = "BC2S2")
+hw_calls <- call_ancestry(counts, caller = "hwemap", design = "BC2S2")
+nrow(ml_calls); nrow(hw_calls)
+#> [1] 207
+#> [1] 241
 ```
 
 ## `fsfhap` — full-sib families
@@ -137,14 +183,20 @@ counts:
 ``` r
 
 summ <- function(x) c(segments = nrow(x), states = length(unique(x$state)))
-rbind(nnil = summ(nnil_count), rtiger = summ(rt), binhmm = summ(bh),
-      atlas = summ(at), lbimpute = summ(lb))
+rbind(nnil = summ(nnil), bbnil = summ(bbnil), catiger = summ(catiger),
+      rtiger = summ(rt), binhmm = summ(bh), googa = summ(gg), atlas = summ(at),
+      lbimpute = summ(lb), ml = summ(ml_calls), hwemap = summ(hw_calls))
 #>          segments states
-#> nnil           50      3
+#> nnil           51      3
+#> bbnil          50      3
+#> catiger        47      3
 #> rtiger         48      3
 #> binhmm         32      2
-#> atlas          48      3
+#> googa          48      3
+#> atlas          44      3
 #> lbimpute       51      3
+#> ml            207      3
+#> hwemap        241      3
 ```
 
 ### Chromosome painting
@@ -170,8 +222,9 @@ top-down, so truth goes first).
 
 ``` r
 
-tracks <- list("nnil (count)" = nnil_count, "nnil (gt)" = nnil_gt,
-               rtiger = rt, binhmm = bh, atlas = at, lbimpute = lb)
+tracks <- list("nnil (gt)" = nnil, "bbnil (count)" = bbnil, catiger = catiger,
+               rtiger = rt, binhmm = bh, googa = gg, atlas = at, lbimpute = lb,
+               ml = ml_calls, hwemap = hw_calls)
 comparison <- do.call(rbind, Map(function(seg, m) { seg$method <- m; seg },
                                  tracks, names(tracks)))
 

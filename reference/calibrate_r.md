@@ -42,6 +42,6 @@ if (FALSE) { # \dontrun{
 # Planned (Task 4): pick r by KS-vs-sim minimum distance (rigidity-not-mle).
 sweep <- calibrate_r(data, sim_segments,
                      r_grid = c(1e-6, 1e-5, 1e-4),
-                     caller = "nnil", design = "BC2S2")
+                     caller = "bbnil", design = "BC2S2")
 } # }
 ```

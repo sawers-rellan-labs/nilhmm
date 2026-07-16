@@ -52,7 +52,7 @@
 <div class="section level2">
 <h2 id="the-one-verb-api">The one-verb API<a class="anchor" aria-label="anchor" href="#the-one-verb-api"></a></h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">data</span>, caller <span class="op">=</span> <span class="va">...</span>, design <span class="op">=</span> <span class="va">...</span>, r <span class="op">=</span> <span class="va">...</span>, err <span class="op">=</span> <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">data</span>, caller <span class="op">=</span> <span class="va">...</span>, design <span class="op">=</span> <span class="va">...</span>, rrate <span class="op">=</span> <span class="va">...</span>, err <span class="op">=</span> <span class="va">...</span><span class="op">)</span></span></code></pre></div>
 <p>Everything else is a building block. The package is <strong>data-agnostic</strong>: every function takes <code>(data, params)</code> and returns calls — <strong>no hardcoded paths, sample lists, or mounts</strong>. Pipeline scripts (in the companion <code>zealhmm</code> repo, not here) own file paths, sample lists, and output locations.</p>
 <p>Output is the <strong>common segment schema</strong>: <code>source, donor, name, chr, start_bp, end_bp, state</code> with <code>state ∈ {REF, HET, ALT}</code>.</p>
 </div>
@@ -68,7 +68,8 @@
 <li>
 <strong>Engine</strong> — <code><a href="reference/fit.html">fit()</a></code> (EM / parameter fitting) then <code><a href="reference/decode.html">decode()</a></code> (Viterbi / posteriors) → <code><a href="reference/to_segments.html">to_segments()</a></code> (RLE to the common schema).</li>
 </ul><div class="section level3">
-<h3 id="the-callers-all-share-the-refhetalt-chain--design-priors">The callers (all share the REF/HET/ALT chain + design priors)<a class="anchor" aria-label="anchor" href="#the-callers-all-share-the-refhetalt-chain--design-priors"></a></h3>
+<h3 id="the-callers-hmm-callers-share-the-refhetalt-chain--design-priors-mlhwemap-are-no-hmm-per-site-baselines">The callers (HMM callers share the REF/HET/ALT chain + design priors; <code>ml</code>/<code>hwemap</code> are no-HMM per-site baselines)<a class="anchor" aria-label="anchor" href="#the-callers-hmm-callers-share-the-refhetalt-chain--design-priors-mlhwemap-are-no-hmm-per-site-baselines"></a></h3>
+<p>The four <strong>grid</strong> callers are the pure (emission × duration) cells; the rest sit off the grid.</p>
 <table class="table"><colgroup><col width="20%"><col width="20%"><col width="20%"><col width="20%"><col width="20%"></colgroup><thead><tr><th>caller</th>
 <th>emission</th>
 <th>duration</th>
@@ -76,14 +77,25 @@
 <th>lineage</th>
 </tr></thead><tbody><tr><td><code>nnil</code></td>
 <td>
-<code>count</code> or <code>gt</code>
-</td>
+<code>gt</code> (categorical)</td>
 <td>geometric</td>
-<td>allelic read counts (skim/BrB) or called <code>GT</code>
-</td>
+<td>called <code>GT</code> (or counts → hard call)</td>
 <td>Holland nNIL</td>
+</tr><tr><td><code>bbnil</code></td>
+<td>
+<code>count</code> (BetaBinomial)</td>
+<td>geometric</td>
+<td>allelic read counts (skim/BrB)</td>
+<td>low-coverage count extension of nNIL</td>
+</tr><tr><td><code>catiger</code></td>
+<td>
+<code>gt</code> (categorical)</td>
+<td>rigidity</td>
+<td>called <code>GT</code> (or counts → hard call)</td>
+<td>categorical + rigidity</td>
 </tr><tr><td><code>rtiger</code></td>
-<td><code>count</code></td>
+<td>
+<code>count</code> (BetaBinomial)</td>
 <td>rigidity</td>
 <td>allelic read counts</td>
 <td>RTIGER (Julia-free port)</td>
@@ -92,18 +104,45 @@
 <td>per-bin HMM</td>
 <td>allelic read counts</td>
 <td>“ancestry by bins”</td>
-</tr><tr><td><code>atlas</code></td>
+</tr><tr><td><code>googa</code></td>
 <td>
 <code>gt</code> (GOOGA thresholds)</td>
 <td>geometric</td>
 <td>competitive-alignment RNA-seq counts</td>
-<td>GOOGA</td>
+<td>GOOGA (Flagel 2019 / Veltsos 2024), faithful</td>
+</tr><tr><td><code>atlas</code></td>
+<td>
+<code>gt</code> (GOOGA thresholds)</td>
+<td>rigidity</td>
+<td>competitive-alignment RNA-seq counts</td>
+<td>this work’s rigidity transcript caller</td>
 </tr><tr><td><code>lbimpute</code></td>
 <td>coverage-aware (bounded by <code>genotypeerr</code>)</td>
 <td>distance-based (double-recomb penalty)</td>
 <td>very low-coverage (&lt;1×) allelic read counts</td>
 <td>LB-Impute (Fragoso 2014, native port)</td>
-</tr></tbody></table><p>See <code>README.md</code> for per-caller detail and <code><a href="reference/call_ancestry.html">?call_ancestry</a></code>. <code>lbimpute</code> is a native port of LB-Impute: it keeps LB-Impute’s coverage-aware emission and distance-dependent transition (the <code>-dr</code> double-recomb penalty is <code>drp</code>) but decodes with the engine’s full-chromosome Viterbi rather than LB-Impute’s windowed forward/reverse consensus (the optimal path that window approximates). The transition decays over a coordinate chosen by <code>unit</code>: <code>"bp"</code> (faithful, uniform genome-wide rate) or <code>"cm"</code> (map-aware — pass a <code>cm</code> column of genetic positions so local recombination rate is captured; the C++ <code>lb_viterbi_cpp</code> takes a numeric <code>tpos</code> and is unit-agnostic). <code>recombdist</code> shares the coordinate’s units (unit-aware default 1e7 bp / 50 cM) and a validation layer warns on unit/<code>recombdist</code> mismatches. Output coordinates are always bp. <code><a href="reference/write_vcf_impute.html">write_vcf_impute()</a></code> (in <code>io.R</code>) emits LB-Impute’s imputed-VCF deliverable from the per-marker states — optional and decoupled from the engine. <code>read_counts(format = "vcf_ad")</code> reads per-sample allelic depths from a biallelic VCF’s <code>AD</code> field (e.g. the LB-Impute example data). <code>caller_sweep(caller = "lbimpute", values = &lt;recombdist grid&gt;)</code> calibrates <code>recombdist</code>; it is <strong>exact per value</strong> (recombdist touches only the transition, so the emission is computed once per run and only the Viterbi transition is re-run over the grid, batched in C++ via <code>lb_viterbi_sweep_cpp</code>) — every swept value equals a cold <code>call_ancestry(caller = "lbimpute", recombdist = v)</code>.</p>
+</tr><tr><td><code>fsfhap</code></td>
+<td>genotype-error (5-state EM)</td>
+<td>family-pooled Haldane</td>
+<td>called <code>GT</code> for full-sib families</td>
+<td>FSFHap (Swarts 2014, TASSEL)</td>
+</tr><tr><td><code>pedigree</code></td>
+<td>count or <code>gt</code> (input-detected)</td>
+<td>BP over pedigree × genome</td>
+<td>counts or hard-call <code>state</code>/<code>g</code> + a pedigree</td>
+<td>family-coupled belief propagation</td>
+</tr><tr><td><code>ml</code></td>
+<td>per-site GL, flat prior</td>
+<td>none (no HMM)</td>
+<td>allelic read counts</td>
+<td>maximum-likelihood genotype call (het-blind)</td>
+</tr><tr><td><code>hwemap</code></td>
+<td>per-site GL, HWE prior</td>
+<td>none (no HMM)</td>
+<td>allelic read counts</td>
+<td>HWE-MAP genotype call (het-excess control)</td>
+</tr></tbody></table><p><code>nnil</code> = categorical <code>gt</code> + geometric; <code>bbnil</code> swaps in the count/BetaBinomial emission (same geometric duration); <code>catiger</code> swaps the rigidity duration onto the <code>gt</code> emission; <code>rtiger</code> is count + rigidity. <code>googa</code> and <code>atlas</code> share GOOGA competitive-alignment thresholding (<code>atlas_thresh</code>/<code>atlas_het</code>/<code>atlas_min_reads</code>): <code>googa</code> = gt + <strong>geometric</strong> is the faithful reproduction (GOOGA’s recombination-fraction F2 HMM has <strong>no</strong> rigidity/minimum-run duration), and <code>atlas</code> = gt + <strong>rigidity</strong> is this work’s transcript caller. <code>ml</code>/<code>hwemap</code> are the no-HMM per-site baselines (backed by <code><a href="reference/call_gt.html">call_gt()</a></code>): <code>ml</code> = flat-prior maximum likelihood, <code>hwemap</code> = HWE-prior MAP (the het-excess reference). Neither involves <code><a href="reference/interpolate_genotype.html">interpolate_genotype()</a></code>, which is a separate deterministic densifier, not a caller.</p>
+<p>See <code>README.md</code> for per-caller detail and <code><a href="reference/call_ancestry.html">?call_ancestry</a></code>. <code>lbimpute</code> is a native port of LB-Impute: it keeps LB-Impute’s coverage-aware emission and distance-dependent transition (the <code>-dr</code> double-recomb penalty is <code>drp</code>) but decodes with the engine’s full-chromosome Viterbi rather than LB-Impute’s windowed forward/reverse consensus (the optimal path that window approximates). The transition decays over a coordinate chosen by <code>unit</code>: <code>"bp"</code> (faithful, uniform genome-wide rate) or <code>"cm"</code> (map-aware — pass a <code>cm</code> column of genetic positions so local recombination rate is captured; the C++ <code>lb_viterbi_cpp</code> takes a numeric <code>tpos</code> and is unit-agnostic). <code>recombdist</code> shares the coordinate’s units (unit-aware default 1e7 bp / 50 cM) and a validation layer warns on unit/<code>recombdist</code> mismatches. Output coordinates are always bp. <code><a href="reference/write_vcf_impute.html">write_vcf_impute()</a></code> (in <code>io.R</code>) emits LB-Impute’s imputed-VCF deliverable from the per-marker states — optional and decoupled from the engine. <code>read_counts(format = "vcf_ad")</code> reads per-sample allelic depths from a biallelic VCF’s <code>AD</code> field (e.g. the LB-Impute example data). <code>caller_sweep(caller = "lbimpute", values = &lt;recombdist grid&gt;)</code> calibrates <code>recombdist</code>; it is <strong>exact per value</strong> (recombdist touches only the transition, so the emission is computed once per run and only the Viterbi transition is re-run over the grid, batched in C++ via <code>lb_viterbi_sweep_cpp</code>) — every swept value equals a cold <code>call_ancestry(caller = "lbimpute", recombdist = v)</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="downstream-utilities-not-callers">Downstream utilities (not callers)<a class="anchor" aria-label="anchor" href="#downstream-utilities-not-callers"></a></h3>

@@ -7,7 +7,8 @@ table, `g` in `{0,1,2,3}` = allele0-hom / het / allele1-hom / missing,
 where allele0/allele1 are the two alleles from the per-site `alleles`
 field (e.g. `A/C`). Genotype cells may be single-character IUPAC
 (`A`/`C`/`M`/`N`) or two-character diploid (`AA`/`AC`/`CC`/`NN`). Feed
-to `call_ancestry(..., caller = "fsfhap"|"nnil")` (a `g`-only input).
+to `call_ancestry(..., caller = "fsfhap"|"nnil"|"catiger")` (a `g`-only
+input).
 
 ## Usage
 

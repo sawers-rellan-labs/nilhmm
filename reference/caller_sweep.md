@@ -1,6 +1,6 @@
 # Sweep a caller's segmentation parameter with an amortized fit
 
-Fit the emission once (rtiger: the joint EM; nnil: per-sample means, or
+Fit the emission once (rtiger: the joint EM; bbnil: per-sample means, or
 nothing when `fit_means = FALSE`) and sweep `values`, fanning the
 decodes over `threads`. `refit` controls the accuracy/speed trade (see
 details).
@@ -10,7 +10,7 @@ details).
 ``` r
 caller_sweep(
   data,
-  caller = c("rtiger", "nnil", "lbimpute"),
+  caller = c("rtiger", "bbnil", "lbimpute"),
   values,
   refit = c("none", "cold"),
   design = NULL,
@@ -41,7 +41,7 @@ caller_sweep(
 
 - caller:
 
-  `"rtiger"` (sweeps `rigidity`), `"nnil"` (sweeps `rrate`), or
+  `"rtiger"` (sweeps `rigidity`), `"bbnil"` (sweeps `rrate`), or
   `"lbimpute"` (sweeps `recombdist`).
 
 - values:
@@ -53,7 +53,7 @@ caller_sweep(
   `"none"` (fit once at `ref` and reuse – exact at `ref`, a close
   approximation elsewhere; recommended for calibration, as it isolates
   the segmentation prior) or `"cold"` (fit each value from scratch –
-  exact per value, the baseline). For nnil with `fit_means = FALSE` the
+  exact per value, the baseline). For bbnil with `fit_means = FALSE` the
   emission is `rrate`-independent, so both are identical (and exact).
   This sweep *finds* the best value; for the exact final calls, refit
   once with
@@ -90,7 +90,7 @@ caller_sweep(
 
 - err, conc, fit_means:
 
-  nnil count-emission parameters (fixed across the grid). `err` is also
+  bbnil count-emission parameters (fixed across the grid). `err` is also
   LB-Impute's per-read error (`readerr`).
 
 - seed, postprocess:

@@ -177,11 +177,13 @@ names(spec)
 #> [1] "emission" "duration"
 ```
 
-So `nnil` is `emission_count × duration_geometric`, `rtiger` is
-`emission_count × duration_rigidity`, and the genotype callers swap in
-`emission_gt`. The `binhmm`, `lbimpute`, and `fsfhap` callers carry
-extra structure (binning, a coverage-aware emission, family pooling) and
-have their own drivers, but they emit the same segment schema. See
+So the four grid cells are `nnil` = `emission_gt × duration_geometric`,
+`bbnil` = `emission_count × duration_geometric`, `catiger` =
+`emission_gt × duration_rigidity`, and `rtiger` =
+`emission_count × duration_rigidity`. The `binhmm`, `lbimpute`, and
+`fsfhap` callers carry extra structure (binning, a coverage-aware
+emission, family pooling) and have their own drivers, but they emit the
+same segment schema. See
 [`vignette("callers")`](https://sawers-rellan-labs.github.io/nilhmm/articles/callers.md)
 for a runnable example of each and
 [`?caller_spec`](https://sawers-rellan-labs.github.io/nilhmm/reference/caller_spec.md)

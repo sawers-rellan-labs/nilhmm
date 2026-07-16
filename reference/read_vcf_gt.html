@@ -86,7 +86,9 @@ depths), this reads the called genotype directly, so it never touches <code>AD</
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Run with <code>call_ancestry(read_vcf_gt(path), caller = "nnil", emission = "gt", design = ...)</code> (a <code>g</code>-only input auto-selects the gt emission).</p>
+    <p>Run with <code>call_ancestry(read_vcf_gt(path), caller = "nnil", design = ...)</code>
+(<code>nnil</code>/<code>catiger</code> are the categorical gt callers; a <code>g</code>-only input feeds their
+gt emission directly).</p>
     </div>
 
     <div class="section level2">

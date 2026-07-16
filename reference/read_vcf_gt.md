@@ -34,8 +34,9 @@ A long observation table: `name, chr, pos, g`.
 ## Details
 
 Run with
-`call_ancestry(read_vcf_gt(path), caller = "nnil", emission = "gt", design = ...)`
-(a `g`-only input auto-selects the gt emission).
+`call_ancestry(read_vcf_gt(path), caller = "nnil", design = ...)`
+(`nnil`/`catiger` are the categorical gt callers; a `g`-only input feeds
+their gt emission directly).
 
 ## Examples
 

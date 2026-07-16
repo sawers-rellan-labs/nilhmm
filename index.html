@@ -70,9 +70,9 @@
 <div class="float">
 <img src="reference/figures/fig_engine.png" alt="The nilHMM engine: one duration-aware three-state HMM with two swappable axes, emission (count vs. categorical) and duration (geometric vs. rigidity); each named caller is a coordinate in that emission-by-duration space."><div class="figcaption">The nilHMM engine: one duration-aware three-state HMM with two swappable axes, emission (count vs. categorical) and duration (geometric vs. rigidity); each named caller is a coordinate in that emission-by-duration space.</div>
 </div>
-<p>Those choices, plus a per-unit calling rule, express a family of named <strong>callers</strong>: <code>nnil</code>, <code>rtiger</code>, <code>binhmm</code>, <code>atlas</code>, <code>lbimpute</code>, and <code>fsfhap</code>. The package is <strong>data-agnostic</strong> — every function takes <code>(data, params)</code> and returns calls; pipeline scripts own file paths and sample lists. The whole API is one verb:</p>
+<p>Those choices, plus a per-unit calling rule, express a family of named <strong>callers</strong>. The four pure cells of the (emission × duration) grid are <code>nnil</code> (gt + geometric), <code>bbnil</code> (count + geometric), <code>catiger</code> (gt + rigidity), and <code>rtiger</code> (count + rigidity), plus the GOOGA-threshold transcript pair <code>googa</code> (gt + geometric, faithful) and <code>atlas</code> (gt + rigidity, this work); off the grid sit <code>binhmm</code>, <code>lbimpute</code>, <code>fsfhap</code>, <code>pedigree</code>, and the no-HMM per-site baselines <code>ml</code> and <code>hwemap</code>. The package is <strong>data-agnostic</strong> — every function takes <code>(data, params)</code> and returns calls; pipeline scripts own file paths and sample lists. The whole API is one verb:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">data</span>, caller <span class="op">=</span> <span class="va">...</span>, design <span class="op">=</span> <span class="va">...</span>, r <span class="op">=</span> <span class="va">...</span>, err <span class="op">=</span> <span class="va">...</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">data</span>, caller <span class="op">=</span> <span class="va">...</span>, design <span class="op">=</span> <span class="va">...</span>, rrate <span class="op">=</span> <span class="va">...</span>, err <span class="op">=</span> <span class="va">...</span><span class="op">)</span></span></code></pre></div>
 <p>nilHMM began as a Python package on Jim Holland’s <a href="https://github.com/ncsumaize/nNIL" class="external-link">nNIL</a> methodology; it is now an R + Rcpp package. The Python original is frozen at <a href="legacy/python/"><code>legacy/python/</code></a> (tag <code>python-final</code>).</p>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
@@ -92,7 +92,7 @@
 <span><span class="co"># directory of them) into the engine's observation table, then call ancestry.</span></span>
 <span><span class="va">calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="reference/read_counts.html">read_counts</a></span><span class="op">(</span><span class="st">"path/to/sample_counts.tsv"</span><span class="op">)</span>,</span>
-<span>  caller <span class="op">=</span> <span class="st">"nnil"</span>,     <span class="co"># Holland's nNIL count caller</span></span>
+<span>  caller <span class="op">=</span> <span class="st">"bbnil"</span>,    <span class="co"># low-coverage count caller (BetaBinomial + geometric)</span></span>
 <span>  design <span class="op">=</span> <span class="st">"BC2S2"</span>,    <span class="co"># breeding-design priors (f_1, f_2)</span></span>
 <span>  rrate <span class="op">=</span> <span class="fl">1e-4</span>,        <span class="co"># recombination / geometric self-transition</span></span>
 <span>  err   <span class="op">=</span> <span class="fl">0.01</span>         <span class="co"># baseline read error for the count emission</span></span>
@@ -104,7 +104,7 @@
 <p>For saturated-depth data with trustworthy called genotypes (e.g. target sequencing), read the VCF <code>GT</code> field instead and let it select the categorical emission:</p>
 <div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="fu"><a href="reference/read_vcf_gt.html">read_vcf_gt</a></span><span class="op">(</span><span class="st">"target.vcf.gz"</span><span class="op">)</span>,</span>
-<span>                       caller <span class="op">=</span> <span class="st">"nnil"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span><span class="op">)</span>   <span class="co"># g-only input -&gt; gt emission</span></span></code></pre></div>
+<span>                       caller <span class="op">=</span> <span class="st">"nnil"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span><span class="op">)</span>   <span class="co"># nnil = categorical gt caller</span></span></code></pre></div>
 <p>For <strong>full-sib families</strong> (TASSEL FSFHap), read the HapMap + pedigree, attach the family grouping, and call — pooling each family:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/read_hapmap.html">read_hapmap</a></span><span class="op">(</span><span class="st">"family.hmp.txt"</span><span class="op">)</span>                    <span class="co"># -&gt; name, chr, pos, g</span></span>
@@ -116,7 +116,7 @@
 <div class="section level2">
 <h2 id="the-callers">The callers<a class="anchor" aria-label="anchor" href="#the-callers"></a>
 </h2>
-<p>All four share the 3-state REF/HET/ALT chain and the design priors; they differ in emission, duration, and the input they expect.</p>
+<p>The HMM callers share the 3-state REF/HET/ALT chain and the design priors (the no-HMM baselines <code>ml</code>/<code>hwemap</code> use a flat / HWE prior instead); they differ in emission, duration, and the input they expect. The four <strong>grid</strong> callers are the pure (emission × duration) cells; the rest sit off the grid.</p>
 <table style="width:100%;" class="table">
 <colgroup>
 <col width="16%">
@@ -138,15 +138,36 @@
 <tr>
 <td><strong><code>nnil</code></strong></td>
 <td>
-<code>count</code> (BetaBinomial) or <code>gt</code> (categorical)</td>
+<code>gt</code> (categorical)</td>
 <td>geometric</td>
-<td>allelic read counts (low-cov skim / BrB), or called <code>GT</code>
-</td>
+<td>called <code>GT</code> (or read counts → hard call)</td>
 <td>
-<code>r</code>, <code>err</code>, <code>conc</code>, <code>fit_means</code>
+<code>rrate</code>, <code>germ</code>, <code>gert</code>
 </td>
 <td>Holland <a href="https://github.com/ncsumaize/nNIL" class="external-link">nNIL</a>
 </td>
+</tr>
+<tr>
+<td><strong><code>bbnil</code></strong></td>
+<td>
+<code>count</code> (BetaBinomial)</td>
+<td>geometric</td>
+<td>allelic read counts (low-cov skim / BrB)</td>
+<td>
+<code>rrate</code>, <code>err</code>, <code>conc</code>, <code>fit_means</code>
+</td>
+<td>low-coverage count extension of nNIL</td>
+</tr>
+<tr>
+<td><strong><code>catiger</code></strong></td>
+<td>
+<code>gt</code> (categorical)</td>
+<td>rigidity (min run length)</td>
+<td>called <code>GT</code> (or read counts → hard call)</td>
+<td>
+<code>rigidity</code>, <code>germ</code>, <code>gert</code>
+</td>
+<td>categorical + rigidity</td>
 </tr>
 <tr>
 <td><strong><code>rtiger</code></strong></td>
@@ -155,7 +176,7 @@
 <td>rigidity (min run length)</td>
 <td>allelic read counts</td>
 <td>
-<code>r</code> (integer rigidity), <code>seed</code>, <code>threads</code>
+<code>rigidity</code>, <code>seed</code>, <code>threads</code>
 </td>
 <td>
 <a href="https://github.com/rfael0cm/RTIGER" class="external-link">RTIGER</a> (Julia-free port of <a href="https://github.com/faustovrz/RTIGER" class="external-link"><code>faustovrz/RTIGER</code></a>)</td>
@@ -171,7 +192,7 @@
 <td>“Ancestry Analysis by bins”</td>
 </tr>
 <tr>
-<td><strong><code>atlas</code></strong></td>
+<td><strong><code>googa</code></strong></td>
 <td>
 <code>gt</code> (categorical, GOOGA thresholds)</td>
 <td>geometric</td>
@@ -179,7 +200,18 @@
 <td>
 <code>atlas_thresh</code>, <code>atlas_het</code>, <code>atlas_min_reads</code>
 </td>
-<td>GOOGA competitive alignment</td>
+<td>GOOGA competitive alignment (Flagel 2019 / Veltsos 2024), faithful</td>
+</tr>
+<tr>
+<td><strong><code>atlas</code></strong></td>
+<td>
+<code>gt</code> (categorical, GOOGA thresholds)</td>
+<td>rigidity (min run length)</td>
+<td>competitive-alignment recurrent/donor read counts (RNA-seq)</td>
+<td>
+<code>rigidity</code>, <code>atlas_thresh</code>, <code>atlas_het</code>, <code>atlas_min_reads</code>
+</td>
+<td>this work’s rigidity transcript caller</td>
 </tr>
 <tr>
 <td><strong><code>lbimpute</code></strong></td>
@@ -203,21 +235,55 @@
 <td>
 <a href="https://bitbucket.org/tasseladmin/tassel-5-source" class="external-link">FSFHap</a> (Swarts et al. 2014, TASSEL)</td>
 </tr>
+<tr>
+<td><strong><code>pedigree</code></strong></td>
+<td>count or <code>gt</code> (input-detected)</td>
+<td>BP over pedigree × genome</td>
+<td>read counts or a hard-call <code>state</code>/<code>g</code>, plus a pedigree</td>
+<td>
+<code>design</code>, <code>rrate</code>, <code>ped_*</code>
+</td>
+<td>family-coupled belief propagation</td>
+</tr>
+<tr>
+<td><strong><code>ml</code></strong></td>
+<td>per-site GL, flat prior</td>
+<td>none (no HMM)</td>
+<td>allelic read counts</td>
+<td><code>err</code></td>
+<td>maximum-likelihood genotype call (het-blind baseline)</td>
+</tr>
+<tr>
+<td><strong><code>hwemap</code></strong></td>
+<td>per-site GL, HWE prior</td>
+<td>none (no HMM)</td>
+<td>allelic read counts</td>
+<td><code>err</code></td>
+<td>HWE-MAP genotype call (het-excess control)</td>
+</tr>
 </tbody>
 </table>
 <ul>
 <li>
-<code>nnil</code> — count caller pools single-read observations along a segment via a BetaBinomial emission (<code>err</code>, <code>conc</code>); <code>fit_means = TRUE</code> EM-fits the per-state alt fractions. Also runs the categorical <code>gt</code> emission (Holland’s error model: <code>germ</code>, <code>gert</code>, <code>p</code>, <code>mr</code>, <code>nir</code>) on called genotypes.</li>
+<code>nnil</code> — the categorical caller on hard genotype calls (Holland’s error model: <code>germ</code>, <code>gert</code>, <code>p</code>, <code>mr</code>, <code>nir</code>); a <code>g</code> column is used directly, read counts are first hard-called (1/3–2/3 cutoffs). Geometric duration, so the self-transition is the smoother.</li>
 <li>
-<code>rtiger</code> — a faithful reimplementation of the RTIGER rigidity HMM (EM + Viterbi, border re-placement), ported off Julia; <code>r</code> is the integer rigidity (minimum run length).</li>
+<code>bbnil</code> — the low-coverage count extension: pools single-read observations along a segment via a BetaBinomial emission (<code>err</code>, <code>conc</code>); <code>fit_means = TRUE</code> EM-fits the per-state alt fractions. Same geometric duration as <code>nnil</code>.</li>
+<li>
+<code>catiger</code> — the categorical <code>gt</code> emission with the rigidity (minimum-run-length) duration; the <code>gt</code>-side counterpart of <code>rtiger</code>.</li>
+<li>
+<code>rtiger</code> — a faithful reimplementation of the RTIGER rigidity HMM (EM + Viterbi, border re-placement), ported off Julia; <code>rigidity</code> is the integer minimum run length.</li>
 <li>
 <code>binhmm</code> — bins the genome (default 1 Mb), calls per-bin state with an anchored 3-state Gaussian-emission HMM (the default <code>cluster_method = "gauss"</code> fixes HET over-call and high-coverage fragmentation), with the original GMM/k-means/rebmix clustering backends available for reproduction.</li>
 <li>
-<code>atlas</code> — a GOOGA-style caller for transcript/competitive-alignment data: recurrent vs donor read fractions thresholded into genotype calls, then smoothed.</li>
+<code>googa</code> / <code>atlas</code> — callers for transcript / competitive-alignment data: recurrent vs donor read fractions are thresholded into hard genotype calls (<code>atlas_thresh</code>, <code>atlas_het</code>, <code>atlas_min_reads</code>), then smoothed. <strong><code>googa</code></strong> is the faithful reproduction — gt + <strong>geometric</strong>, matching GOOGA’s recombination-fraction F2 HMM (Flagel 2019; Veltsos 2024), which carries no minimum-run/rigidity duration. <strong><code>atlas</code></strong> is this work’s transcript caller: the same thresholding decoded with the <strong>rigidity</strong> duration.</li>
 <li>
 <code>lbimpute</code> — a native port of LB-Impute (Fragoso et al. 2014) for very low-coverage (&lt;1×) biallelic populations: a coverage-aware emission (bounded by <code>genotypeerr</code> so one artifactual marker can’t dominate) and a distance-dependent transition (recombination scales with the marker gap over <code>recombdist</code>; the homozygous↔︎homozygous switch carries a double-recombination penalty unless <code>drp = TRUE</code>, for RILs). The transition decays over physical bp (<code>unit = "bp"</code>, the faithful uniform-rate model) or, with a <code>cm</code> column of map positions, genetic distance (<code>unit = "cm"</code>) so the <em>local</em> recombination rate — e.g. maize centromeric suppression — is captured; output coordinates stay bp either way, and <code>recombdist</code>’s default is unit-aware (<code>1e7</code> bp / <code>50</code> cM). Decoded with the engine’s full-chromosome Viterbi — the optimal path that LB-Impute’s windowed forward/reverse consensus approximates. Emit an imputed VCF from the result with <code><a href="reference/write_vcf_impute.html">write_vcf_impute()</a></code>.</li>
 <li>
 <code>fsfhap</code> — a native port of TASSEL’s <strong>FSFHap</strong> (Swarts et al. 2014) for <strong>full-sib families</strong>, pooling each family (not per-line). Two design-routed parent-calling routes: the <strong>backcross</strong> route (BC1, <code>contribution = 0.75</code>) and the general <strong><code>BiparentalHaplotypeFinder</code></strong> route (reconstructs two parental haplotypes), both feeding the 5-state Viterbi-training EM imputation + gap-fill. Bit-exact vs TASSEL on its intended populations (backcross and <strong>RIL/inbred</strong>); het-heavy F2 is a documented stress case. <code>design</code> (a <code>BC{n}S{m}</code> token) selects the route and derives the expected heterozygosity <code>phet = (1-F)/2</code>; supply the <code>family</code> grouping via a <code>family</code> column or the <code>family=</code> argument. <strong>Not</strong> for NILs with heterozygous/outbred donors — use <code>nnil</code> (donor-agnostic) there. Read the native input with <code><a href="reference/read_hapmap.html">read_hapmap()</a></code> + <code><a href="reference/read_pedigree.html">read_pedigree()</a></code>.</li>
+<li>
+<code>pedigree</code> — family-coupled loopy belief propagation over the (pedigree × genome) grid; emission is input-detected (read counts → count/BetaBinomial, a hard-call <code>state</code>/<code>g</code> column → categorical gt). Requires a <code>pedigree</code> and <code>design</code>, and dispatches per family.</li>
+<li>
+<code>ml</code> / <code>hwemap</code> — the no-HMM per-site genotype baselines (each <code>(marker, sample)</code> decided independently from its own read counts, no linkage). <code>ml</code> uses a flat prior — pure argmax genotype-likelihood, i.e. <strong>maximum likelihood</strong> (het-blind at depth 1). <code>hwemap</code> uses the per-marker Hardy–Weinberg prior — the posterior <strong>MAP</strong>, which at low depth is deliberately <strong>het-excess</strong>: the reference the HMM callers must beat. (Backed by <code><a href="reference/call_gt.html">call_gt()</a></code>; not to be confused with the deterministic <code><a href="reference/interpolate_genotype.html">interpolate_genotype()</a></code> densifier.)</li>
 </ul>
 </div>
 <div class="section level2">
