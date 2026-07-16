@@ -21,7 +21,7 @@ table, \code{g} in \verb{\{0,1,2,3\}} = allele0-hom / het / allele1-hom / missin
 where allele0/allele1 are the two alleles from the per-site \code{alleles} field
 (e.g. \code{A/C}). Genotype cells may be single-character IUPAC (\code{A}/\code{C}/\code{M}/\code{N})
 or two-character diploid (\code{AA}/\code{AC}/\code{CC}/\code{NN}). Feed to
-\code{call_ancestry(..., caller = "fsfhap"|"nnil")} (a \code{g}-only input).
+\code{call_ancestry(..., caller = "fsfhap"|"nnil"|"catiger")} (a \code{g}-only input).
 }
 \examples{
 f <- tempfile(fileext = ".hmp.txt")

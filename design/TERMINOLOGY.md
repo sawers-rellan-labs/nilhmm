@@ -36,13 +36,22 @@ A **caller** is a method = **(emission × duration + priors)** over the shared 3
 
 | `caller` | engine |
 |----------|--------|
-| `nnil` | count / BetaBinomial emission × geometric duration (Holland nNIL) |
+| `nnil` | categorical GT emission × geometric duration (Holland nNIL, hard calls) |
+| `bbnil` | count / BetaBinomial emission × geometric (low-coverage count extension of nNIL) |
+| `catiger` | categorical GT emission × rigidity |
 | `rtiger` | count / BetaBinomial × rigidity (Julia-free RTIGER port) |
 | `binhmm` | 3-state Gaussian on ~1 Mb bins |
-| `atlas` | categorical GT emission × geometric (RNA / competitive-alignment) |
+| `googa` | categorical GT × geometric, GOOGA competitive-alignment thresholds (faithful GOOGA/Veltsos) |
+| `atlas` | categorical GT × rigidity, GOOGA thresholds (this work's transcript caller) |
 | `lbimpute` | LB-Impute port (external baseline) |
 | `fsfhap` | FSFHap port (external baseline; per-family) |
 | `pedigree` | family-coupled belief propagation over the pedigree × genome grid |
+| `ml` | per-site GL, flat prior (maximum-likelihood genotype call; no HMM, het-blind) |
+| `hwemap` | per-site GL, HWE prior (MAP genotype call; no HMM, het-excess control) |
+
+The four grid callers are the pure (emission × duration) cells: `nnil` (gt +
+geometric), `bbnil` (count + geometric), `catiger` (gt + rigidity), `rtiger`
+(count + rigidity).
 
 - **`mosaic` is a noun** (the ancestry-state matrix), **never a caller name.** A caller
   is the *method*; the mosaic is its *output*.

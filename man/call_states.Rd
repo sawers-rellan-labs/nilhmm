@@ -6,7 +6,8 @@
 \usage{
 call_states(
   data,
-  caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap", "pedigree"),
+  caller = c("nnil", "bbnil", "catiger", "rtiger", "binhmm", "googa", "atlas",
+    "lbimpute", "fsfhap", "ml", "hwemap", "pedigree"),
   family = NULL,
   phet = NULL,
   pedigree = NULL,
@@ -31,7 +32,6 @@ call_states(
   postprocess = TRUE,
   min_reads = 1L,
   rtiger_fit = NULL,
-  emission = NULL,
   bin_size = 1e+06,
   cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
   joint_clust = FALSE,
@@ -52,13 +52,19 @@ call_states(
 }
 \arguments{
 \item{data}{Long observation table with columns \verb{name, chr, pos} and either
-\verb{n_ref, n_alt} read counts (from \code{\link[=read_counts]{read_counts()}}; for the count/rtiger/binhmm/
-atlas paths) or a pre-called hard-genotype column \code{g} in \verb{\{0,1,2,3\}} (from
-\code{\link[=read_vcf_gt]{read_vcf_gt()}}; auto-selects \code{caller = "nnil"}, \code{emission = "gt"}).
-Optionally \code{donor}.}
+\verb{n_ref, n_alt} read counts (from \code{\link[=read_counts]{read_counts()}}; for the count callers
+\code{bbnil}/\code{rtiger}, \code{binhmm}, the competitive-alignment callers \code{googa}/\code{atlas},
+\code{lbimpute}, \code{ml}/\code{hwemap}) or a pre-called hard-genotype column \code{g} in
+\verb{\{0,1,2,3\}} (from \code{\link[=read_vcf_gt]{read_vcf_gt()}}; the categorical gt callers
+\code{nnil}/\code{catiger}). Optionally \code{donor}.}
 
-\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"binhmm"}, \code{"atlas"}, \code{"lbimpute"},
-\code{"fsfhap"}, \code{"pedigree"}.}
+\item{caller}{One of \code{"nnil"}, \code{"bbnil"}, \code{"catiger"}, \code{"rtiger"}, \code{"binhmm"},
+\code{"googa"}, \code{"atlas"}, \code{"lbimpute"}, \code{"fsfhap"}, \code{"ml"}, \code{"hwemap"},
+\code{"pedigree"}. The six gt/count grid cells: \code{nnil} (gt + geometric),
+\code{bbnil} (count + geometric), \code{catiger} (gt + rigidity), \code{rtiger} (count +
+rigidity), plus the GOOGA-threshold transcript pair \code{googa} (gt + geometric,
+faithful GOOGA) and \code{atlas} (gt + rigidity, this work). \code{ml}/\code{hwemap} are the
+no-HMM per-site genotype baselines (flat = maximum likelihood, HWE = MAP).}
 
 \item{family}{\code{fsfhap} caller only: per-row family grouping (a vector length
 \code{nrow(data)}, or supply a \code{family} column on \code{data}). FSFHap pools each family.}
@@ -85,7 +91,7 @@ convergence tolerance, and damping for the message passing.}
 \item{design}{Breeding-design key for priors (e.g. \code{"BC2S2"}, \code{"BC2S3"}).
 Required unless \code{f_1}/\code{f_2} are supplied.}
 
-\item{rrate}{Count/geometric callers (\code{nnil}, \code{atlas}): expected per-marker
+\item{rrate}{Geometric callers (\code{nnil}, \code{bbnil}, \code{googa}): expected per-marker
 \strong{recombination rate} for the geometric duration (self-stay = \code{1 - rrate}).
 A resolution hyperparameter, not an MLE. Holland's nNIL sets it to
 \code{2 * total_cM / (100 * n_markers)} (~\code{30 / n_markers} for a 1500 cM maize
@@ -95,7 +101,8 @@ Haldane & Waddington), and it is optimizable from data by KS-vs-sim
 recombination fraction for its chromosome transition when \code{data} has no \code{cm}
 column (else Haldane on \code{cm}).}
 
-\item{rigidity}{\code{rtiger} caller only: integer minimum run length (e.g. \code{5}).}
+\item{rigidity}{Rigidity callers (\code{catiger}, \code{rtiger}, \code{atlas}): integer
+minimum run length (e.g. \code{5}).}
 
 \item{err, conc, fit_means}{Count-emission parameters forwarded to \code{\link[=caller_spec]{caller_spec()}}.}
 
@@ -127,21 +134,20 @@ threads. \code{fsfhap}: family x chromosome units decoded in parallel
 
 \item{min_reads}{Minimum read depth to keep a marker before decoding (default
 \code{1L}; \code{0L} keeps everything). Drops markers with \code{n_ref + n_alt < min_reads}
-for the count callers (\code{nnil} count path and \code{rtiger}), and missing genotypes
-(\code{g == 3}) on the \code{nnil} gt path. The intent is uniform — never make a
-confident call from no data, and keep the count callers on the same support
-for comparability. Zero-read markers carry no emission signal — they only slow
-decoding, marginally inflate \code{nnil} fragmentation, and dilute \code{rtiger}'s
-rigidity run. \code{binhmm} is unaffected (it drops truly-empty bins internally; a
-future per-bin frequency gate would be a separate \code{min_freq}). (\code{atlas} has its
-own \code{atlas_min_reads} gate.)}
+for the count-input grid callers (\code{nnil}, \code{bbnil}, \code{catiger}, \code{rtiger}), and
+missing genotypes (\code{g == 3}) on the gt-input path (\code{nnil}/\code{catiger} from a
+\code{g} column). The intent is uniform — never make a confident call from no data,
+and keep the callers on the same support for comparability. Zero-read markers
+carry no emission signal — they only slow decoding, marginally inflate the
+geometric callers' fragmentation, and dilute the rigidity run. \code{binhmm} is
+unaffected (it drops truly-empty bins internally; a future per-bin frequency
+gate would be a separate \code{min_freq}); \code{googa}/\code{atlas} have their own
+\code{atlas_min_reads} gate; \code{ml}/\code{hwemap} keep every covered marker (low depth is
+the point of the het-excess baseline).}
 
 \item{rtiger_fit}{\code{rtiger} caller only: a pre-computed RTIGER fit from
 \code{\link[=fit_rtiger]{fit_rtiger()}}, reused across per-chromosome decodes to avoid re-fitting
 (low-memory decode-reuse path). \code{NULL} (default) fits once internally.}
-
-\item{emission}{Optional emission override (\code{"count"}, \code{"gt"}) for the \code{nnil}
-caller; \code{NULL} uses the caller's default.}
 
 \item{bin_size, cluster_method}{\code{binhmm} caller only: genomic bin width in bp
 (default 1 Mb) and the per-bin genotyping backend --- \code{"gauss"} (default: the
@@ -161,12 +167,12 @@ alt-freq. This is joint \emph{clustering} only; the HMM stays per-sample.}
 weight the (gmm) clustering fit by each bin's informative-variant count
 (weights the influence, not the alt-freq value).}
 
-\item{atlas_thresh, atlas_het, atlas_min_reads}{\code{atlas} caller only: GOOGA
-genotype-call thresholds on the donor read fraction --- homozygous call when
-a parent's fraction >= \code{atlas_thresh} (0.95), HET when both parents >=
+\item{atlas_thresh, atlas_het, atlas_min_reads}{\code{googa}/\code{atlas} callers only:
+GOOGA genotype-call thresholds on the donor read fraction --- homozygous call
+when a parent's fraction >= \code{atlas_thresh} (0.95), HET when both parents >=
 \code{atlas_het} (0.25), and a minimum of \code{atlas_min_reads} (5) informative reads
-per gene (else missing). For \code{atlas}, \code{n_ref}/\code{n_alt} are the recurrent/donor
-competitive-alignment read counts (ambiguous excluded upstream).}
+per gene (else missing). For \code{googa}/\code{atlas}, \code{n_ref}/\code{n_alt} are the
+recurrent/donor competitive-alignment read counts (ambiguous excluded upstream).}
 
 \item{genotypeerr, recombdist, drp, unit}{\code{lbimpute} caller only (Fragoso et al.
 2014): \code{genotypeerr} is the coverage-independent genotyping-error rate
@@ -196,7 +202,8 @@ true heterozygotes, \code{p} fraction of hom errors called het, \code{mr} missin
 real error rate is the native cure for over-fragmentation (isolated
 miscalled markers are absorbed as errors rather than opening 1-marker
 segments); calibrate to a clean control, don't crank blindly. Used by the gt
-emission (\code{emission = "gt"}, a \code{g} genotype input, or the \code{atlas} caller).}
+(categorical) callers \code{nnil}, \code{catiger}, \code{googa}, and \code{atlas} (whether the \code{g}
+comes from a genotype column or is derived from read counts).}
 }
 \value{
 data.frame of per-unit states
@@ -218,7 +225,7 @@ toy <- data.frame(
   name  = "NIL1", chr = 1L, pos = seq_len(40L) * 1e5L,
   n_ref = c(rpois(20, 8), rpois(20, 4)),
   n_alt = c(rpois(20, 0), rpois(20, 4)))
-st <- call_states(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
+st <- call_states(toy, caller = "bbnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 to_segments(st)                       # or, in one step:
-call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
+call_ancestry(toy, caller = "bbnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 }

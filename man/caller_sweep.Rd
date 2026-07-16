@@ -6,7 +6,7 @@
 \usage{
 caller_sweep(
   data,
-  caller = c("rtiger", "nnil", "lbimpute"),
+  caller = c("rtiger", "bbnil", "lbimpute"),
   values,
   refit = c("none", "cold"),
   design = NULL,
@@ -31,7 +31,7 @@ caller_sweep(
 \item{data}{Common input: \verb{name, chr, pos, n_ref, n_alt} (+ optional \code{donor};
 \code{lbimpute} with \code{unit = "cm"} also needs a \code{cm} map-position column).}
 
-\item{caller}{\code{"rtiger"} (sweeps \code{rigidity}), \code{"nnil"} (sweeps \code{rrate}), or
+\item{caller}{\code{"rtiger"} (sweeps \code{rigidity}), \code{"bbnil"} (sweeps \code{rrate}), or
 \code{"lbimpute"} (sweeps \code{recombdist}).}
 
 \item{values}{Parameter grid to sweep.}
@@ -39,7 +39,7 @@ caller_sweep(
 \item{refit}{\code{"none"} (fit once at \code{ref} and reuse -- exact at \code{ref}, a close
 approximation elsewhere; recommended for calibration, as it isolates the
 segmentation prior) or \code{"cold"} (fit each value from scratch -- exact per
-value, the baseline). For nnil with \code{fit_means = FALSE} the emission is
+value, the baseline). For bbnil with \code{fit_means = FALSE} the emission is
 \code{rrate}-independent, so both are identical (and exact). This sweep \emph{finds} the
 best value; for the exact final calls, refit once with \code{\link[=call_ancestry]{call_ancestry()}} at
 the chosen value. \strong{Ignored for \code{lbimpute}}: \code{recombdist} touches only the
@@ -60,7 +60,7 @@ rounded for rtiger). Unused for \code{lbimpute} (no shared fit).}
 \code{1L}); \code{0L} keeps all. \strong{No-op for \code{lbimpute}}, which keeps zero-read markers
 (flat emission) so the distance transition sees true marker spacing.}
 
-\item{err, conc, fit_means}{nnil count-emission parameters (fixed across the grid).
+\item{err, conc, fit_means}{bbnil count-emission parameters (fixed across the grid).
 \code{err} is also LB-Impute's per-read error (\code{readerr}).}
 
 \item{seed, postprocess}{rtiger fit seed and border post-processing.}
@@ -77,7 +77,7 @@ A common-schema segment table with an added column named for the swept
 parameter (\code{rigidity}, \code{rrate}, or \code{recombdist}) tagging each value's calls.
 }
 \description{
-Fit the emission once (rtiger: the joint EM; nnil: per-sample means, or nothing
+Fit the emission once (rtiger: the joint EM; bbnil: per-sample means, or nothing
 when \code{fit_means = FALSE}) and sweep \code{values}, fanning the decodes over
 \code{threads}. \code{refit} controls the accuracy/speed trade (see details).
 }

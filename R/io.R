@@ -151,8 +151,9 @@ read_counts <- function(path, format = c("tsv", "gatk_table", "vcf_ad"), name = 
 #' [read_counts()] (which feeds the count/BetaBinomial emission from `AD` read
 #' depths), this reads the called genotype directly, so it never touches `AD`.
 #'
-#' Run with `call_ancestry(read_vcf_gt(path), caller = "nnil", emission = "gt",
-#' design = ...)` (a `g`-only input auto-selects the gt emission).
+#' Run with `call_ancestry(read_vcf_gt(path), caller = "nnil", design = ...)`
+#' (`nnil`/`catiger` are the categorical gt callers; a `g`-only input feeds their
+#' gt emission directly).
 #'
 #' @param path A `.vcf` or `.vcf.gz` file. `GT` must be the first FORMAT field
 #'   (the VCF spec requirement when GT is present).
@@ -214,7 +215,7 @@ read_vcf_gt <- function(path, samples = NULL) {
 #' where allele0/allele1 are the two alleles from the per-site `alleles` field
 #' (e.g. `A/C`). Genotype cells may be single-character IUPAC (`A`/`C`/`M`/`N`)
 #' or two-character diploid (`AA`/`AC`/`CC`/`NN`). Feed to
-#' `call_ancestry(..., caller = "fsfhap"|"nnil")` (a `g`-only input).
+#' `call_ancestry(..., caller = "fsfhap"|"nnil"|"catiger")` (a `g`-only input).
 #'
 #' @param path A HapMap file (`.hmp.txt`, optionally `.gz`).
 #' @param samples Optional character vector restricting to a subset of taxa.

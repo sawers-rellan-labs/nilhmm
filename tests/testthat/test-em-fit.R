@@ -41,7 +41,7 @@ test_that("fit_means = TRUE runs end-to-end and stays well-defined on skim", {
   raw <- read_golden_counts(golden_slice_path("skim", "counts", "PN14_SID1259.chr1.tsv"))
   counts <- data.frame(name = "PN14_SID1259", chr = 1L, pos = raw$pos,
                        n_ref = raw$n_ref, n_alt = raw$n_alt, donor = "Zd")
-  got <- call_ancestry(counts, caller = "nnil", design = "BC2S2", rrate = 7e-6, fit_means = TRUE)
+  got <- call_ancestry(counts, caller = "bbnil", design = "BC2S2", rrate = 7e-6, fit_means = TRUE)
   expect_true(all(c("source", "donor", "name", "chr", "start_bp", "end_bp", "state") %in% names(got)))
   expect_true(all(got$state %in% 0:2))
   expect_true(all(got$end_bp >= got$start_bp))

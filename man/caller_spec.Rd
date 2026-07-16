@@ -5,7 +5,7 @@
 \title{Resolve a named caller into emission + duration specs}
 \usage{
 caller_spec(
-  caller = c("nnil", "rtiger", "atlas"),
+  caller = c("nnil", "bbnil", "catiger", "rtiger", "googa", "atlas"),
   rrate = 0.01,
   rigidity = NULL,
   err = 0.01,
@@ -21,13 +21,15 @@ caller_spec(
 )
 }
 \arguments{
-\item{caller}{One of \code{"nnil"}, \code{"rtiger"}, \code{"atlas"}.}
+\item{caller}{One of \code{"nnil"}, \code{"bbnil"}, \code{"catiger"}, \code{"rtiger"}, \code{"googa"},
+\code{"atlas"}.}
 
-\item{rrate}{Geometric callers (\code{nnil}/\code{atlas}): expected per-marker
+\item{rrate}{Geometric callers (\code{nnil}/\code{bbnil}/\code{googa}): expected per-marker
 recombination rate (self-stay = \code{1 - rrate}). Holland's nNIL sets it to
 \code{2 * total_cM / (100 * n_markers)}.}
 
-\item{rigidity}{\code{rtiger} only: integer minimum run length (e.g. \code{5}).}
+\item{rigidity}{Rigidity callers (\code{catiger}/\code{rtiger}/\code{atlas}): integer minimum
+run length (e.g. \code{5}).}
 
 \item{err}{Count-emission baseline error.}
 
@@ -39,9 +41,10 @@ recombination rate (self-stay = \code{1 - rrate}). Holland's nNIL sets it to
 free-state (post-minimum-run) switch probability. A nilHMM construct, not a
 RTIGER parameter.}
 
-\item{germ, gert, p, mr, nir}{Genotype-error rates for the gt emission (the \code{atlas}
-caller; Holland's nNIL error model): hom error, het error, hom-error->het
-fraction, missing rate, non-informative-marker rate.}
+\item{germ, gert, p, mr, nir}{Genotype-error rates for the gt emission (the gt
+callers \code{nnil}/\code{catiger}/\code{googa}/\code{atlas}; Holland's nNIL error model): hom
+error, het error, hom-error->het fraction, missing rate,
+non-informative-marker rate.}
 
 \item{...}{Ignored extra args (e.g. \code{f_1}/\code{f_2} consumed by \code{\link[=call_ancestry]{call_ancestry()}}).}
 }
@@ -49,18 +52,28 @@ fraction, missing rate, non-informative-marker rate.}
 \code{list(emission, duration)}.
 }
 \description{
+The named cells of the shared engine's grid (emission x duration; the gt row
+also varies by hard-call thresholding lineage):
 \itemize{
-\item \code{nnil}    : Holland's nNIL -- count/gt emission + geometric duration.
-\item \code{rtiger}  : rigidity mode -- count emission + rigidity duration (S7).
-\item \code{atlas}   : GOOGA competitive-alignment caller -- gt (categorical) emission
-\itemize{
-\item geometric duration; the per-unit call uses GOOGA fraction thresholds
-(applied in \code{\link[=call_ancestry]{call_ancestry()}}).
-}
+\item \code{nnil}    : categorical \code{gt} emission + geometric duration -- Holland's
+original NIL caller on hard genotype calls (1/3-2/3 dosage cutoffs).
+\item \code{bbnil}   : count/BetaBinomial emission + geometric duration -- the
+low-coverage read-count extension of nNIL; the self-transition is the smoother.
+\item \code{catiger} : categorical \code{gt} emission + rigidity duration (S7) -- the
+Holland-threshold categorical + minimum-run-length caller.
+\item \code{rtiger}  : count/BetaBinomial emission + rigidity duration (S7).
+\item \code{googa}   : categorical \code{gt} emission + geometric duration, with GOOGA
+competitive-alignment thresholds -- the faithful GOOGA/Veltsos reproduction.
+\item \code{atlas}   : categorical \code{gt} emission + rigidity duration, with GOOGA
+thresholds -- this work's transcript caller (rigidity variant of \code{googa}).
+The GOOGA thresholding is applied in \code{\link[=call_ancestry]{call_ancestry()}}.
 }
 }
 \examples{
-caller_spec("nnil", rrate = 1e-4)      # count emission + geometric duration
+caller_spec("nnil", rrate = 1e-4)      # gt emission + geometric duration
+caller_spec("bbnil", rrate = 1e-4)     # count emission + geometric duration
+caller_spec("catiger", rigidity = 5)   # gt emission + rigidity duration
 caller_spec("rtiger", rigidity = 5)    # count emission + rigidity duration
-str(caller_spec("atlas"))              # gt emission + geometric duration
+str(caller_spec("googa"))              # gt emission + geometric (faithful GOOGA)
+str(caller_spec("atlas", rigidity = 5))# gt emission + rigidity (this-work transcript)
 }

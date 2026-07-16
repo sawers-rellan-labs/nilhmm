@@ -16,13 +16,18 @@ engine** with two swappable axes:
 
 ![The nilHMM engine: one duration-aware three-state HMM with two swappable axes, emission (count vs. categorical) and duration (geometric vs. rigidity); each named caller is a coordinate in that emission-by-duration space.](man/figures/fig_engine.png)
 
-Those choices, plus a per-unit calling rule, express a family of named **callers**:
-`nnil`, `rtiger`, `binhmm`, `atlas`, `lbimpute`, and `fsfhap`. The package is **data-agnostic** — every
-function takes `(data, params)` and returns calls; pipeline scripts own file paths
-and sample lists. The whole API is one verb:
+Those choices, plus a per-unit calling rule, express a family of named **callers**.
+The four pure cells of the (emission × duration) grid are `nnil` (gt + geometric),
+`bbnil` (count + geometric), `catiger` (gt + rigidity), and `rtiger` (count +
+rigidity), plus the GOOGA-threshold transcript pair `googa` (gt + geometric,
+faithful) and `atlas` (gt + rigidity, this work); off the grid sit `binhmm`,
+`lbimpute`, `fsfhap`, `pedigree`, and the no-HMM per-site baselines `ml` and
+`hwemap`. The package is
+**data-agnostic** — every function takes `(data, params)` and returns calls;
+pipeline scripts own file paths and sample lists. The whole API is one verb:
 
 ```r
-call_ancestry(data, caller = ..., design = ..., r = ..., err = ...)
+call_ancestry(data, caller = ..., design = ..., rrate = ..., err = ...)
 ```
 
 nilHMM began as a Python package on Jim Holland's
@@ -51,7 +56,7 @@ library(nilHMM)
 # directory of them) into the engine's observation table, then call ancestry.
 calls <- call_ancestry(
   read_counts("path/to/sample_counts.tsv"),
-  caller = "nnil",     # Holland's nNIL count caller
+  caller = "bbnil",    # low-coverage count caller (BetaBinomial + geometric)
   design = "BC2S2",    # breeding-design priors (f_1, f_2)
   rrate = 1e-4,        # recombination / geometric self-transition
   err   = 0.01         # baseline read error for the count emission
@@ -68,7 +73,7 @@ emission:
 
 ```r
 calls <- call_ancestry(read_vcf_gt("target.vcf.gz"),
-                       caller = "nnil", design = "BC2S2")   # g-only input -> gt emission
+                       caller = "nnil", design = "BC2S2")   # nnil = categorical gt caller
 ```
 
 For **full-sib families** (TASSEL FSFHap), read the HapMap + pedigree, attach the
@@ -84,31 +89,49 @@ calls <- call_ancestry(data, caller = "fsfhap", design = "BC1S4")   # design rou
 
 ## The callers
 
-All four share the 3-state REF/HET/ALT chain and the design priors; they differ
-in emission, duration, and the input they expect.
+The HMM callers share the 3-state REF/HET/ALT chain and the design priors (the
+no-HMM baselines `ml`/`hwemap` use a flat / HWE prior instead); they differ in
+emission, duration, and the input they expect. The four **grid** callers are the
+pure (emission × duration) cells; the rest sit off the grid.
 
 | caller | emission | duration | typical input | key parameters | lineage |
 |---|---|---|---|---|---|
-| **`nnil`** | `count` (BetaBinomial) or `gt` (categorical) | geometric | allelic read counts (low-cov skim / BrB), or called `GT` | `r`, `err`, `conc`, `fit_means` | Holland [nNIL](https://github.com/ncsumaize/nNIL) |
-| **`rtiger`** | `count` (BetaBinomial) | rigidity (min run length) | allelic read counts | `r` (integer rigidity), `seed`, `threads` | [RTIGER](https://github.com/rfael0cm/RTIGER) (Julia-free port of [`faustovrz/RTIGER`](https://github.com/faustovrz/RTIGER)) |
+| **`nnil`** | `gt` (categorical) | geometric | called `GT` (or read counts → hard call) | `rrate`, `germ`, `gert` | Holland [nNIL](https://github.com/ncsumaize/nNIL) |
+| **`bbnil`** | `count` (BetaBinomial) | geometric | allelic read counts (low-cov skim / BrB) | `rrate`, `err`, `conc`, `fit_means` | low-coverage count extension of nNIL |
+| **`catiger`** | `gt` (categorical) | rigidity (min run length) | called `GT` (or read counts → hard call) | `rigidity`, `germ`, `gert` | categorical + rigidity |
+| **`rtiger`** | `count` (BetaBinomial) | rigidity (min run length) | allelic read counts | `rigidity`, `seed`, `threads` | [RTIGER](https://github.com/rfael0cm/RTIGER) (Julia-free port of [`faustovrz/RTIGER`](https://github.com/faustovrz/RTIGER)) |
 | **`binhmm`** | anchored Gaussian on binned alt-freq | per-bin HMM smooth | allelic read counts | `bin_size`, `cluster_method` | "Ancestry Analysis by bins" |
-| **`atlas`** | `gt` (categorical, GOOGA thresholds) | geometric | competitive-alignment recurrent/donor read counts (RNA-seq) | `atlas_thresh`, `atlas_het`, `atlas_min_reads` | GOOGA competitive alignment |
+| **`googa`** | `gt` (categorical, GOOGA thresholds) | geometric | competitive-alignment recurrent/donor read counts (RNA-seq) | `atlas_thresh`, `atlas_het`, `atlas_min_reads` | GOOGA competitive alignment (Flagel 2019 / Veltsos 2024), faithful |
+| **`atlas`** | `gt` (categorical, GOOGA thresholds) | rigidity (min run length) | competitive-alignment recurrent/donor read counts (RNA-seq) | `rigidity`, `atlas_thresh`, `atlas_het`, `atlas_min_reads` | this work's rigidity transcript caller |
 | **`lbimpute`** | coverage-aware (LB-Impute) | distance-based (double-recomb penalty) | low-coverage allelic read counts (GBS / skim, <1×) | `err`, `genotypeerr`, `recombdist`, `drp` | [LB-Impute](https://github.com/dellaporta-laboratory/LB-Impute) (Fragoso et al. 2014) |
 | **`fsfhap`** | genotype-error (5-state EM) | distance-scaled (Haldane) | called `GT` for **full-sib families** (HapMap / VCF) + a `family` grouping | `design` (or `phet`), `family`, `threads` | [FSFHap](https://bitbucket.org/tasseladmin/tassel-5-source) (Swarts et al. 2014, TASSEL) |
+| **`pedigree`** | count or `gt` (input-detected) | BP over pedigree × genome | read counts or a hard-call `state`/`g`, plus a pedigree | `design`, `rrate`, `ped_*` | family-coupled belief propagation |
+| **`ml`** | per-site GL, flat prior | none (no HMM) | allelic read counts | `err` | maximum-likelihood genotype call (het-blind baseline) |
+| **`hwemap`** | per-site GL, HWE prior | none (no HMM) | allelic read counts | `err` | HWE-MAP genotype call (het-excess control) |
 
-- `nnil` — count caller pools single-read observations along a segment via a
-  BetaBinomial emission (`err`, `conc`); `fit_means = TRUE` EM-fits the per-state
-  alt fractions. Also runs the categorical `gt` emission (Holland's error model:
-  `germ`, `gert`, `p`, `mr`, `nir`) on called genotypes.
+- `nnil` — the categorical caller on hard genotype calls (Holland's error model:
+  `germ`, `gert`, `p`, `mr`, `nir`); a `g` column is used directly, read counts are
+  first hard-called (1/3–2/3 cutoffs). Geometric duration, so the self-transition
+  is the smoother.
+- `bbnil` — the low-coverage count extension: pools single-read observations along
+  a segment via a BetaBinomial emission (`err`, `conc`); `fit_means = TRUE` EM-fits
+  the per-state alt fractions. Same geometric duration as `nnil`.
+- `catiger` — the categorical `gt` emission with the rigidity (minimum-run-length)
+  duration; the `gt`-side counterpart of `rtiger`.
 - `rtiger` — a faithful reimplementation of the RTIGER rigidity HMM (EM + Viterbi,
-  border re-placement), ported off Julia; `r` is the integer rigidity (minimum
-  run length).
+  border re-placement), ported off Julia; `rigidity` is the integer minimum run
+  length.
 - `binhmm` — bins the genome (default 1 Mb), calls per-bin state with an anchored
   3-state Gaussian-emission HMM (the default `cluster_method = "gauss"` fixes HET
   over-call and high-coverage fragmentation), with the original GMM/k-means/rebmix
   clustering backends available for reproduction.
-- `atlas` — a GOOGA-style caller for transcript/competitive-alignment data:
-  recurrent vs donor read fractions thresholded into genotype calls, then smoothed.
+- `googa` / `atlas` — callers for transcript / competitive-alignment data:
+  recurrent vs donor read fractions are thresholded into hard genotype calls
+  (`atlas_thresh`, `atlas_het`, `atlas_min_reads`), then smoothed. **`googa`** is
+  the faithful reproduction — gt + **geometric**, matching GOOGA's
+  recombination-fraction F2 HMM (Flagel 2019; Veltsos 2024), which carries no
+  minimum-run/rigidity duration. **`atlas`** is this work's transcript caller: the
+  same thresholding decoded with the **rigidity** duration.
 - `lbimpute` — a native port of LB-Impute (Fragoso et al. 2014) for very
   low-coverage (<1×) biallelic populations: a coverage-aware emission (bounded by
   `genotypeerr` so one artifactual marker can't dominate) and a distance-dependent
@@ -133,6 +156,17 @@ in emission, duration, and the input they expect.
   `family` grouping via a `family` column or the `family=` argument. **Not** for
   NILs with heterozygous/outbred donors — use `nnil` (donor-agnostic) there.
   Read the native input with `read_hapmap()` + `read_pedigree()`.
+- `pedigree` — family-coupled loopy belief propagation over the (pedigree × genome)
+  grid; emission is input-detected (read counts → count/BetaBinomial, a hard-call
+  `state`/`g` column → categorical gt). Requires a `pedigree` and `design`, and
+  dispatches per family.
+- `ml` / `hwemap` — the no-HMM per-site genotype baselines (each `(marker, sample)`
+  decided independently from its own read counts, no linkage). `ml` uses a flat
+  prior — pure argmax genotype-likelihood, i.e. **maximum likelihood** (het-blind
+  at depth 1). `hwemap` uses the per-marker Hardy–Weinberg prior — the posterior
+  **MAP**, which at low depth is deliberately **het-excess**: the reference the
+  HMM callers must beat. (Backed by `call_gt()`; not to be confused with the
+  deterministic `interpolate_genotype()` densifier.)
 
 ## Related building blocks
 

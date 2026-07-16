@@ -11,7 +11,7 @@ test_that("the gt caller runs end-to-end and returns valid calls", {
   raw <- read_golden_counts(golden_slice_path("skim", "counts", "PN14_SID1259.chr1.tsv"))
   counts <- data.frame(name = "PN14_SID1259", chr = as.integer(sub("^chr", "", raw$chr)),
                        pos = raw$pos, n_ref = raw$n_ref, n_alt = raw$n_alt, donor = "Zd")
-  gt <- call_ancestry(counts, "nnil", design = "BC2S2", rrate = 7e-6, emission = "gt")
+  gt <- call_ancestry(counts, "nnil", design = "BC2S2", rrate = 7e-6)  # nnil = gt (categorical)
   expect_true(all(gt$state %in% 0:2))
   expect_true(all(gt$end_bp >= gt$start_bp))
   expect_identical(unique(gt$chr), 1L)

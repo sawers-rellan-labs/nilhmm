@@ -1,10 +1,18 @@
-# ATLAS caller -- Ancestry by Transcript-Level Alignment Scores. Ports the GOOGA
-# method (PLoS Genet 2024, pgen.1011072): ancestry is assigned per gene from
-# COMPETITIVE ALIGNMENT read counts to the two parents (recurrent vs donor
-# transcriptomes; the cassini pipeline produces these). It is NOT a SNP/dosage
-# caller and NOT the count/BetaBinomial mean model -- RNA read counts are
-# expression-driven and the allele fraction is confounded by allele-specific
-# expression, so a hard threshold + categorical (gt) confusion HMM is used.
+# GOOGA / ATLAS callers -- per-gene ancestry from COMPETITIVE ALIGNMENT read
+# counts to the two parents (recurrent vs donor transcriptomes; the cassini
+# pipeline produces these). NOT a SNP/dosage caller and NOT the count/BetaBinomial
+# mean model -- RNA read counts are expression-driven and the allele fraction is
+# confounded by allele-specific expression, so a hard threshold + categorical (gt)
+# confusion HMM is used.
+#
+# Two callers share this GOOGA thresholding, differing only in the duration:
+#   `googa` -- gt + GEOMETRIC. The faithful reproduction of GOOGA (Flagel et al.
+#     2019, pcbi.1006949) and its ASE application (Veltsos et al. 2024,
+#     pgen.1011072), whose HMM is a recombination-fraction (geometric) F2 model
+#     with NO minimum-run/rigidity duration (confirmed in the GOOGA source and both
+#     papers' methods).
+#   `atlas` -- gt + RIGIDITY. This work's transcript caller: the same GOOGA
+#     thresholding decoded with the engine's rigidity (minimum-run-length) duration.
 #
 # Input to call_ancestry(caller = "atlas"): the common count schema
 # `name, chr, pos, n_ref, n_alt`, where per gene:
@@ -22,7 +30,8 @@
 #   both fracs          >= het    -> HET (1)
 #   otherwise (ambiguous)         -> NN / missing (3)
 # The resulting per-gene calls feed the engine's gt (categorical confusion)
-# emission + geometric duration HMM (see caller_spec("atlas") / call_ancestry).
+# emission HMM: with the geometric duration for `googa` (faithful GOOGA) or the
+# rigidity duration for `atlas` (this work). See caller_spec()/call_ancestry.
 
 # vectorized GOOGA hard call -> {0 REF, 1 HET, 2 ALT, 3 missing}
 .googa_gt_call <- function(a, n, thresh = 0.95, het = 0.25, min_reads = 5L) {

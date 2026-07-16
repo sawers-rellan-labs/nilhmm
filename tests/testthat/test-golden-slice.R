@@ -55,7 +55,7 @@ reproduces <- function(src, sample, donor, design, r) {
   raw <- read_golden_counts(golden_slice_path(src, "counts", paste0(sample, ".chr1.tsv")))
   counts <- data.frame(name = sample, chr = as.integer(sub("^chr", "", raw$chr)),
                        pos = raw$pos, n_ref = raw$n_ref, n_alt = raw$n_alt, donor = donor)
-  got <- call_ancestry(counts, caller = "nnil", design = design, rrate = r, min_reads = 0L)
+  got <- call_ancestry(counts, caller = "bbnil", design = design, rrate = r, min_reads = 0L)
   exp <- read_golden_expected(golden_slice_path(src, "expected_calls_chr1.csv"))
   exp <- exp[exp$name == sample, ]
   expect_equal(got[, seg_cols], exp[, seg_cols], ignore_attr = TRUE, info = paste(src, sample))
@@ -79,8 +79,8 @@ test_that("threaded decode (parallel=TRUE) is identical to serial", {
   raw <- read_golden_counts(golden_slice_path("skim", "counts", "PN14_SID1259.chr1.tsv"))
   counts <- data.frame(name = "PN14_SID1259", chr = 1L, pos = raw$pos,
                        n_ref = raw$n_ref, n_alt = raw$n_alt, donor = "Zd")
-  ser <- call_ancestry(counts, "nnil", design = "BC2S2", rrate = 7e-6, parallel = FALSE)
-  par <- call_ancestry(counts, "nnil", design = "BC2S2", rrate = 7e-6, parallel = TRUE)
+  ser <- call_ancestry(counts, "bbnil", design = "BC2S2", rrate = 7e-6, parallel = FALSE)
+  par <- call_ancestry(counts, "bbnil", design = "BC2S2", rrate = 7e-6, parallel = TRUE)
   expect_equal(ser, par)
 })
 
