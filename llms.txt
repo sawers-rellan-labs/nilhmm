@@ -116,7 +116,7 @@ off the grid.
 | **`binhmm`** | anchored Gaussian on binned alt-freq | per-bin HMM smooth | allelic read counts | `bin_size`, `cluster_method` | “Ancestry Analysis by bins” |
 | **`googa`** | `gt` (categorical, GOOGA thresholds) | geometric | competitive-alignment recurrent/donor read counts (RNA-seq) | `atlas_thresh`, `atlas_het`, `atlas_min_reads` | GOOGA competitive alignment (Flagel 2019 / Veltsos 2024), faithful |
 | **`atlas`** | `gt` (categorical, GOOGA thresholds) | rigidity (min run length) | competitive-alignment recurrent/donor read counts (RNA-seq) | `rigidity`, `atlas_thresh`, `atlas_het`, `atlas_min_reads` | this work’s rigidity transcript caller |
-| **`lbimpute`** | coverage-aware (LB-Impute) | distance-based (double-recomb penalty) | low-coverage allelic read counts (GBS / skim, \<1×) | `err`, `genotypeerr`, `recombdist`, `drp` | [LB-Impute](https://github.com/dellaporta-laboratory/LB-Impute) (Fragoso et al. 2014) |
+| **`lbimpute`** | coverage-aware (LB-Impute) | distance-based (double-recomb penalty) | allelic read counts (biallelic; GBS / skim) | `err`, `genotypeerr`, `recombdist`, `drp` | [LB-Impute](https://github.com/dellaporta-laboratory/LB-Impute) (Fragoso et al. 2014) |
 | **`fsfhap`** | genotype-error (5-state EM) | distance-scaled (Haldane) | called `GT` for **full-sib families** (HapMap / VCF) + a `family` grouping | `design` (or `phet`), `family`, `threads` | [FSFHap](https://bitbucket.org/tasseladmin/tassel-5-source) (Swarts et al. 2014, TASSEL) |
 | **`pedigree`** | count or `gt` (input-detected) | BP over pedigree × genome | read counts or a hard-call `state`/`g`, plus a pedigree | `design`, `rrate`, `ped_*` | family-coupled belief propagation |
 
@@ -146,12 +146,12 @@ off the grid.
   2019; Veltsos 2024), which carries no minimum-run/rigidity duration.
   **`atlas`** is this work’s transcript caller: the same thresholding
   decoded with the **rigidity** duration.
-- `lbimpute` — a native port of LB-Impute (Fragoso et al. 2014) for very
-  low-coverage (\<1×) biallelic populations: a coverage-aware emission
-  (bounded by `genotypeerr` so one artifactual marker can’t dominate)
-  and a distance-dependent transition (recombination scales with the
-  marker gap over `recombdist`; the homozygous↔︎homozygous switch carries
-  a double-recombination penalty unless `drp = TRUE`, for RILs). The
+- `lbimpute` — a native port of LB-Impute (Fragoso et al. 2014) for
+  biallelic populations: a coverage-aware emission (bounded by
+  `genotypeerr` so one artifactual marker can’t dominate) and a
+  distance-dependent transition (recombination scales with the marker
+  gap over `recombdist`; the homozygous↔︎homozygous switch carries a
+  double-recombination penalty unless `drp = TRUE`, for RILs). The
   transition decays over physical bp (`unit = "bp"`, the faithful
   uniform-rate model) or, with a `cm` column of map positions, genetic
   distance (`unit = "cm"`) so the *local* recombination rate —

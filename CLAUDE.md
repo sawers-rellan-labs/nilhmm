@@ -77,7 +77,7 @@ rest sit off the grid.
 | `binhmm` | anchored Gaussian on binned alt-freq | per-bin HMM | allelic read counts | “ancestry by bins” |
 | `googa` | `gt` (GOOGA thresholds) | geometric | competitive-alignment RNA-seq counts | GOOGA (Flagel 2019 / Veltsos 2024), faithful |
 | `atlas` | `gt` (GOOGA thresholds) | rigidity | competitive-alignment RNA-seq counts | this work’s rigidity transcript caller |
-| `lbimpute` | coverage-aware (bounded by `genotypeerr`) | distance-based (double-recomb penalty) | very low-coverage (\<1×) allelic read counts | LB-Impute (Fragoso 2014, native port) |
+| `lbimpute` | coverage-aware (bounded by `genotypeerr`) | distance-based (double-recomb penalty) | allelic read counts | LB-Impute (Fragoso 2014, native port) |
 | `fsfhap` | genotype-error (5-state EM) | family-pooled Haldane | called `GT` for full-sib families | FSFHap (Swarts 2014, TASSEL) |
 | `pedigree` | count or `gt` (input-detected) | BP over pedigree × genome | counts or hard-call `state`/`g` + a pedigree | family-coupled belief propagation |
 

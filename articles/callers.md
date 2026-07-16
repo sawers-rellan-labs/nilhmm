@@ -119,9 +119,9 @@ head(gg, 3); head(at, 3)
 #> 3 nilHMM     B NIL01   2    98554 243484148     0
 ```
 
-## `lbimpute` — very low coverage
+## `lbimpute` — LB-Impute port (distance-dependent transition)
 
-A native port of LB-Impute (Fragoso et al. 2014) for `<1×` biallelic
+A native port of LB-Impute (Fragoso et al. 2014) for biallelic
 populations: a coverage-aware emission bounded by `genotypeerr`, and a
 distance-dependent transition (recombination scales with the marker gap
 over `recombdist`). No design priors needed.
