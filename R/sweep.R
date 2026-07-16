@@ -1,9 +1,10 @@
 # caller_sweep: sweep a caller's SEGMENTATION parameter with a single shared fit.
 #
-# The segmentation parameter (rtiger `rigidity`, nnil `rrate`) is a prior on run
+# The segmentation parameter (rtiger `rigidity`, bbnil `rrate`) is a prior on run
 # length / switch rate, not an emission property, so the fitted emission is
-# ~parameter-independent. That lets the expensive estimation be amortized across
-# the grid, fanned across cores. This sweep is for CALIBRATION -- finding the best
+# ~parameter-independent (with `fit_means = TRUE` the shared fit is conditioned on
+# the reference parameter `ref`, then held fixed across the grid). That lets the
+# expensive estimation be amortized across the grid, fanned across cores. This sweep is for CALIBRATION -- finding the best
 # parameter -- so it needs segmentations that are comparable across the grid for
 # scoring, not per-value fits identical to a cold refit. Two `refit` modes:
 #   "none" -- fit ONCE at `ref`, reuse for every decode. Holds the emission fixed
@@ -20,19 +21,19 @@
 
 #' Sweep a caller's segmentation parameter with an amortized fit
 #'
-#' Fit the emission once (rtiger: the joint EM; nnil: per-sample means, or nothing
+#' Fit the emission once (rtiger: the joint EM; bbnil: per-sample means, or nothing
 #' when `fit_means = FALSE`) and sweep `values`, fanning the decodes over
 #' `threads`. `refit` controls the accuracy/speed trade (see details).
 #'
 #' @param data Common input: `name, chr, pos, n_ref, n_alt` (+ optional `donor`;
 #'   `lbimpute` with `unit = "cm"` also needs a `cm` map-position column).
-#' @param caller `"rtiger"` (sweeps `rigidity`), `"nnil"` (sweeps `rrate`), or
+#' @param caller `"rtiger"` (sweeps `rigidity`), `"bbnil"` (sweeps `rrate`), or
 #'   `"lbimpute"` (sweeps `recombdist`).
 #' @param values Parameter grid to sweep.
 #' @param refit `"none"` (fit once at `ref` and reuse -- exact at `ref`, a close
 #'   approximation elsewhere; recommended for calibration, as it isolates the
 #'   segmentation prior) or `"cold"` (fit each value from scratch -- exact per
-#'   value, the baseline). For nnil with `fit_means = FALSE` the emission is
+#'   value, the baseline). For bbnil with `fit_means = FALSE` the emission is
 #'   `rrate`-independent, so both are identical (and exact). This sweep *finds* the
 #'   best value; for the exact final calls, refit once with [call_ancestry()] at
 #'   the chosen value. **Ignored for `lbimpute`**: `recombdist` touches only the
@@ -48,7 +49,7 @@
 #' @param min_reads Minimum read depth to keep a marker before decoding (default
 #'   `1L`); `0L` keeps all. **No-op for `lbimpute`**, which keeps zero-read markers
 #'   (flat emission) so the distance transition sees true marker spacing.
-#' @param err,conc,fit_means nnil count-emission parameters (fixed across the grid).
+#' @param err,conc,fit_means bbnil count-emission parameters (fixed across the grid).
 #'   `err` is also LB-Impute's per-read error (`readerr`).
 #' @param seed,postprocess rtiger fit seed and border post-processing.
 #' @param unit,genotypeerr,drp `lbimpute` only: `unit` is the transition coordinate
@@ -59,7 +60,7 @@
 #' @return A common-schema segment table with an added column named for the swept
 #'   parameter (`rigidity`, `rrate`, or `recombdist`) tagging each value's calls.
 #' @export
-caller_sweep <- function(data, caller = c("rtiger", "nnil", "lbimpute"), values,
+caller_sweep <- function(data, caller = c("rtiger", "bbnil", "lbimpute"), values,
                          refit = c("none", "cold"),
                          design = NULL, f_1 = NULL, f_2 = NULL, threads = 1L,
                          ref = NULL, min_reads = 1L, err = 0.01, conc = 20,
@@ -119,15 +120,15 @@ caller_sweep <- function(data, caller = c("rtiger", "nnil", "lbimpute"), values,
     return(do.call(rbind, segs))
   }
 
-  # ---------------- nnil: per-sample emission + decode per rrate --------------
+  # ---------------- bbnil: per-sample emission + decode per rrate -------------
   priors <- if (!is.null(design)) design_priors(design)
             else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
-            else stop("caller_sweep(nnil): supply `design` or both `f_1`, `f_2`")
+            else stop("caller_sweep(bbnil): supply `design` or both `f_1`, `f_2`")
   emission <- emission_count(err, conc, fit_means)
   theta0 <- .emission_theta(emission)
   ref_rrate <- if (is.null(ref)) stats::median(values) else ref
   td_of <- function(v) .duration_transition(
-    caller_spec("nnil", rrate = v, err = err, conc = conc, fit_means = fit_means)$duration, priors)
+    caller_spec("bbnil", rrate = v, err = err, conc = conc, fit_means = fit_means)$duration, priors)
   by_name <- split(data, data$name, drop = TRUE)
 
   # Phase 1 (parallel): per-sample chains + (for none/warm) a reference emission

@@ -15,7 +15,7 @@ utils::globalVariables(c(".xmb0", ".xmb1", ".yb0", ".yb1", ".statef", ".chrf"))
 #' @examples
 #' \dontrun{
 #' # Planned (Task 4): called fragment sizes vs the expected Null.
-#' calls <- call_ancestry(read_counts("counts/"), caller = "nnil", design = "BC2S2")
+#' calls <- call_ancestry(read_counts("counts/"), caller = "bbnil", design = "BC2S2")
 #' plot_fragment_sizes(calls, design = "BC2S2", space = "Mb")
 #' }
 #' @export

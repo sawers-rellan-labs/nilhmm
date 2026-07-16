@@ -25,7 +25,9 @@ alt-allele dosage: \code{0} REF-hom, \code{1} het, \code{2} ALT-hom, \code{3} mi
 depths), this reads the called genotype directly, so it never touches \code{AD}.
 }
 \details{
-Run with \code{call_ancestry(read_vcf_gt(path), caller = "nnil", emission = "gt", design = ...)} (a \code{g}-only input auto-selects the gt emission).
+Run with \code{call_ancestry(read_vcf_gt(path), caller = "nnil", design = ...)}
+(\code{nnil}/\code{catiger} are the categorical gt callers; a \code{g}-only input feeds their
+gt emission directly).
 }
 \examples{
 # A minimal biallelic-diploid VCF with a GT field.

@@ -181,12 +181,18 @@ decode <- function(model, obs) {
 #' Data-agnostic: pass the observations in; this function never reads paths.
 #'
 #' @param data Long observation table with columns `name, chr, pos` and either
-#'   `n_ref, n_alt` read counts (from [read_counts()]; for the count/rtiger/binhmm/
-#'   atlas paths) or a pre-called hard-genotype column `g` in `{0,1,2,3}` (from
-#'   [read_vcf_gt()]; auto-selects `caller = "nnil"`, `emission = "gt"`).
-#'   Optionally `donor`.
-#' @param caller One of `"nnil"`, `"rtiger"`, `"binhmm"`, `"atlas"`, `"lbimpute"`,
-#'   `"fsfhap"`, `"pedigree"`.
+#'   `n_ref, n_alt` read counts (from [read_counts()]; for the count callers
+#'   `bbnil`/`rtiger`, `binhmm`, the competitive-alignment callers `googa`/`atlas`,
+#'   `lbimpute`, `ml`/`hwemap`) or a pre-called hard-genotype column `g` in
+#'   `{0,1,2,3}` (from [read_vcf_gt()]; the categorical gt callers
+#'   `nnil`/`catiger`). Optionally `donor`.
+#' @param caller One of `"nnil"`, `"bbnil"`, `"catiger"`, `"rtiger"`, `"binhmm"`,
+#'   `"googa"`, `"atlas"`, `"lbimpute"`, `"fsfhap"`, `"ml"`, `"hwemap"`,
+#'   `"pedigree"`. The six gt/count grid cells: `nnil` (gt + geometric),
+#'   `bbnil` (count + geometric), `catiger` (gt + rigidity), `rtiger` (count +
+#'   rigidity), plus the GOOGA-threshold transcript pair `googa` (gt + geometric,
+#'   faithful GOOGA) and `atlas` (gt + rigidity, this work). `ml`/`hwemap` are the
+#'   no-HMM per-site genotype baselines (flat = maximum likelihood, HWE = MAP).
 #' @param family `fsfhap` caller only: per-row family grouping (a vector length
 #'   `nrow(data)`, or supply a `family` column on `data`). FSFHap pools each family.
 #' @param pedigree `pedigree` caller only (**required** there): a [read_pedigree()]
@@ -206,7 +212,7 @@ decode <- function(model, obs) {
 #'   **BC1 designs** (`"BC1S{m}"`) — other designs route to unported TASSEL paths.
 #' @param design Breeding-design key for priors (e.g. `"BC2S2"`, `"BC2S3"`).
 #'   Required unless `f_1`/`f_2` are supplied.
-#' @param rrate Count/geometric callers (`nnil`, `atlas`): expected per-marker
+#' @param rrate Geometric callers (`nnil`, `bbnil`, `googa`): expected per-marker
 #'   **recombination rate** for the geometric duration (self-stay = `1 - rrate`).
 #'   A resolution hyperparameter, not an MLE. Holland's nNIL sets it to
 #'   `2 * total_cM / (100 * n_markers)` (~`30 / n_markers` for a 1500 cM maize
@@ -215,7 +221,8 @@ decode <- function(model, obs) {
 #'   ([calibrate_r()]). The `pedigree` caller also uses `rrate` as the per-bp
 #'   recombination fraction for its chromosome transition when `data` has no `cm`
 #'   column (else Haldane on `cm`).
-#' @param rigidity `rtiger` caller only: integer minimum run length (e.g. `5`).
+#' @param rigidity Rigidity callers (`catiger`, `rtiger`, `atlas`): integer
+#'   minimum run length (e.g. `5`).
 #' @param xrate Exit rate of nilHMM's **rigidity duration** ([duration_rigidity()]):
 #'   the per-marker switch probability at the free (post-minimum-run) state — the
 #'   geometric tail beyond the enforced run. A nilHMM construct, **not** a RTIGER
@@ -240,16 +247,16 @@ decode <- function(model, obs) {
 #'   (low-memory decode-reuse path). `NULL` (default) fits once internally.
 #' @param min_reads Minimum read depth to keep a marker before decoding (default
 #'   `1L`; `0L` keeps everything). Drops markers with `n_ref + n_alt < min_reads`
-#'   for the count callers (`nnil` count path and `rtiger`), and missing genotypes
-#'   (`g == 3`) on the `nnil` gt path. The intent is uniform — never make a
-#'   confident call from no data, and keep the count callers on the same support
-#'   for comparability. Zero-read markers carry no emission signal — they only slow
-#'   decoding, marginally inflate `nnil` fragmentation, and dilute `rtiger`'s
-#'   rigidity run. `binhmm` is unaffected (it drops truly-empty bins internally; a
-#'   future per-bin frequency gate would be a separate `min_freq`). (`atlas` has its
-#'   own `atlas_min_reads` gate.)
-#' @param emission Optional emission override (`"count"`, `"gt"`) for the `nnil`
-#'   caller; `NULL` uses the caller's default.
+#'   for the count-input grid callers (`nnil`, `bbnil`, `catiger`, `rtiger`), and
+#'   missing genotypes (`g == 3`) on the gt-input path (`nnil`/`catiger` from a
+#'   `g` column). The intent is uniform — never make a confident call from no data,
+#'   and keep the callers on the same support for comparability. Zero-read markers
+#'   carry no emission signal — they only slow decoding, marginally inflate the
+#'   geometric callers' fragmentation, and dilute the rigidity run. `binhmm` is
+#'   unaffected (it drops truly-empty bins internally; a future per-bin frequency
+#'   gate would be a separate `min_freq`); `googa`/`atlas` have their own
+#'   `atlas_min_reads` gate; `ml`/`hwemap` keep every covered marker (low depth is
+#'   the point of the het-excess baseline).
 #' @param bin_size,cluster_method `binhmm` caller only: genomic bin width in bp
 #'   (default 1 Mb) and the per-bin genotyping backend --- `"gauss"` (default: the
 #'   anchored 3-state Gaussian-emission HMM; fixes the HET over-call and
@@ -292,13 +299,14 @@ decode <- function(model, obs) {
 #'   real error rate is the native cure for over-fragmentation (isolated
 #'   miscalled markers are absorbed as errors rather than opening 1-marker
 #'   segments); calibrate to a clean control, don't crank blindly. Used by the gt
-#'   emission (`emission = "gt"`, a `g` genotype input, or the `atlas` caller).
-#' @param atlas_thresh,atlas_het,atlas_min_reads `atlas` caller only: GOOGA
-#'   genotype-call thresholds on the donor read fraction --- homozygous call when
-#'   a parent's fraction >= `atlas_thresh` (0.95), HET when both parents >=
+#'   (categorical) callers `nnil`, `catiger`, `googa`, and `atlas` (whether the `g`
+#'   comes from a genotype column or is derived from read counts).
+#' @param atlas_thresh,atlas_het,atlas_min_reads `googa`/`atlas` callers only:
+#'   GOOGA genotype-call thresholds on the donor read fraction --- homozygous call
+#'   when a parent's fraction >= `atlas_thresh` (0.95), HET when both parents >=
 #'   `atlas_het` (0.25), and a minimum of `atlas_min_reads` (5) informative reads
-#'   per gene (else missing). For `atlas`, `n_ref`/`n_alt` are the recurrent/donor
-#'   competitive-alignment read counts (ambiguous excluded upstream).
+#'   per gene (else missing). For `googa`/`atlas`, `n_ref`/`n_alt` are the
+#'   recurrent/donor competitive-alignment read counts (ambiguous excluded upstream).
 #' @return data.frame of per-unit states
 #'   (`source, donor, name, chr, pos, state`; the `binhmm` caller additionally
 #'   carries per-bin `start_bp, end_bp`). Pass to [to_segments()] for intervals.
@@ -309,11 +317,11 @@ decode <- function(model, obs) {
 #'   name  = "NIL1", chr = 1L, pos = seq_len(40L) * 1e5L,
 #'   n_ref = c(rpois(20, 8), rpois(20, 4)),
 #'   n_alt = c(rpois(20, 0), rpois(20, 4)))
-#' st <- call_states(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
+#' st <- call_states(toy, caller = "bbnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #' to_segments(st)                       # or, in one step:
-#' call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
+#' call_ancestry(toy, caller = "bbnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #' @export
-call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "lbimpute", "fsfhap", "pedigree"),
+call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "binhmm", "googa", "atlas", "lbimpute", "fsfhap", "ml", "hwemap", "pedigree"),
                         family = NULL, phet = NULL,
                         pedigree = NULL, ped_format = c("fam", "fsfhap"),
                         ped_maxiter = 30L, ped_tol = 1e-4, ped_lambda = 0.5,
@@ -323,7 +331,7 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
                         f_1 = NULL, f_2 = NULL,
                         source = "nilHMM", donor = NA_character_,
                         parallel = FALSE, threads = 1L, seed = 1L,
-                        postprocess = TRUE, min_reads = 1L, rtiger_fit = NULL, emission = NULL,
+                        postprocess = TRUE, min_reads = 1L, rtiger_fit = NULL,
                         bin_size = 1e6, cluster_method = c("gauss", "gmm", "kmeans", "rebmix"),
                         joint_clust = FALSE, obs_weights = FALSE,
                         atlas_thresh = 0.95, atlas_het = 0.25, atlas_min_reads = 5L,
@@ -353,13 +361,14 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
 
   # A hard-genotype (`g`-only, no counts) input is the categorical GT path
   # (Holland's nNIL genotype model on called genotypes; the saturated-depth /
-  # MolBreeding regime). It only makes sense for caller = "nnil" + the gt emission
-  # (the count/rtiger/binhmm/atlas paths all need read counts).
+  # MolBreeding regime). It only makes sense for the categorical gt callers
+  # `nnil`/`catiger` (whose emission consumes `g` directly), plus `fsfhap`/
+  # `pedigree`. The count-input callers (`bbnil`/`rtiger`/`binhmm`/`googa`/`atlas`/
+  # `lbimpute`/`ml`/`hwemap`) all need read counts.
   if (has_gt && !has_counts) {
-    if (!caller %in% c("nnil", "fsfhap", "pedigree"))
+    if (!caller %in% c("nnil", "catiger", "fsfhap", "pedigree"))
       stop("call_states(): a `g` genotype input (no read counts) requires caller = 'nnil', ",
-           "'fsfhap', or 'pedigree'; '", caller, "' needs n_ref/n_alt read counts")
-    if (caller == "nnil") emission <- "gt"
+           "'catiger', 'fsfhap', or 'pedigree'; '", caller, "' needs n_ref/n_alt read counts")
   }
 
   # FSFHap caller (R/fsfhap.R, src/fsfhap.cpp): parent-calling (stage 1) + 5-state
@@ -432,6 +441,21 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
     return(st[order(st$donor, st$name, st$chr, st$pos), , drop = FALSE])
   }
 
+  # ml / hwemap callers: the no-HMM per-site genotype baselines (R/call_gt.R).
+  # Each (marker, sample) is decided independently from its own (n_ref, n_alt) --
+  # no linkage, no duration, no design prior. `ml` uses a flat prior (pure
+  # argmax genotype-likelihood = maximum likelihood; het-blind at depth 1).
+  # `hwemap` uses the per-marker Hardy-Weinberg prior (posterior mode = MAP;
+  # het-EXCESS at low depth) -- the paper's het-excess "control" reference the HMM
+  # callers must beat. Dispatched early: with no transition model the shared
+  # duration/prior machinery below does not apply.
+  if (caller %in% c("ml", "hwemap")) {
+    if (!has_counts)
+      stop("call_states(): caller = '", caller, "' needs (n_ref, n_alt) read counts")
+    return(.gt_states(data, prior = if (caller == "ml") "flat" else "hwe",
+                      error = err, source = source, donor = donor, has_donor = has_donor))
+  }
+
   # Required priors are a caller-argument problem, not a data problem, so validate
   # them BEFORE any coverage filtering below. Otherwise an all-zero-coverage input
   # would trip the min_reads "no covered markers" error and mask a genuinely missing
@@ -441,24 +465,24 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
       is.null(design) && !(!is.null(f_1) && !is.null(f_2)))
     stop("call_states(): supply `design` or both `f_1` and `f_2`")
 
-  # gt path: "no coverage" is a missing genotype (g == 3). Drop missing calls so
-  # the gt (nnil hard-genotype) caller ignores uncovered positions too, mirroring
-  # the count/rtiger covered-marker filter below.
-  if (identical(emission, "gt") && "g" %in% names(data) &&
+  # gt-input path: "no coverage" is a missing genotype (g == 3). Drop missing calls
+  # so the categorical gt callers (`nnil`/`catiger`) ignore uncovered positions too,
+  # mirroring the count covered-marker filter below.
+  if (caller %in% c("nnil", "catiger") && has_gt && !has_counts &&
       !is.null(min_reads) && min_reads > 0L) {
     data <- data[data$g != 3L, , drop = FALSE]
     if (!nrow(data)) stop("call_states(): no non-missing genotypes after the min_reads filter")
   }
 
-  # Read-depth filter for the count-emission callers (`nnil` count path and
+  # Read-depth filter for the count-input grid callers (`nnil`/`bbnil`/`catiger`/
   # `rtiger`): drop markers with fewer than `min_reads` total reads. A zero-read
   # panel position carries no emission signal — it only slows decoding, marginally
-  # inflates fragmentation for `nnil`, and dilutes the rigidity run for `rtiger`
-  # (which requires read-covered markers anyway). This makes the two callers run on
-  # the SAME marker support, so their calls are directly comparable. `binhmm` bins its
+  # inflates the geometric callers' fragmentation, and dilutes the rigidity run
+  # (which requires read-covered markers anyway). This keeps the callers on the
+  # SAME marker support, so their calls are directly comparable. `binhmm` bins its
   # own way and the `gt`/`alt_freq` inputs have no read counts to threshold, so
   # they are exempt. `min_reads = 0L` restores decoding every input marker.
-  if (has_counts && !identical(emission, "gt") && caller %in% c("nnil", "rtiger") &&
+  if (has_counts && caller %in% c("nnil", "bbnil", "catiger", "rtiger") &&
       !is.null(min_reads) && min_reads > 0L) {
     data <- data[data$n_ref + data$n_alt >= min_reads, , drop = FALSE]
     if (!nrow(data))
@@ -519,19 +543,21 @@ call_states <- function(data, caller = c("nnil", "rtiger", "binhmm", "atlas", "l
                             source, donor, has_donor, tcol, threads))
   }
 
-  # ATLAS caller (R/atlas.R): GOOGA-style per-gene ancestry from competitive-
-  # alignment read counts (n_ref = recurrent, n_alt = donor; ambiguous excluded
-  # upstream by the cassini pipeline). Same engine as nnil+gt, but the per-unit
-  # genotype call uses GOOGA's hard fraction thresholds + a min-read gate rather
-  # than the 1/3-2/3 cutoffs. It is RNA/read-competition data, so the categorical
-  # gt (confusion) emission is used, NOT the count/BetaBinomial mean model.
-  googa <- caller == "atlas"
+  # GOOGA / ATLAS callers (R/atlas.R): per-gene ancestry from competitive-alignment
+  # read counts (n_ref = recurrent, n_alt = donor; ambiguous excluded upstream by
+  # the cassini pipeline). The per-unit genotype call uses GOOGA's hard fraction
+  # thresholds + a min-read gate rather than the 1/3-2/3 cutoffs. RNA/read-
+  # competition data, so the categorical gt (confusion) emission is used, NOT the
+  # count/BetaBinomial mean model. `googa` is the faithful reproduction (gt +
+  # geometric = GOOGA's recombination-fraction F2 HMM); `atlas` is this work's
+  # transcript caller (the same thresholding with the rigidity duration).
+  googa <- caller %in% c("googa", "atlas")
 
-  spec <- caller_spec(caller, rrate = rrate, err = err, conc = conc, fit_means = fit_means,
+  # Each grid caller pins its own emission x duration (caller_spec); the emission
+  # is fully determined by the caller name (no override).
+  spec <- caller_spec(caller, rrate = rrate, rigidity = rigidity,
+                      err = err, conc = conc, fit_means = fit_means,
                       xrate = xrate, germ = germ, gert = gert, p = p, mr = mr, nir = nir)
-  if (!is.null(emission)) spec$emission <- switch(match.arg(emission, c("count","gt")),
-    count  = emission_count(err, conc, fit_means),
-    gt     = emission_gt(germ, gert, p, mr, nir))
 
   priors <- if (!is.null(design)) design_priors(design)
             else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
@@ -682,7 +708,7 @@ to_segments <- function(states) {
 #' @examples
 #' toy <- data.frame(name = "NIL1", chr = 1L, pos = (1:6) * 1e5L,
 #'                   n_ref = c(9, 8, 4, 5, 9, 8), n_alt = c(0, 0, 4, 5, 0, 0))
-#' call_ancestry(toy, caller = "nnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
+#' call_ancestry(toy, caller = "bbnil", design = "BC2S2", rrate = 1e-4, err = 0.01)
 #' @export
 call_ancestry <- function(data, ...) {
   to_segments(call_states(data, ...))

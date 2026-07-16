@@ -22,7 +22,7 @@ test_that("emission/duration constructors return tagged specs", {
 test_that("the count and gt emissions run via call_ancestry", {
   d <- data.frame(name = "s", chr = 1L, pos = 1:6, n_ref = c(2L,0L,1L,2L,0L,1L),
                   n_alt = c(0L,2L,1L,0L,2L,0L), donor = "Zx")
-  for (cc in list(list(caller="nnil"), list(caller="nnil", emission="gt"))) {  # count, gt
+  for (cc in list(list(caller="bbnil"), list(caller="nnil"))) {  # count (bbnil), gt (nnil)
     g <- do.call(call_ancestry, c(list(d, design = "BC2S2", rrate = 0.01), cc))
     expect_true(all(g$state %in% 0:2))
   }

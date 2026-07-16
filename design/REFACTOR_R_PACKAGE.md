@@ -21,7 +21,8 @@ partly superseded — deltas called out here win.
 - **Engine**: 3-state HMM; `count` emission (fixed *and* EM-fit means), `gt` emission; `geometric`
   + `rigidity` durations; Rcpp hot loops; batched + optional-parallel Viterbi. Count caller
   bit-identical to the Python baseline; RTIGER a faithful port of the fork.
-- **Callers**: `nnil` (count / gt), `rtiger` (faithful port + border postprocess), **`binhmm`**
+- **Callers** (grid = emission × duration): `nnil` (gt + geometric), `bbnil` (count + geometric),
+  `catiger` (gt + rigidity), `rtiger` (count + rigidity; faithful port + border postprocess), **`binhmm`**
   (the rpubs "Ancestry Analysis by bins" pipeline — bin → K=3 cluster → HMM-smooth; NEW, not in the
   original plan). binhmm reproduces the rpubs `Kgmm_HMM` published numbers exactly and matches its
   per-bin calls at 99.25% / 100% ALT-recall on the dense input.
@@ -174,7 +175,7 @@ is for verification/extension. Same pattern for the map.
 ```
 nilHMM/
   R/    engine (fit/decode), emissions {count|gt}, duration {geometric|rigidity|(hsmm reserved)},
-        callers {nnil|rtiger}, binhmm (bin→cluster→smooth, own path), presets_regime,
+        callers {nnil|bbnil|catiger|rtiger|googa|atlas}, binhmm (bin→cluster→smooth, own path), presets_regime,
         presets_design (priors done; Gamma/map STUBS), map utils (STUB),
         calibrate (STUB), plot (STUB), io (tsv only)
   src/  Rcpp: Viterbi + EM hot loops                     ✓
@@ -184,8 +185,8 @@ nilHMM/
   vignettes/   the zealtiger regime notebooks → docs     NOT YET
 ```
 
-Top-level API: `call_ancestry(data, caller = c("nnil","rtiger","binhmm"), source/design presets, …)`.
-`nnil`/`rtiger` wrap the engine `fit()/decode()` (emission × duration pluggable); `binhmm` is a
+Top-level API: `call_ancestry(data, caller = c("nnil","bbnil","catiger","rtiger","binhmm", …), source/design presets, …)`.
+The four grid callers (`nnil`/`bbnil`/`catiger`/`rtiger`) wrap the engine `fit()/decode()` (emission × duration pluggable); `binhmm` is a
 separate branch (bin/cluster/smooth) with `bin_size`/`cluster_method`/`joint_clust`/`obs_weights`.
 
 ## 9. Sequencing & validation (decided)
