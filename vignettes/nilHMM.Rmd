@@ -103,13 +103,13 @@ emission model, the duration prior, and the input they expect.
 | caller | input | when |
 |---|---|---|
 | `nnil` | called `GT` (hard genotypes) | categorical (gt) + geometric; Holland's nNIL on hard calls |
-| `bbnil` | allelic counts | count/BetaBinomial + geometric; low-coverage skim/BrB |
+| `bbnil` | allelic read counts | count/BetaBinomial + geometric; low-coverage skim/BrB |
 | `catiger` | called `GT` (hard genotypes) | categorical (gt) + rigidity |
-| `rtiger` | allelic counts | count + minimum-run-length (rigidity) segmentation |
-| `binhmm` | allelic counts | per-bin calling for noisy/uneven coverage |
+| `rtiger` | allelic read counts | count + minimum-run-length (rigidity) segmentation |
+| `binhmm` | allelic read counts | per-bin calling for noisy/uneven coverage |
 | `googa` | recurrent/donor counts | competitive-alignment RNA-seq (faithful GOOGA; gt + geometric) |
 | `atlas` | recurrent/donor counts | competitive-alignment RNA-seq (this work; gt + rigidity) |
-| `lbimpute` | very low-cov counts (<1×) | GBS/skim imputation (LB-Impute) |
+| `lbimpute` | allelic read counts | biallelic imputation (LB-Impute port; distance-dependent transition) |
 | `fsfhap` | called `GT` + a `family` | full-sib families (TASSEL FSFHap) |
 | `pedigree` | counts or hard-call `state`/`g` + a pedigree | family-coupled belief propagation |
 
