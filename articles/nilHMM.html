@@ -76,10 +76,10 @@ sequencing data. Under the hood it is a single <strong>duration-aware
 express a family of named callers (the grid cells <code>nnil</code>,
 <code>bbnil</code>, <code>catiger</code>, <code>rtiger</code>, plus
 <code>googa</code>, <code>atlas</code>, <code>binhmm</code>,
-<code>lbimpute</code>, <code>fsfhap</code>, <code>pedigree</code>, and
-the no-HMM baselines <code>ml</code>/<code>hwemap</code>). This vignette
-covers the common workflow; see <code><a href="../articles/callers.html">vignette("callers")</a></code> to
-choose a caller, <code><a href="../articles/engine.html">vignette("engine")</a></code> for the internals, and
+<code>lbimpute</code>, <code>fsfhap</code>, <code>pedigree</code>). This
+vignette covers the common workflow; see
+<code><a href="../articles/callers.html">vignette("callers")</a></code> to choose a caller,
+<code><a href="../articles/engine.html">vignette("engine")</a></code> for the internals, and
 <code><a href="../articles/fsfhap.html">vignette("fsfhap")</a></code> for full-sib families.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/sawers-rellan-labs/nilhmm" class="external-link">nilHMM</a></span><span class="op">)</span></span></code></pre></div>
@@ -200,10 +200,9 @@ chromosome (REF gold / HET green / ALT purple):</p>
 <div class="section level2">
 <h2 id="which-caller">Which caller?<a class="anchor" aria-label="anchor" href="#which-caller"></a>
 </h2>
-<p>The HMM callers share the REF/HET/ALT chain and the design priors
-(the no-HMM baselines <code>ml</code>/<code>hwemap</code> use a flat /
-HWE prior instead); they differ in the emission model, the duration
-prior, and the input they expect.</p>
+<p>All callers share the REF/HET/ALT chain and the design priors; they
+differ in the emission model, the duration prior, and the input they
+expect.</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -218,7 +217,7 @@ prior, and the input they expect.</p>
 <tbody>
 <tr class="odd">
 <td><code>nnil</code></td>
-<td>called <code>GT</code> (or counts → hard call)</td>
+<td>called <code>GT</code> (hard genotypes)</td>
 <td>categorical (gt) + geometric; Holland’s nNIL on hard calls</td>
 </tr>
 <tr class="even">
@@ -228,7 +227,7 @@ prior, and the input they expect.</p>
 </tr>
 <tr class="odd">
 <td><code>catiger</code></td>
-<td>called <code>GT</code> (or counts → hard call)</td>
+<td>called <code>GT</code> (hard genotypes)</td>
 <td>categorical (gt) + rigidity</td>
 </tr>
 <tr class="even">
@@ -268,17 +267,13 @@ prior, and the input they expect.</p>
 pedigree</td>
 <td>family-coupled belief propagation</td>
 </tr>
-<tr class="odd">
-<td>
-<code>ml</code> / <code>hwemap</code>
-</td>
-<td>allelic counts</td>
-<td>no-HMM per-site baselines (ML / HWE-MAP; het-excess control)</td>
-</tr>
 </tbody>
 </table>
-<p><code><a href="../articles/callers.html">vignette("callers")</a></code> gives a runnable example for
-each.</p>
+<p><code><a href="../articles/callers.html">vignette("callers")</a></code> gives runnable examples for the
+per-sample callers (see <code><a href="../articles/fsfhap.html">vignette("fsfhap")</a></code> for the family
+workflow). The no-HMM per-site <em>genotype</em> baseline (the
+het-excess “control”) is <code><a href="../reference/call_gt.html">call_gt()</a></code>, not an ancestry caller
+— see <code><a href="../reference/call_gt.html">?call_gt</a></code>.</p>
 </div>
 <div class="section level2">
 <h2 id="next-steps">Next steps<a class="anchor" aria-label="anchor" href="#next-steps"></a>

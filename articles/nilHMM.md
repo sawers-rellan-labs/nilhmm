@@ -6,9 +6,8 @@ Under the hood it is a single **duration-aware 3-state (REF / HET / ALT)
 HMM engine** with two swappable axes (emission × duration); their
 combinations, plus breeding-design priors, express a family of named
 callers (the grid cells `nnil`, `bbnil`, `catiger`, `rtiger`, plus
-`googa`, `atlas`, `binhmm`, `lbimpute`, `fsfhap`, `pedigree`, and the
-no-HMM baselines `ml`/`hwemap`). This vignette covers the common
-workflow; see
+`googa`, `atlas`, `binhmm`, `lbimpute`, `fsfhap`, `pedigree`). This
+vignette covers the common workflow; see
 [`vignette("callers")`](https://sawers-rellan-labs.github.io/nilhmm/articles/callers.md)
 to choose a caller,
 [`vignette("engine")`](https://sawers-rellan-labs.github.io/nilhmm/articles/engine.md)
@@ -123,16 +122,15 @@ paint_calls(calls)
 
 ## Which caller?
 
-The HMM callers share the REF/HET/ALT chain and the design priors (the
-no-HMM baselines `ml`/`hwemap` use a flat / HWE prior instead); they
+All callers share the REF/HET/ALT chain and the design priors; they
 differ in the emission model, the duration prior, and the input they
 expect.
 
 | caller | input | when |
 |----|----|----|
-| `nnil` | called `GT` (or counts → hard call) | categorical (gt) + geometric; Holland’s nNIL on hard calls |
+| `nnil` | called `GT` (hard genotypes) | categorical (gt) + geometric; Holland’s nNIL on hard calls |
 | `bbnil` | allelic counts | count/BetaBinomial + geometric; low-coverage skim/BrB |
-| `catiger` | called `GT` (or counts → hard call) | categorical (gt) + rigidity |
+| `catiger` | called `GT` (hard genotypes) | categorical (gt) + rigidity |
 | `rtiger` | allelic counts | count + minimum-run-length (rigidity) segmentation |
 | `binhmm` | allelic counts | per-bin calling for noisy/uneven coverage |
 | `googa` | recurrent/donor counts | competitive-alignment RNA-seq (faithful GOOGA; gt + geometric) |
@@ -140,10 +138,15 @@ expect.
 | `lbimpute` | very low-cov counts (\<1×) | GBS/skim imputation (LB-Impute) |
 | `fsfhap` | called `GT` + a `family` | full-sib families (TASSEL FSFHap) |
 | `pedigree` | counts or hard-call `state`/`g` + a pedigree | family-coupled belief propagation |
-| `ml` / `hwemap` | allelic counts | no-HMM per-site baselines (ML / HWE-MAP; het-excess control) |
 
 [`vignette("callers")`](https://sawers-rellan-labs.github.io/nilhmm/articles/callers.md)
-gives a runnable example for each.
+gives runnable examples for the per-sample callers (see
+[`vignette("fsfhap")`](https://sawers-rellan-labs.github.io/nilhmm/articles/fsfhap.md)
+for the family workflow). The no-HMM per-site *genotype* baseline (the
+het-excess “control”) is
+[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md),
+not an ancestry caller — see
+[`?call_gt`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md).
 
 ## Next steps
 

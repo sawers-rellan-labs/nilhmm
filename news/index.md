@@ -20,10 +20,18 @@ The named callers are now the explicit coordinates of the engine’s
   [`call_states()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_states.md).
   Each grid caller now pins its own emission, so the override is
   redundant — choose the caller instead.
-- New no-HMM per-site genotype baselines **`ml`** (flat prior →
-  maximum-likelihood call; het-blind at depth 1) and **`hwemap`** (HWE
-  prior → MAP; the het-excess reference). Both are thin wrappers over
-  [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md).
+- The no-HMM per-site **genotype** baseline (the paper’s het-excess
+  “control”) is
+  [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md),
+  a *genotype* caller — **not** an ancestry caller. It is deliberately
+  not dispatchable through
+  [`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md),
+  keeping the terminology wall between the ancestry mosaic and per-site
+  genotypes: `call_gt(prior = "flat")` is the maximum-likelihood call,
+  `call_gt(prior = "hwe")` the HWE MAP (het-excess). A consumer that
+  wants it in an ancestry comparison converts it
+  ([`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md))
+  itself; the package provides no genotype→mosaic shortcut.
 - [`caller_sweep()`](https://sawers-rellan-labs.github.io/nilhmm/reference/caller_sweep.md)
   renamed its count option `"nnil"` → `"bbnil"` (the swept `rrate` grid
   is the count/geometric caller).

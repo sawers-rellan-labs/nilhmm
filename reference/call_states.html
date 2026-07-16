@@ -64,7 +64,7 @@ Data-agnostic: pass the observations in; this function never reads paths.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">call_states</span><span class="op">(</span></span>
 <span>  <span class="va">data</span>,</span>
 <span>  caller <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"nnil"</span>, <span class="st">"bbnil"</span>, <span class="st">"catiger"</span>, <span class="st">"rtiger"</span>, <span class="st">"binhmm"</span>, <span class="st">"googa"</span>, <span class="st">"atlas"</span>,</span>
-<span>    <span class="st">"lbimpute"</span>, <span class="st">"fsfhap"</span>, <span class="st">"ml"</span>, <span class="st">"hwemap"</span>, <span class="st">"pedigree"</span><span class="op">)</span>,</span>
+<span>    <span class="st">"lbimpute"</span>, <span class="st">"fsfhap"</span>, <span class="st">"pedigree"</span><span class="op">)</span>,</span>
 <span>  family <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  phet <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  pedigree <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -113,22 +113,26 @@ Data-agnostic: pass the observations in; this function never reads paths.</p>
 
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>Long observation table with columns <code>name, chr, pos</code> and either
-<code>n_ref, n_alt</code> read counts (from <code><a href="read_counts.html">read_counts()</a></code>; for the count callers
-<code>bbnil</code>/<code>rtiger</code>, <code>binhmm</code>, the competitive-alignment callers <code>googa</code>/<code>atlas</code>,
-<code>lbimpute</code>, <code>ml</code>/<code>hwemap</code>) or a pre-called hard-genotype column <code>g</code> in
-<code>{0,1,2,3}</code> (from <code><a href="read_vcf_gt.html">read_vcf_gt()</a></code>; the categorical gt callers
-<code>nnil</code>/<code>catiger</code>). Optionally <code>donor</code>.</p></dd>
+<dd><p>Long observation table with columns <code>name, chr, pos</code> and one of:
+<code>n_ref, n_alt</code> read counts (from <code><a href="read_counts.html">read_counts()</a></code>; accepted by every
+count/threshold caller — <code>bbnil</code>/<code>rtiger</code>, <code>binhmm</code>, <code>googa</code>/<code>atlas</code>,
+<code>lbimpute</code>, and the gt callers <code>nnil</code>/<code>catiger</code>, which hard-call the counts
+internally); a pre-called hard-genotype column <code>g</code> in <code>{0,1,2,3}</code> (from
+<code><a href="read_vcf_gt.html">read_vcf_gt()</a></code>; the gt callers <code>nnil</code>/<code>catiger</code>, plus <code>fsfhap</code>/<code>pedigree</code>);
+or a pre-binned <code>alt_freq</code> (with <code>start_bp, end_bp</code>) for <code>binhmm</code>. Optionally
+<code>donor</code>.</p></dd>
 
 
 <dt id="arg-caller">caller<a class="anchor" aria-label="anchor" href="#arg-caller"></a></dt>
 <dd><p>One of <code>"nnil"</code>, <code>"bbnil"</code>, <code>"catiger"</code>, <code>"rtiger"</code>, <code>"binhmm"</code>,
-<code>"googa"</code>, <code>"atlas"</code>, <code>"lbimpute"</code>, <code>"fsfhap"</code>, <code>"ml"</code>, <code>"hwemap"</code>,
-<code>"pedigree"</code>. The six gt/count grid cells: <code>nnil</code> (gt + geometric),
-<code>bbnil</code> (count + geometric), <code>catiger</code> (gt + rigidity), <code>rtiger</code> (count +
-rigidity), plus the GOOGA-threshold transcript pair <code>googa</code> (gt + geometric,
-faithful GOOGA) and <code>atlas</code> (gt + rigidity, this work). <code>ml</code>/<code>hwemap</code> are the
-no-HMM per-site genotype baselines (flat = maximum likelihood, HWE = MAP).</p></dd>
+<code>"googa"</code>, <code>"atlas"</code>, <code>"lbimpute"</code>, <code>"fsfhap"</code>, <code>"pedigree"</code>. The six gt/count
+grid cells: <code>nnil</code> (gt + geometric), <code>bbnil</code> (count + geometric), <code>catiger</code>
+(gt + rigidity), <code>rtiger</code> (count + rigidity), plus the GOOGA-threshold
+transcript pair <code>googa</code> (gt + geometric, faithful GOOGA) and <code>atlas</code> (gt +
+rigidity, this work). For the no-HMM per-site genotype baseline (the paper's
+"control"), call the genotype caller <code><a href="call_gt.html">call_gt()</a></code> directly (<code>prior = "flat"</code>
+for the maximum-likelihood call, <code>prior = "hwe"</code> for the HWE MAP) — it is a
+<em>genotype</em> caller, deliberately separate from the ancestry callers here.</p></dd>
 
 
 <dt id="arg-family">family<a class="anchor" aria-label="anchor" href="#arg-family"></a></dt>
@@ -242,8 +246,7 @@ carry no emission signal — they only slow decoding, marginally inflate the
 geometric callers' fragmentation, and dilute the rigidity run. <code>binhmm</code> is
 unaffected (it drops truly-empty bins internally; a future per-bin frequency
 gate would be a separate <code>min_freq</code>); <code>googa</code>/<code>atlas</code> have their own
-<code>atlas_min_reads</code> gate; <code>ml</code>/<code>hwemap</code> keep every covered marker (low depth is
-the point of the het-excess baseline).</p></dd>
+<code>atlas_min_reads</code> gate.</p></dd>
 
 
 <dt id="arg-rtiger-fit">rtiger_fit<a class="anchor" aria-label="anchor" href="#arg-rtiger-fit"></a></dt>

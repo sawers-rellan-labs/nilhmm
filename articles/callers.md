@@ -1,10 +1,9 @@
 # The callers: one example each
 
-nilHMM ships eleven named callers. The HMM callers share the 3-state
-REF/HET/ALT chain and the breeding-design priors (the two no-HMM
-baselines `ml`/`hwemap` use a flat / Hardy–Weinberg prior instead), and
-all return the same segment schema — so you can run several on the same
-data and compare directly. They differ in the **emission** model, the
+nilHMM ships a family of named ancestry callers. They all share the
+3-state REF/HET/ALT chain and the breeding-design priors, and all return
+the same segment schema — so you can run several on the same data and
+compare directly. They differ in the **emission** model, the
 **duration** prior, and the **input** they expect. This vignette runs
 one minimal example of each on self-contained synthetic data.
 
@@ -137,28 +136,41 @@ head(lb, 3)
 #> 3 nilHMM     B NIL01   2    98554 223047189     0
 ```
 
-## `ml` / `hwemap` — no-HMM per-site baselines
+## The no-HMM genotype baseline (`call_gt()`, not a caller)
 
-Two per-site genotype callers with **no** linkage/duration model — each
-`(marker, sample)` is decided independently from its own read counts
-(backed by
-[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)).
-`ml` uses a flat prior (pure argmax genotype-likelihood = maximum
-likelihood; het-blind at depth 1). `hwemap` uses the per-marker
-Hardy–Weinberg prior (posterior MAP; deliberately het-**excess** at low
-depth) — the reference the HMM callers must beat. These are not to be
-confused with the deterministic
-[`interpolate_genotype()`](https://sawers-rellan-labs.github.io/nilhmm/reference/interpolate_genotype.md)
-densifier.
+The het-excess “control” is a per-site **genotype** call, deliberately
+**not** an ancestry caller — nilHMM keeps a wall between the ancestry
+mosaic and genotypes, so
+[`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md)
+does not dispatch it. Call
+[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+directly: each `(marker, sample)` is decided independently from its own
+read counts, with no linkage. `prior = "flat"` gives the
+maximum-likelihood call (het-blind at depth 1); `prior = "hwe"` gives
+the Hardy–Weinberg posterior MAP (het-**excess** at low depth).
 
 ``` r
 
-ml_calls <- call_ancestry(counts, caller = "ml",     design = "BC2S2")
-hw_calls <- call_ancestry(counts, caller = "hwemap", design = "BC2S2")
-nrow(ml_calls); nrow(hw_calls)
-#> [1] 207
-#> [1] 241
+ml_calls <- call_gt(counts$n_ref, counts$n_alt, prior = "flat")  # maximum likelihood
+hw_calls <- call_gt(counts$n_ref, counts$n_alt, prior = "hwe")   # HWE MAP (het-excess)
+table(ml_calls, useNA = "ifany"); table(hw_calls, useNA = "ifany")
+#> ml_calls
+#>    0    1    2 <NA> 
+#> 1864  214  313    9
+#> hw_calls
+#>    0    1    2 <NA> 
+#> 1883  189  319    9
 ```
+
+These are genotype calls (0/1/2), not the segment schema. To bring a
+genotype baseline into the ancestry comparison, convert it yourself
+([`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md)
+on the genotype-as-state); the package provides no genotype→mosaic
+shortcut.
+[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+is also distinct from the deterministic
+[`interpolate_genotype()`](https://sawers-rellan-labs.github.io/nilhmm/reference/interpolate_genotype.md)
+densifier.
 
 ## `fsfhap` — full-sib families
 
@@ -185,7 +197,7 @@ counts:
 summ <- function(x) c(segments = nrow(x), states = length(unique(x$state)))
 rbind(nnil = summ(nnil), bbnil = summ(bbnil), catiger = summ(catiger),
       rtiger = summ(rt), binhmm = summ(bh), googa = summ(gg), atlas = summ(at),
-      lbimpute = summ(lb), ml = summ(ml_calls), hwemap = summ(hw_calls))
+      lbimpute = summ(lb))
 #>          segments states
 #> nnil           51      3
 #> bbnil          50      3
@@ -195,18 +207,16 @@ rbind(nnil = summ(nnil), bbnil = summ(bbnil), catiger = summ(catiger),
 #> googa          48      3
 #> atlas          44      3
 #> lbimpute       51      3
-#> ml            207      3
-#> hwemap        241      3
 ```
 
 ### Chromosome painting
 
-The real payoff of the shared schema is that you can **paint every
-caller on the same axes** — against the simcross **ground truth** — and
-eyeball whether the independent methods recover the donor (**B**)
-blocks. Each row is a NIL, each column a chromosome, and within a cell
-the tracks are stacked as bands (REF gold / HET green / ALT purple),
-with the noise-free truth on top.
+The real payoff of the shared schema is that you can **paint the callers
+on the same axes** — here the per-sample callers run above, against the
+simcross **ground truth** — and eyeball whether the independent methods
+recover the donor (**B**) blocks. Each row is a NIL, each column a
+chromosome, and within a cell the tracks are stacked as bands (REF gold
+/ HET green / ALT purple), with the noise-free truth on top.
 
 The truth track is just
 [`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md)
@@ -223,8 +233,7 @@ top-down, so truth goes first).
 ``` r
 
 tracks <- list("nnil (gt)" = nnil, "bbnil (count)" = bbnil, catiger = catiger,
-               rtiger = rt, binhmm = bh, googa = gg, atlas = at, lbimpute = lb,
-               ml = ml_calls, hwemap = hw_calls)
+               rtiger = rt, binhmm = bh, googa = gg, atlas = at, lbimpute = lb)
 comparison <- do.call(rbind, Map(function(seg, m) { seg$method <- m; seg },
                                  tracks, names(tracks)))
 

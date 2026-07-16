@@ -68,13 +68,11 @@
 
     
     
-<p>nilHMM ships eleven named callers. The HMM callers share the 3-state
-REF/HET/ALT chain and the breeding-design priors (the two no-HMM
-baselines <code>ml</code>/<code>hwemap</code> use a flat /
-Hardy–Weinberg prior instead), and all return the same segment schema —
-so you can run several on the same data and compare directly. They
-differ in the <strong>emission</strong> model, the
-<strong>duration</strong> prior, and the <strong>input</strong> they
+<p>nilHMM ships a family of named ancestry callers. They all share the
+3-state REF/HET/ALT chain and the breeding-design priors, and all return
+the same segment schema — so you can run several on the same data and
+compare directly. They differ in the <strong>emission</strong> model,
+the <strong>duration</strong> prior, and the <strong>input</strong> they
 expect. This vignette runs one minimal example of each on self-contained
 synthetic data.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
@@ -210,25 +208,34 @@ No design priors needed.</p>
 <span><span class="co">#&gt; 3 nilHMM     B NIL01   2    98554 223047189     0</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="ml-hwemap-no-hmm-per-site-baselines">
-<code>ml</code> / <code>hwemap</code> — no-HMM per-site
-baselines<a class="anchor" aria-label="anchor" href="#ml-hwemap-no-hmm-per-site-baselines"></a>
+<h2 id="the-no-hmm-genotype-baseline-call_gt-not-a-caller">The no-HMM genotype baseline (<code>call_gt()</code>, not a
+caller)<a class="anchor" aria-label="anchor" href="#the-no-hmm-genotype-baseline-call_gt-not-a-caller"></a>
 </h2>
-<p>Two per-site genotype callers with <strong>no</strong>
-linkage/duration model — each <code>(marker, sample)</code> is decided
-independently from its own read counts (backed by
-<code><a href="../reference/call_gt.html">call_gt()</a></code>). <code>ml</code> uses a flat prior (pure argmax
-genotype-likelihood = maximum likelihood; het-blind at depth 1).
-<code>hwemap</code> uses the per-marker Hardy–Weinberg prior (posterior
-MAP; deliberately het-<strong>excess</strong> at low depth) — the
-reference the HMM callers must beat. These are not to be confused with
-the deterministic <code><a href="../reference/interpolate_genotype.html">interpolate_genotype()</a></code> densifier.</p>
+<p>The het-excess “control” is a per-site <strong>genotype</strong>
+call, deliberately <strong>not</strong> an ancestry caller — nilHMM
+keeps a wall between the ancestry mosaic and genotypes, so
+<code><a href="../reference/call_ancestry.html">call_ancestry()</a></code> does not dispatch it. Call
+<code><a href="../reference/call_gt.html">call_gt()</a></code> directly: each <code>(marker, sample)</code> is
+decided independently from its own read counts, with no linkage.
+<code>prior = "flat"</code> gives the maximum-likelihood call (het-blind
+at depth 1); <code>prior = "hwe"</code> gives the Hardy–Weinberg
+posterior MAP (het-<strong>excess</strong> at low depth).</p>
 <div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ml_calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"ml"</span>,     design <span class="op">=</span> <span class="st">"BC2S2"</span><span class="op">)</span></span>
-<span><span class="va">hw_calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"hwemap"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span><span class="op">)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">ml_calls</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">hw_calls</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 207</span></span>
-<span><span class="co">#&gt; [1] 241</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="va">ml_calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_gt.html">call_gt</a></span><span class="op">(</span><span class="va">counts</span><span class="op">$</span><span class="va">n_ref</span>, <span class="va">counts</span><span class="op">$</span><span class="va">n_alt</span>, prior <span class="op">=</span> <span class="st">"flat"</span><span class="op">)</span>  <span class="co"># maximum likelihood</span></span>
+<span><span class="va">hw_calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_gt.html">call_gt</a></span><span class="op">(</span><span class="va">counts</span><span class="op">$</span><span class="va">n_ref</span>, <span class="va">counts</span><span class="op">$</span><span class="va">n_alt</span>, prior <span class="op">=</span> <span class="st">"hwe"</span><span class="op">)</span>   <span class="co"># HWE MAP (het-excess)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">ml_calls</span>, useNA <span class="op">=</span> <span class="st">"ifany"</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">hw_calls</span>, useNA <span class="op">=</span> <span class="st">"ifany"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; ml_calls</span></span>
+<span><span class="co">#&gt;    0    1    2 &lt;NA&gt; </span></span>
+<span><span class="co">#&gt; 1864  214  313    9</span></span>
+<span><span class="co">#&gt; hw_calls</span></span>
+<span><span class="co">#&gt;    0    1    2 &lt;NA&gt; </span></span>
+<span><span class="co">#&gt; 1883  189  319    9</span></span></code></pre></div>
+<p>These are genotype calls (0/1/2), not the segment schema. To bring a
+genotype baseline into the ancestry comparison, convert it yourself
+(<code><a href="../reference/to_segments.html">to_segments()</a></code> on the genotype-as-state); the package
+provides no genotype→mosaic shortcut. <code><a href="../reference/call_gt.html">call_gt()</a></code> is also
+distinct from the deterministic <code><a href="../reference/interpolate_genotype.html">interpolate_genotype()</a></code>
+densifier.</p>
 </div>
 <div class="section level2">
 <h2 id="fsfhap-full-sib-families">
@@ -253,7 +260,7 @@ same counts:</p>
 <code class="sourceCode R"><span><span class="va">summ</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>segments <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, states <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">state</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>nnil <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">nnil</span><span class="op">)</span>, bbnil <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">bbnil</span><span class="op">)</span>, catiger <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">catiger</span><span class="op">)</span>,</span>
 <span>      rtiger <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">rt</span><span class="op">)</span>, binhmm <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">bh</span><span class="op">)</span>, googa <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">gg</span><span class="op">)</span>, atlas <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">at</span><span class="op">)</span>,</span>
-<span>      lbimpute <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">lb</span><span class="op">)</span>, ml <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">ml_calls</span><span class="op">)</span>, hwemap <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">hw_calls</span><span class="op">)</span><span class="op">)</span></span>
+<span>      lbimpute <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">lb</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;          segments states</span></span>
 <span><span class="co">#&gt; nnil           51      3</span></span>
 <span><span class="co">#&gt; bbnil          50      3</span></span>
@@ -262,19 +269,17 @@ same counts:</p>
 <span><span class="co">#&gt; binhmm         32      2</span></span>
 <span><span class="co">#&gt; googa          48      3</span></span>
 <span><span class="co">#&gt; atlas          44      3</span></span>
-<span><span class="co">#&gt; lbimpute       51      3</span></span>
-<span><span class="co">#&gt; ml            207      3</span></span>
-<span><span class="co">#&gt; hwemap        241      3</span></span></code></pre></div>
+<span><span class="co">#&gt; lbimpute       51      3</span></span></code></pre></div>
 <div class="section level3">
 <h3 id="chromosome-painting">Chromosome painting<a class="anchor" aria-label="anchor" href="#chromosome-painting"></a>
 </h3>
 <p>The real payoff of the shared schema is that you can <strong>paint
-every caller on the same axes</strong> — against the simcross
-<strong>ground truth</strong> — and eyeball whether the independent
-methods recover the donor (<strong>B</strong>) blocks. Each row is a
-NIL, each column a chromosome, and within a cell the tracks are stacked
-as bands (REF gold / HET green / ALT purple), with the noise-free truth
-on top.</p>
+the callers on the same axes</strong> — here the per-sample callers run
+above, against the simcross <strong>ground truth</strong> — and eyeball
+whether the independent methods recover the donor (<strong>B</strong>)
+blocks. Each row is a NIL, each column a chromosome, and within a cell
+the tracks are stacked as bands (REF gold / HET green / ALT purple),
+with the noise-free truth on top.</p>
 <p>The truth track is just <code><a href="../reference/to_segments.html">to_segments()</a></code> on the
 <code><a href="../reference/simulate_nil.html">simulate_nil()</a></code> table (its <code>state</code> is the
 noise-free donor mosaic, before <code><a href="../reference/simulate_counts.html">simulate_counts()</a></code> added
@@ -284,8 +289,7 @@ naming it, and pass that column as <code>track</code> (its levels stack
 top-down, so truth goes first).</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">tracks</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="st">"nnil (gt)"</span> <span class="op">=</span> <span class="va">nnil</span>, <span class="st">"bbnil (count)"</span> <span class="op">=</span> <span class="va">bbnil</span>, catiger <span class="op">=</span> <span class="va">catiger</span>,</span>
-<span>               rtiger <span class="op">=</span> <span class="va">rt</span>, binhmm <span class="op">=</span> <span class="va">bh</span>, googa <span class="op">=</span> <span class="va">gg</span>, atlas <span class="op">=</span> <span class="va">at</span>, lbimpute <span class="op">=</span> <span class="va">lb</span>,</span>
-<span>               ml <span class="op">=</span> <span class="va">ml_calls</span>, hwemap <span class="op">=</span> <span class="va">hw_calls</span><span class="op">)</span></span>
+<span>               rtiger <span class="op">=</span> <span class="va">rt</span>, binhmm <span class="op">=</span> <span class="va">bh</span>, googa <span class="op">=</span> <span class="va">gg</span>, atlas <span class="op">=</span> <span class="va">at</span>, lbimpute <span class="op">=</span> <span class="va">lb</span><span class="op">)</span></span>
 <span><span class="va">comparison</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">rbind</span>, <span class="fu"><a href="https://rdrr.io/r/base/funprog.html" class="external-link">Map</a></span><span class="op">(</span><span class="kw">function</span><span class="op">(</span><span class="va">seg</span>, <span class="va">m</span><span class="op">)</span> <span class="op">{</span> <span class="va">seg</span><span class="op">$</span><span class="va">method</span> <span class="op">&lt;-</span> <span class="va">m</span>; <span class="va">seg</span> <span class="op">}</span>,</span>
 <span>                                 <span class="va">tracks</span>, <span class="fu"><a href="https://rdrr.io/r/base/names.html" class="external-link">names</a></span><span class="op">(</span><span class="va">tracks</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>

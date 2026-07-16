@@ -19,7 +19,7 @@ never reads paths.
 call_states(
   data,
   caller = c("nnil", "bbnil", "catiger", "rtiger", "binhmm", "googa", "atlas",
-    "lbimpute", "fsfhap", "ml", "hwemap", "pedigree"),
+    "lbimpute", "fsfhap", "pedigree"),
   family = NULL,
   phet = NULL,
   pedigree = NULL,
@@ -67,26 +67,32 @@ call_states(
 
 - data:
 
-  Long observation table with columns `name, chr, pos` and either
+  Long observation table with columns `name, chr, pos` and one of:
   `n_ref, n_alt` read counts (from
   [`read_counts()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_counts.md);
-  for the count callers `bbnil`/`rtiger`, `binhmm`, the
-  competitive-alignment callers `googa`/`atlas`, `lbimpute`,
-  `ml`/`hwemap`) or a pre-called hard-genotype column `g` in `{0,1,2,3}`
-  (from
+  accepted by every count/threshold caller — `bbnil`/`rtiger`, `binhmm`,
+  `googa`/`atlas`, `lbimpute`, and the gt callers `nnil`/`catiger`,
+  which hard-call the counts internally); a pre-called hard-genotype
+  column `g` in `{0,1,2,3}` (from
   [`read_vcf_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_vcf_gt.md);
-  the categorical gt callers `nnil`/`catiger`). Optionally `donor`.
+  the gt callers `nnil`/`catiger`, plus `fsfhap`/`pedigree`); or a
+  pre-binned `alt_freq` (with `start_bp, end_bp`) for `binhmm`.
+  Optionally `donor`.
 
 - caller:
 
   One of `"nnil"`, `"bbnil"`, `"catiger"`, `"rtiger"`, `"binhmm"`,
-  `"googa"`, `"atlas"`, `"lbimpute"`, `"fsfhap"`, `"ml"`, `"hwemap"`,
-  `"pedigree"`. The six gt/count grid cells: `nnil` (gt + geometric),
-  `bbnil` (count + geometric), `catiger` (gt + rigidity), `rtiger`
-  (count + rigidity), plus the GOOGA-threshold transcript pair `googa`
-  (gt + geometric, faithful GOOGA) and `atlas` (gt + rigidity, this
-  work). `ml`/`hwemap` are the no-HMM per-site genotype baselines (flat
-  = maximum likelihood, HWE = MAP).
+  `"googa"`, `"atlas"`, `"lbimpute"`, `"fsfhap"`, `"pedigree"`. The six
+  gt/count grid cells: `nnil` (gt + geometric), `bbnil` (count +
+  geometric), `catiger` (gt + rigidity), `rtiger` (count + rigidity),
+  plus the GOOGA-threshold transcript pair `googa` (gt + geometric,
+  faithful GOOGA) and `atlas` (gt + rigidity, this work). For the no-HMM
+  per-site genotype baseline (the paper's "control"), call the genotype
+  caller
+  [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+  directly (`prior = "flat"` for the maximum-likelihood call,
+  `prior = "hwe"` for the HWE MAP) — it is a *genotype* caller,
+  deliberately separate from the ancestry callers here.
 
 - family:
 
@@ -214,8 +220,7 @@ call_states(
   fragmentation, and dilute the rigidity run. `binhmm` is unaffected (it
   drops truly-empty bins internally; a future per-bin frequency gate
   would be a separate `min_freq`); `googa`/`atlas` have their own
-  `atlas_min_reads` gate; `ml`/`hwemap` keep every covered marker (low
-  depth is the point of the het-excess baseline).
+  `atlas_min_reads` gate.
 
 - rtiger_fit:
 
