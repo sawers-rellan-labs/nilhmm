@@ -114,13 +114,13 @@ Data-agnostic: pass the observations in; this function never reads paths.</p>
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>Long observation table with columns <code>name, chr, pos</code> and one of:
-<code>n_ref, n_alt</code> read counts (from <code><a href="read_counts.html">read_counts()</a></code>; accepted by every
-count/threshold caller — <code>bbnil</code>/<code>rtiger</code>, <code>binhmm</code>, <code>googa</code>/<code>atlas</code>,
-<code>lbimpute</code>, and the gt callers <code>nnil</code>/<code>catiger</code>, which hard-call the counts
-internally); a pre-called hard-genotype column <code>g</code> in <code>{0,1,2,3}</code> (from
-<code><a href="read_vcf_gt.html">read_vcf_gt()</a></code>; the gt callers <code>nnil</code>/<code>catiger</code>, plus <code>fsfhap</code>/<code>pedigree</code>);
-or a pre-binned <code>alt_freq</code> (with <code>start_bp, end_bp</code>) for <code>binhmm</code>. Optionally
-<code>donor</code>.</p></dd>
+<code>n_ref, n_alt</code> read counts (from <code><a href="read_counts.html">read_counts()</a></code>; for the count/BetaBinomial
+callers <code>bbnil</code>/<code>rtiger</code>, <code>binhmm</code>, the GOOGA-threshold transcript callers
+<code>googa</code>/<code>atlas</code>, and <code>lbimpute</code>); a pre-called hard-genotype column <code>g</code> in
+<code>{0,1,2,3}</code> (from <code><a href="read_vcf_gt.html">read_vcf_gt()</a></code>; <strong>required</strong> by the categorical gt callers
+<code>nnil</code>/<code>catiger</code>, which never threshold read counts themselves — see
+<code>caller</code> — and also accepted by <code>fsfhap</code>/<code>pedigree</code>); or a pre-binned
+<code>alt_freq</code> (with <code>start_bp, end_bp</code>) for <code>binhmm</code>. Optionally <code>donor</code>.</p></dd>
 
 
 <dt id="arg-caller">caller<a class="anchor" aria-label="anchor" href="#arg-caller"></a></dt>
@@ -129,7 +129,10 @@ or a pre-binned <code>alt_freq</code> (with <code>start_bp, end_bp</code>) for <
 grid cells: <code>nnil</code> (gt + geometric), <code>bbnil</code> (count + geometric), <code>catiger</code>
 (gt + rigidity), <code>rtiger</code> (count + rigidity), plus the GOOGA-threshold
 transcript pair <code>googa</code> (gt + geometric, faithful GOOGA) and <code>atlas</code> (gt +
-rigidity, this work). For the no-HMM per-site genotype baseline (the paper's
+rigidity, this work). The gt callers <code>nnil</code>/<code>catiger</code> require <strong>called
+genotypes</strong> (a <code>g</code> column) — they never threshold read counts into
+genotypes; hard-calling is the user's explicit step (e.g. <code><a href="call_gt.html">call_gt()</a></code>).
+For the no-HMM per-site genotype baseline (the paper's
 "control"), call the genotype caller <code><a href="call_gt.html">call_gt()</a></code> directly (<code>prior = "flat"</code>
 for the maximum-likelihood call, <code>prior = "hwe"</code> for the HWE MAP) — it is a
 <em>genotype</em> caller, deliberately separate from the ancestry callers here.</p></dd>
@@ -237,13 +240,13 @@ threads. <code>fsfhap</code>: family x chromosome units decoded in parallel
 
 <dt id="arg-min-reads">min_reads<a class="anchor" aria-label="anchor" href="#arg-min-reads"></a></dt>
 <dd><p>Minimum read depth to keep a marker before decoding (default
-<code>1L</code>; <code>0L</code> keeps everything). Drops markers with <code>n_ref + n_alt &lt; min_reads</code>
-for the count-input grid callers (<code>nnil</code>, <code>bbnil</code>, <code>catiger</code>, <code>rtiger</code>), and
-missing genotypes (<code>g == 3</code>) on the gt-input path (<code>nnil</code>/<code>catiger</code> from a
-<code>g</code> column). The intent is uniform — never make a confident call from no data,
-and keep the callers on the same support for comparability. Zero-read markers
-carry no emission signal — they only slow decoding, marginally inflate the
-geometric callers' fragmentation, and dilute the rigidity run. <code>binhmm</code> is
+<code>1L</code>; <code>0L</code> keeps everything). For the count-emission callers <code>bbnil</code>/<code>rtiger</code>
+it drops markers with <code>n_ref + n_alt &lt; min_reads</code>; for the called-genotype
+callers <code>nnil</code>/<code>catiger</code> it instead drops missing genotypes (<code>g == 3</code>). The
+intent is uniform — never make a confident call from no data, and keep the
+callers on the same support for comparability. Zero-read markers carry no
+emission signal — they only slow decoding, marginally inflate <code>bbnil</code>'s
+fragmentation, and dilute <code>rtiger</code>'s rigidity run. <code>binhmm</code> is
 unaffected (it drops truly-empty bins internally; a future per-bin frequency
 gate would be a separate <code>min_freq</code>); <code>googa</code>/<code>atlas</code> have their own
 <code>atlas_min_reads</code> gate.</p></dd>
@@ -319,8 +322,8 @@ true heterozygotes, <code>p</code> fraction of hom errors called het, <code>mr</
 real error rate is the native cure for over-fragmentation (isolated
 miscalled markers are absorbed as errors rather than opening 1-marker
 segments); calibrate to a clean control, don't crank blindly. Used by the gt
-(categorical) callers <code>nnil</code>, <code>catiger</code>, <code>googa</code>, and <code>atlas</code> (whether the <code>g</code>
-comes from a genotype column or is derived from read counts).</p></dd>
+(categorical) callers <code>nnil</code>, <code>catiger</code> (which take a supplied <code>g</code> column) and
+<code>googa</code>, <code>atlas</code> (whose <code>g</code> comes from GOOGA thresholding of competitive counts).</p></dd>
 
 </dl></div>
     <div class="section level2">

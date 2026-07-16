@@ -38,9 +38,11 @@ differ only in two axes: the emission (categorical `gt` vs
 count/BetaBinomial) and the duration (geometric vs rigidity).
 
 - **`nnil`** — Holland’s nNIL: categorical `gt` emission + geometric
-  duration. A called genotype `g` is used directly; read counts are
-  first hard-called (1/3–2/3 cutoffs). Error model: `germ`, `gert`, `p`,
-  `mr`, `nir`.
+  duration. Takes a **called genotype** `g` column; it does *not*
+  threshold read counts into genotypes (hard-calling is your explicit
+  step,
+  e.g. [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)).
+  Error model: `germ`, `gert`, `p`, `mr`, `nir`.
 - **`bbnil`** — the low-coverage count extension: count/BetaBinomial
   emission (`err`, `conc`; `fit_means = TRUE` EM-fits the per-state alt
   fractions) + the same geometric duration.

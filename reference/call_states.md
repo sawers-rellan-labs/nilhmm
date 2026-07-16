@@ -70,14 +70,14 @@ call_states(
   Long observation table with columns `name, chr, pos` and one of:
   `n_ref, n_alt` read counts (from
   [`read_counts()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_counts.md);
-  accepted by every count/threshold caller — `bbnil`/`rtiger`, `binhmm`,
-  `googa`/`atlas`, `lbimpute`, and the gt callers `nnil`/`catiger`,
-  which hard-call the counts internally); a pre-called hard-genotype
-  column `g` in `{0,1,2,3}` (from
+  for the count/BetaBinomial callers `bbnil`/`rtiger`, `binhmm`, the
+  GOOGA-threshold transcript callers `googa`/`atlas`, and `lbimpute`); a
+  pre-called hard-genotype column `g` in `{0,1,2,3}` (from
   [`read_vcf_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/read_vcf_gt.md);
-  the gt callers `nnil`/`catiger`, plus `fsfhap`/`pedigree`); or a
-  pre-binned `alt_freq` (with `start_bp, end_bp`) for `binhmm`.
-  Optionally `donor`.
+  **required** by the categorical gt callers `nnil`/`catiger`, which
+  never threshold read counts themselves — see `caller` — and also
+  accepted by `fsfhap`/`pedigree`); or a pre-binned `alt_freq` (with
+  `start_bp, end_bp`) for `binhmm`. Optionally `donor`.
 
 - caller:
 
@@ -86,9 +86,13 @@ call_states(
   gt/count grid cells: `nnil` (gt + geometric), `bbnil` (count +
   geometric), `catiger` (gt + rigidity), `rtiger` (count + rigidity),
   plus the GOOGA-threshold transcript pair `googa` (gt + geometric,
-  faithful GOOGA) and `atlas` (gt + rigidity, this work). For the no-HMM
-  per-site genotype baseline (the paper's "control"), call the genotype
-  caller
+  faithful GOOGA) and `atlas` (gt + rigidity, this work). The gt callers
+  `nnil`/`catiger` require **called genotypes** (a `g` column) — they
+  never threshold read counts into genotypes; hard-calling is the user's
+  explicit step (e.g.
+  [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)).
+  For the no-HMM per-site genotype baseline (the paper's "control"),
+  call the genotype caller
   [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
   directly (`prior = "flat"` for the maximum-likelihood call,
   `prior = "hwe"` for the HWE MAP) — it is a *genotype* caller,
@@ -210,16 +214,16 @@ call_states(
 - min_reads:
 
   Minimum read depth to keep a marker before decoding (default `1L`;
-  `0L` keeps everything). Drops markers with `n_ref + n_alt < min_reads`
-  for the count-input grid callers (`nnil`, `bbnil`, `catiger`,
-  `rtiger`), and missing genotypes (`g == 3`) on the gt-input path
-  (`nnil`/`catiger` from a `g` column). The intent is uniform — never
-  make a confident call from no data, and keep the callers on the same
-  support for comparability. Zero-read markers carry no emission signal
-  — they only slow decoding, marginally inflate the geometric callers'
-  fragmentation, and dilute the rigidity run. `binhmm` is unaffected (it
-  drops truly-empty bins internally; a future per-bin frequency gate
-  would be a separate `min_freq`); `googa`/`atlas` have their own
+  `0L` keeps everything). For the count-emission callers
+  `bbnil`/`rtiger` it drops markers with `n_ref + n_alt < min_reads`;
+  for the called-genotype callers `nnil`/`catiger` it instead drops
+  missing genotypes (`g == 3`). The intent is uniform — never make a
+  confident call from no data, and keep the callers on the same support
+  for comparability. Zero-read markers carry no emission signal — they
+  only slow decoding, marginally inflate `bbnil`'s fragmentation, and
+  dilute `rtiger`'s rigidity run. `binhmm` is unaffected (it drops
+  truly-empty bins internally; a future per-bin frequency gate would be
+  a separate `min_freq`); `googa`/`atlas` have their own
   `atlas_min_reads` gate.
 
 - rtiger_fit:
@@ -298,8 +302,8 @@ call_states(
   over-fragmentation (isolated miscalled markers are absorbed as errors
   rather than opening 1-marker segments); calibrate to a clean control,
   don't crank blindly. Used by the gt (categorical) callers `nnil`,
-  `catiger`, `googa`, and `atlas` (whether the `g` comes from a genotype
-  column or is derived from read counts).
+  `catiger` (which take a supplied `g` column) and `googa`, `atlas`
+  (whose `g` comes from GOOGA thresholding of competitive counts).
 
 ## Value
 

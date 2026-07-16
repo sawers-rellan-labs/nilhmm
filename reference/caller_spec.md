@@ -1,17 +1,21 @@
 # Resolve a named caller into emission + duration specs
 
-The named cells of the shared engine's grid (emission x duration; the gt
-row also varies by hard-call thresholding lineage):
+The named cells of the shared engine's grid (emission x duration). All
+four gt-emission callers use the same categorical model but obtain `g`
+differently: `nnil`/`catiger` consume a supplied `g` (called genotypes),
+while `googa`/`atlas` derive `g` by GOOGA thresholding of competitive
+counts.
 
 - `nnil` : categorical `gt` emission + geometric duration – Holland's
-  original NIL caller on hard genotype calls (1/3-2/3 dosage cutoffs).
+  original NIL caller on CALLED genotypes (nNIL never thresholds read
+  counts; the user supplies a `g` column).
 
 - `bbnil` : count/BetaBinomial emission + geometric duration – the
   low-coverage read-count extension of nNIL; the self-transition is the
   smoother.
 
 - `catiger` : categorical `gt` emission + rigidity duration (S7) – the
-  Holland-threshold categorical + minimum-run-length caller.
+  called-genotype categorical + minimum-run-length caller.
 
 - `rtiger` : count/BetaBinomial emission + rigidity duration (S7).
 

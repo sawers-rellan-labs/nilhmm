@@ -104,10 +104,12 @@ count/BetaBinomial) and the duration (geometric vs rigidity).</p>
 <ul>
 <li>
 <strong><code>nnil</code></strong> — Holland’s nNIL: categorical
-<code>gt</code> emission + geometric duration. A called genotype
-<code>g</code> is used directly; read counts are first hard-called
-(1/3–2/3 cutoffs). Error model: <code>germ</code>, <code>gert</code>,
-<code>p</code>, <code>mr</code>, <code>nir</code>.</li>
+<code>gt</code> emission + geometric duration. Takes a <strong>called
+genotype</strong> <code>g</code> column; it does <em>not</em> threshold
+read counts into genotypes (hard-calling is your explicit step,
+e.g. <code><a href="../reference/call_gt.html">call_gt()</a></code>). Error model: <code>germ</code>,
+<code>gert</code>, <code>p</code>, <code>mr</code>,
+<code>nir</code>.</li>
 <li>
 <strong><code>bbnil</code></strong> — the low-coverage count
 extension: count/BetaBinomial emission (<code>err</code>,

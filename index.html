@@ -249,7 +249,7 @@
 </table>
 <ul>
 <li>
-<code>nnil</code> — the categorical caller on hard genotype calls (Holland’s error model: <code>germ</code>, <code>gert</code>, <code>p</code>, <code>mr</code>, <code>nir</code>); a <code>g</code> column is used directly, read counts are first hard-called (1/3–2/3 cutoffs). Geometric duration, so the self-transition is the smoother.</li>
+<code>nnil</code> — the categorical caller on <strong>called genotypes</strong> (Holland’s error model: <code>germ</code>, <code>gert</code>, <code>p</code>, <code>mr</code>, <code>nir</code>); it takes a <code>g</code> column and does <strong>not</strong> threshold read counts into genotypes — hard-calling is your explicit step (e.g. <code><a href="reference/call_gt.html">call_gt()</a></code>), never a silent one inside the caller. Geometric duration, so the self-transition is the smoother.</li>
 <li>
 <code>bbnil</code> — the low-coverage count extension: pools single-read observations along a segment via a BetaBinomial emission (<code>err</code>, <code>conc</code>); <code>fit_means = TRUE</code> EM-fits the per-state alt fractions. Same geometric duration as <code>nnil</code>.</li>
 <li>
