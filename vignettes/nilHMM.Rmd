@@ -47,10 +47,11 @@ The second question is the one the HMM answers. Given all the markers along a
 chromosome, what is the most likely ancestry state — REF, HET, or ALT — at each
 position? Neighbouring markers matter here, because ancestry only changes at
 recombination breakpoints, so a stretch of consecutive markers shares one state.
-The HMM uses that linkage to pool the per-position read data and then projects an
-ancestry state back onto every input position. That projection is a model result,
-not a direct reading of the reads at any single site, and it can disagree with the
-per-site genotype call exactly where linkage outweighs a noisy observation.
+The HMM uses that linkage to pool the per-position observations — read counts for
+the count callers, or already-called genotypes for the categorical ones — and then
+projects an ancestry state back onto every input position. That projection is a
+model result, not a direct reading of the observation at any single site, and it can
+disagree with a per-site genotype call exactly where linkage outweighs a noisy one.
 
 Because a per-site summary of the reads and a linkage-based inference across the
 chromosome are different things, nilHMM keeps them in separate functions. Genotype
