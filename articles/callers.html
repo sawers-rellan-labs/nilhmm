@@ -68,13 +68,34 @@
 
     
     
-<p>nilHMM ships a family of named ancestry callers. They all share the
-3-state REF/HET/ALT chain and the breeding-design priors, and all return
-the same segment schema — so you can run several on the same data and
-compare directly. They differ in the <strong>emission</strong> model,
-the <strong>duration</strong> prior, and the <strong>input</strong> they
-expect. This vignette runs one minimal example of each on self-contained
-synthetic data.</p>
+<p>nilHMM draws a firm line between two different operations on the same
+sequencing data. Keeping them apart is a deliberate design choice, and
+it is the key to reading the rest of this vignette:</p>
+<ul>
+<li>
+<strong>Genotype calling</strong> — deciding the genotype at a
+marker from <em>that marker’s own read observations</em>, one site at a
+time, with <strong>no linkage</strong>. This is <code><a href="../reference/call_gt.html">call_gt()</a></code>.
+Its output is a per-site genotype (<code>0/1/2</code>) — an
+<em>observation-level</em> call, not an inference across the
+genome.</li>
+<li>
+<strong>Ancestry-mosaic inference</strong> — reconstructing the
+REF/HET/ALT ancestry state <em>along the chromosome</em>, borrowing
+strength across neighbouring markers through the HMM’s linkage
+(duration) model. This is the family of named <strong>callers</strong>,
+run through <code><a href="../reference/call_ancestry.html">call_ancestry()</a></code>. Its output is the common
+segment schema — the ancestry <strong>mosaic</strong>.</li>
+</ul>
+<p>The wall between them is enforced, not incidental: an ancestry caller
+never silently calls genotypes for you
+(<code>nnil</code>/<code>catiger</code> require <em>called</em>
+genotypes; they will not threshold read counts), and
+<code><a href="../reference/call_gt.html">call_gt()</a></code> is not dispatchable through
+<code><a href="../reference/call_ancestry.html">call_ancestry()</a></code>. So this vignette <strong>starts with the
+genotype call</strong>, then walks the ancestry callers — all on the
+same synthetic data, all returning the same segment schema so you can
+compare them directly.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/sawers-rellan-labs/nilhmm" class="external-link">nilHMM</a></span><span class="op">)</span></span></code></pre></div>
 <div class="section level2">
@@ -84,10 +105,11 @@ synthetic data.</p>
 <strong>B</strong> on recurrent parent <strong>A</strong>) on the
 bundled maize map — the <strong>truth</strong> — and
 <code><a href="../reference/simulate_counts.html">simulate_counts()</a></code> degrades it to observed data carrying
-<strong>both</strong> allelic counts
-(<code>n_ref</code>/<code>n_alt</code>, for the count callers) and a
-hard genotype <code>g</code> in <code>{0,1,2,3}</code> (for the genotype
-callers):</p>
+<strong>both</strong> allelic read counts
+(<code>n_ref</code>/<code>n_alt</code>, for the count/BetaBinomial
+callers and <code><a href="../reference/call_gt.html">call_gt()</a></code>) and a called genotype <code>g</code>
+in <code>{0,1,2,3}</code> (for the categorical gt callers
+<code>nnil</code>/<code>catiger</code>):</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">truth</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/simulate_nil.html">simulate_nil</a></span><span class="op">(</span><span class="st">"BC2S2"</span>, n <span class="op">=</span> <span class="fl">8</span>, chr <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">2</span>, n_markers <span class="op">=</span> <span class="fl">300</span>, donor <span class="op">=</span> <span class="st">"B"</span>,</span>
 <span>                      names <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"NIL%02d"</span>, <span class="fl">1</span><span class="op">:</span><span class="fl">8</span><span class="op">)</span>, seed <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
@@ -96,8 +118,62 @@ callers):</p>
 <span><span class="va">gt</span>     <span class="op">&lt;-</span> <span class="va">obs</span><span class="op">[</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"name"</span>, <span class="st">"donor"</span>, <span class="st">"chr"</span>, <span class="st">"pos"</span>, <span class="st">"g"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
 </div>
 <div class="section level2">
-<h2 id="the-four-grid-callers-emission-duration">The four grid callers (emission × duration)<a class="anchor" aria-label="anchor" href="#the-four-grid-callers-emission-duration"></a>
+<h2 id="step-1-the-genotype-call-call_gt">Step 1 — the genotype call: <code>call_gt()</code><a class="anchor" aria-label="anchor" href="#step-1-the-genotype-call-call_gt"></a>
 </h2>
+<p>Before any ancestry inference, you can ask the most basic question of
+the data: <em>what is the genotype at each marker?</em>
+<code><a href="../reference/call_gt.html">call_gt()</a></code> answers it <strong>per site</strong>, deciding
+each <code>(marker, sample)</code> from that marker’s own
+<code>(n_ref, n_alt)</code> — no linkage, no neighbours, no HMM. It is a
+<strong>genotype</strong> caller, not an ancestry caller, so it is
+called directly (never through <code><a href="../reference/call_ancestry.html">call_ancestry()</a></code>), and its
+output is a genotype <code>0/1/2</code> (with <code>NA</code> at zero
+depth), <strong>not</strong> the ancestry mosaic.</p>
+<p>The single-locus prior is the whole story of the two useful
+settings:</p>
+<ul>
+<li>
+<code>prior = "flat"</code> → the maximum-likelihood genotype
+(argmax genotype-likelihood). Het-blind at depth 1: one ALT read alone
+reads as ALT-hom.</li>
+<li>
+<code>prior = "hwe"</code> → the Hardy–Weinberg posterior MAP. At
+low depth this is deliberately <strong>het-excess</strong> (one ALT read
+reads as HET) — the classic no-HMM “control” that the ancestry callers
+must beat.</li>
+</ul>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">ml_calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_gt.html">call_gt</a></span><span class="op">(</span><span class="va">counts</span><span class="op">$</span><span class="va">n_ref</span>, <span class="va">counts</span><span class="op">$</span><span class="va">n_alt</span>, prior <span class="op">=</span> <span class="st">"flat"</span><span class="op">)</span>  <span class="co"># maximum likelihood</span></span>
+<span><span class="va">hw_calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_gt.html">call_gt</a></span><span class="op">(</span><span class="va">counts</span><span class="op">$</span><span class="va">n_ref</span>, <span class="va">counts</span><span class="op">$</span><span class="va">n_alt</span>, prior <span class="op">=</span> <span class="st">"hwe"</span><span class="op">)</span>   <span class="co"># HWE MAP (het-excess)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">ml_calls</span>, useNA <span class="op">=</span> <span class="st">"ifany"</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">hw_calls</span>, useNA <span class="op">=</span> <span class="st">"ifany"</span><span class="op">)</span></span>
+<span><span class="co">#&gt; ml_calls</span></span>
+<span><span class="co">#&gt;    0    1    2 &lt;NA&gt; </span></span>
+<span><span class="co">#&gt; 1864  214  313    9</span></span>
+<span><span class="co">#&gt; hw_calls</span></span>
+<span><span class="co">#&gt;    0    1    2 &lt;NA&gt; </span></span>
+<span><span class="co">#&gt; 1883  189  319    9</span></span></code></pre></div>
+<p>That is the entire genotype layer. Everything below <strong>infers
+ancestry</strong>: it takes observations (read counts, or genotypes you
+have <em>already</em> called) and reconstructs the REF/HET/ALT mosaic
+<em>along the chromosome</em> using linkage. If you want a genotype
+baseline inside an ancestry comparison, you convert these calls yourself
+(<code><a href="../reference/to_segments.html">to_segments()</a></code> on the genotype-as-state) — the package
+offers no genotype→mosaic shortcut, and <code><a href="../reference/call_gt.html">call_gt()</a></code> is also
+distinct from the deterministic <code><a href="../reference/interpolate_genotype.html">interpolate_genotype()</a></code>
+densifier.</p>
+</div>
+<div class="section level2">
+<h2 id="the-ancestry-callers">The ancestry callers<a class="anchor" aria-label="anchor" href="#the-ancestry-callers"></a>
+</h2>
+<p>Everything from here runs through <code><a href="../reference/call_ancestry.html">call_ancestry()</a></code> and
+returns the ancestry mosaic (the segment schema). The callers share the
+3-state REF/HET/ALT chain and the breeding-design priors, and differ in
+the <strong>emission</strong> model, the <strong>duration</strong>
+prior, and the <strong>input</strong> they expect — so you can run
+several on the same data and compare directly.</p>
+<div class="section level3">
+<h3 id="the-four-grid-callers-emission-duration">The four grid callers (emission × duration)<a class="anchor" aria-label="anchor" href="#the-four-grid-callers-emission-duration"></a>
+</h3>
 <p>The pure cells of the engine’s grid share the REF/HET/ALT chain and
 differ only in two axes: the emission (categorical <code>gt</code> vs
 count/BetaBinomial) and the duration (geometric vs rigidity).</p>
@@ -122,7 +198,7 @@ emission + rigidity duration.</li>
 <strong><code>rtiger</code></strong> — count/BetaBinomial emission +
 rigidity duration (below).</li>
 </ul>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">nnil</span>    <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">gt</span>,     caller <span class="op">=</span> <span class="st">"nnil"</span>,    design <span class="op">=</span> <span class="st">"BC2S2"</span><span class="op">)</span>           <span class="co"># gt + geometric</span></span>
 <span><span class="va">bbnil</span>   <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"bbnil"</span>,   design <span class="op">=</span> <span class="st">"BC2S2"</span>,</span>
 <span>                         rrate <span class="op">=</span> <span class="fl">1e-4</span>, err <span class="op">=</span> <span class="fl">0.01</span><span class="op">)</span>                               <span class="co"># count + geometric</span></span>
@@ -132,14 +208,14 @@ rigidity duration (below).</li>
 <span><span class="co">#&gt; [1] 50</span></span>
 <span><span class="co">#&gt; [1] 47</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="rtiger-rigidity-segmentation">
+<div class="section level3">
+<h3 id="rtiger-rigidity-segmentation">
 <code>rtiger</code> — rigidity segmentation<a class="anchor" aria-label="anchor" href="#rtiger-rigidity-segmentation"></a>
-</h2>
+</h3>
 <p>A Julia-free port of the RTIGER rigidity HMM (EM + Viterbi + border
 re-placement), the count-emission rigidity cell. <code>rigidity</code>
 is the integer minimum run length.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">rt</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"rtiger"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>,</span>
 <span>                    rigidity <span class="op">=</span> <span class="fl">5L</span>, seed <span class="op">=</span> <span class="fl">1L</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">rt</span>, <span class="fl">3</span><span class="op">)</span></span>
@@ -148,14 +224,14 @@ is the integer minimum run length.</p>
 <span><span class="co">#&gt; 2 nilHMM     B NIL01   1 29573725 308322690     0</span></span>
 <span><span class="co">#&gt; 3 nilHMM     B NIL01   2    98554 223047189     0</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="binhmm-per-bin-calling">
+<div class="section level3">
+<h3 id="binhmm-per-bin-calling">
 <code>binhmm</code> — per-bin calling<a class="anchor" aria-label="anchor" href="#binhmm-per-bin-calling"></a>
-</h2>
+</h3>
 <p>Bins the genome (default 1 Mb) and calls per-bin state with an
 anchored 3-state Gaussian-emission HMM. Good for noisy or uneven
 coverage.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">bh</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"binhmm"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>, bin_size <span class="op">=</span> <span class="fl">5e6</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">bh</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   source donor  name chr start_bp    end_bp state</span></span>
@@ -163,11 +239,11 @@ coverage.</p>
 <span><span class="co">#&gt; 2 nilHMM     B NIL01   1 31419744 308322690     0</span></span>
 <span><span class="co">#&gt; 3 nilHMM     B NIL01   2    98554 243484148     0</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="googa-atlas-competitive-alignment-transcript-ancestry">
+<div class="section level3">
+<h3 id="googa-atlas-competitive-alignment-transcript-ancestry">
 <code>googa</code> / <code>atlas</code> — competitive-alignment
 (transcript ancestry)<a class="anchor" aria-label="anchor" href="#googa-atlas-competitive-alignment-transcript-ancestry"></a>
-</h2>
+</h3>
 <p>For transcript / competitive-alignment data:
 <code>n_ref</code>/<code>n_alt</code> are the recurrent and donor read
 counts, thresholded into hard genotype calls (<code>atlas_thresh</code>,
@@ -177,7 +253,7 @@ counts, thresholded into hard genotype calls (<code>atlas_thresh</code>,
 HMM (Flagel 2019; Veltsos 2024), which carries no rigidity.
 <strong><code>atlas</code></strong> is this work’s transcript caller:
 the same thresholding with the <strong>rigidity</strong> duration.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">gg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"googa"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>,</span>
 <span>                    atlas_thresh <span class="op">=</span> <span class="fl">0.95</span>, atlas_het <span class="op">=</span> <span class="fl">0.25</span>, atlas_min_reads <span class="op">=</span> <span class="fl">5L</span><span class="op">)</span></span>
 <span><span class="va">at</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"atlas"</span>, design <span class="op">=</span> <span class="st">"BC2S2"</span>, rigidity <span class="op">=</span> <span class="fl">5L</span>,</span>
@@ -192,17 +268,17 @@ the same thresholding with the <strong>rigidity</strong> duration.</p>
 <span><span class="co">#&gt; 2 nilHMM     B NIL01   1 29573725 308322690     0</span></span>
 <span><span class="co">#&gt; 3 nilHMM     B NIL01   2    98554 243484148     0</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="lbimpute-lb-impute-port-distance-dependent-transition">
+<div class="section level3">
+<h3 id="lbimpute-lb-impute-port-distance-dependent-transition">
 <code>lbimpute</code> — LB-Impute port (distance-dependent
 transition)<a class="anchor" aria-label="anchor" href="#lbimpute-lb-impute-port-distance-dependent-transition"></a>
-</h2>
+</h3>
 <p>A native port of LB-Impute (Fragoso et al. 2014) for biallelic
 populations: a coverage-aware emission bounded by
 <code>genotypeerr</code>, and a distance-dependent transition
 (recombination scales with the marker gap over <code>recombdist</code>).
 No design priors needed.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">lb</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_ancestry.html">call_ancestry</a></span><span class="op">(</span><span class="va">counts</span>, caller <span class="op">=</span> <span class="st">"lbimpute"</span>, recombdist <span class="op">=</span> <span class="fl">1e7</span>, genotypeerr <span class="op">=</span> <span class="fl">0.05</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">lb</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   source donor  name chr start_bp    end_bp state</span></span>
@@ -210,40 +286,10 @@ No design priors needed.</p>
 <span><span class="co">#&gt; 2 nilHMM     B NIL01   1 29573725 308322690     0</span></span>
 <span><span class="co">#&gt; 3 nilHMM     B NIL01   2    98554 223047189     0</span></span></code></pre></div>
 </div>
-<div class="section level2">
-<h2 id="the-no-hmm-genotype-baseline-call_gt-not-a-caller">The no-HMM genotype baseline (<code>call_gt()</code>, not a
-caller)<a class="anchor" aria-label="anchor" href="#the-no-hmm-genotype-baseline-call_gt-not-a-caller"></a>
-</h2>
-<p>The het-excess “control” is a per-site <strong>genotype</strong>
-call, deliberately <strong>not</strong> an ancestry caller — nilHMM
-keeps a wall between the ancestry mosaic and genotypes, so
-<code><a href="../reference/call_ancestry.html">call_ancestry()</a></code> does not dispatch it. Call
-<code><a href="../reference/call_gt.html">call_gt()</a></code> directly: each <code>(marker, sample)</code> is
-decided independently from its own read counts, with no linkage.
-<code>prior = "flat"</code> gives the maximum-likelihood call (het-blind
-at depth 1); <code>prior = "hwe"</code> gives the Hardy–Weinberg
-posterior MAP (het-<strong>excess</strong> at low depth).</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">ml_calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_gt.html">call_gt</a></span><span class="op">(</span><span class="va">counts</span><span class="op">$</span><span class="va">n_ref</span>, <span class="va">counts</span><span class="op">$</span><span class="va">n_alt</span>, prior <span class="op">=</span> <span class="st">"flat"</span><span class="op">)</span>  <span class="co"># maximum likelihood</span></span>
-<span><span class="va">hw_calls</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/call_gt.html">call_gt</a></span><span class="op">(</span><span class="va">counts</span><span class="op">$</span><span class="va">n_ref</span>, <span class="va">counts</span><span class="op">$</span><span class="va">n_alt</span>, prior <span class="op">=</span> <span class="st">"hwe"</span><span class="op">)</span>   <span class="co"># HWE MAP (het-excess)</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">ml_calls</span>, useNA <span class="op">=</span> <span class="st">"ifany"</span><span class="op">)</span>; <span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">hw_calls</span>, useNA <span class="op">=</span> <span class="st">"ifany"</span><span class="op">)</span></span>
-<span><span class="co">#&gt; ml_calls</span></span>
-<span><span class="co">#&gt;    0    1    2 &lt;NA&gt; </span></span>
-<span><span class="co">#&gt; 1864  214  313    9</span></span>
-<span><span class="co">#&gt; hw_calls</span></span>
-<span><span class="co">#&gt;    0    1    2 &lt;NA&gt; </span></span>
-<span><span class="co">#&gt; 1883  189  319    9</span></span></code></pre></div>
-<p>These are genotype calls (0/1/2), not the segment schema. To bring a
-genotype baseline into the ancestry comparison, convert it yourself
-(<code><a href="../reference/to_segments.html">to_segments()</a></code> on the genotype-as-state); the package
-provides no genotype→mosaic shortcut. <code><a href="../reference/call_gt.html">call_gt()</a></code> is also
-distinct from the deterministic <code><a href="../reference/interpolate_genotype.html">interpolate_genotype()</a></code>
-densifier.</p>
-</div>
-<div class="section level2">
-<h2 id="fsfhap-full-sib-families">
+<div class="section level3">
+<h3 id="fsfhap-full-sib-families">
 <code>fsfhap</code> — full-sib families<a class="anchor" aria-label="anchor" href="#fsfhap-full-sib-families"></a>
-</h2>
+</h3>
 <p>A port of TASSEL’s FSFHap. Unlike the per-line callers it
 <strong>pools each family</strong>, so it needs a <code>family</code>
 grouping and a called genotype <code>g</code>. See
@@ -253,12 +299,13 @@ input, design routing, parallelism).</p>
 <code class="sourceCode R"><span><span class="va">fam</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/transform.html" class="external-link">transform</a></span><span class="op">(</span><span class="va">gt</span>, family <span class="op">=</span> <span class="va">donor</span><span class="op">)</span>          <span class="co"># a family grouping on the genotype table</span></span>
 <span><span class="co"># (a real family needs enough segregating markers; see vignette("fsfhap"))</span></span></code></pre></div>
 </div>
+</div>
 <div class="section level2">
 <h2 id="comparing-callers">Comparing callers<a class="anchor" aria-label="anchor" href="#comparing-callers"></a>
 </h2>
 <p>Because the output schema is shared, comparison is a table join away
 — e.g. how many segments and which states each caller produced on the
-same counts:</p>
+same simulated cohort:</p>
 <div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">summ</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>segments <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span>, states <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique</a></span><span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">state</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span>nnil <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">nnil</span><span class="op">)</span>, bbnil <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">bbnil</span><span class="op">)</span>, catiger <span class="op">=</span> <span class="fu">summ</span><span class="op">(</span><span class="va">catiger</span><span class="op">)</span>,</span>

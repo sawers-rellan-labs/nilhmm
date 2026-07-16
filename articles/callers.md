@@ -1,11 +1,31 @@
 # The callers: one example each
 
-nilHMM ships a family of named ancestry callers. They all share the
-3-state REF/HET/ALT chain and the breeding-design priors, and all return
-the same segment schema — so you can run several on the same data and
-compare directly. They differ in the **emission** model, the
-**duration** prior, and the **input** they expect. This vignette runs
-one minimal example of each on self-contained synthetic data.
+nilHMM draws a firm line between two different operations on the same
+sequencing data. Keeping them apart is a deliberate design choice, and
+it is the key to reading the rest of this vignette:
+
+- **Genotype calling** — deciding the genotype at a marker from *that
+  marker’s own read observations*, one site at a time, with **no
+  linkage**. This is
+  [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md).
+  Its output is a per-site genotype (`0/1/2`) — an *observation-level*
+  call, not an inference across the genome.
+- **Ancestry-mosaic inference** — reconstructing the REF/HET/ALT
+  ancestry state *along the chromosome*, borrowing strength across
+  neighbouring markers through the HMM’s linkage (duration) model. This
+  is the family of named **callers**, run through
+  [`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md).
+  Its output is the common segment schema — the ancestry **mosaic**.
+
+The wall between them is enforced, not incidental: an ancestry caller
+never silently calls genotypes for you (`nnil`/`catiger` require
+*called* genotypes; they will not threshold read counts), and
+[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+is not dispatchable through
+[`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md).
+So this vignette **starts with the genotype call**, then walks the
+ancestry callers — all on the same synthetic data, all returning the
+same segment schema so you can compare them directly.
 
 ``` r
 
@@ -18,9 +38,11 @@ library(nilHMM)
 builds a BC2S2 cohort (donor **B** on recurrent parent **A**) on the
 bundled maize map — the **truth** — and
 [`simulate_counts()`](https://sawers-rellan-labs.github.io/nilhmm/reference/simulate_counts.md)
-degrades it to observed data carrying **both** allelic counts
-(`n_ref`/`n_alt`, for the count callers) and a hard genotype `g` in
-`{0,1,2,3}` (for the genotype callers):
+degrades it to observed data carrying **both** allelic read counts
+(`n_ref`/`n_alt`, for the count/BetaBinomial callers and
+[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md))
+and a called genotype `g` in `{0,1,2,3}` (for the categorical gt callers
+`nnil`/`catiger`):
 
 ``` r
 
@@ -31,7 +53,65 @@ counts <- obs[c("name", "donor", "chr", "pos", "n_ref", "n_alt")]
 gt     <- obs[c("name", "donor", "chr", "pos", "g")]
 ```
 
-## The four grid callers (emission × duration)
+## Step 1 — the genotype call: `call_gt()`
+
+Before any ancestry inference, you can ask the most basic question of
+the data: *what is the genotype at each marker?*
+[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+answers it **per site**, deciding each `(marker, sample)` from that
+marker’s own `(n_ref, n_alt)` — no linkage, no neighbours, no HMM. It is
+a **genotype** caller, not an ancestry caller, so it is called directly
+(never through
+[`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md)),
+and its output is a genotype `0/1/2` (with `NA` at zero depth), **not**
+the ancestry mosaic.
+
+The single-locus prior is the whole story of the two useful settings:
+
+- `prior = "flat"` → the maximum-likelihood genotype (argmax
+  genotype-likelihood). Het-blind at depth 1: one ALT read alone reads
+  as ALT-hom.
+- `prior = "hwe"` → the Hardy–Weinberg posterior MAP. At low depth this
+  is deliberately **het-excess** (one ALT read reads as HET) — the
+  classic no-HMM “control” that the ancestry callers must beat.
+
+``` r
+
+ml_calls <- call_gt(counts$n_ref, counts$n_alt, prior = "flat")  # maximum likelihood
+hw_calls <- call_gt(counts$n_ref, counts$n_alt, prior = "hwe")   # HWE MAP (het-excess)
+table(ml_calls, useNA = "ifany"); table(hw_calls, useNA = "ifany")
+#> ml_calls
+#>    0    1    2 <NA> 
+#> 1864  214  313    9
+#> hw_calls
+#>    0    1    2 <NA> 
+#> 1883  189  319    9
+```
+
+That is the entire genotype layer. Everything below **infers ancestry**:
+it takes observations (read counts, or genotypes you have *already*
+called) and reconstructs the REF/HET/ALT mosaic *along the chromosome*
+using linkage. If you want a genotype baseline inside an ancestry
+comparison, you convert these calls yourself
+([`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md)
+on the genotype-as-state) — the package offers no genotype→mosaic
+shortcut, and
+[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+is also distinct from the deterministic
+[`interpolate_genotype()`](https://sawers-rellan-labs.github.io/nilhmm/reference/interpolate_genotype.md)
+densifier.
+
+## The ancestry callers
+
+Everything from here runs through
+[`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md)
+and returns the ancestry mosaic (the segment schema). The callers share
+the 3-state REF/HET/ALT chain and the breeding-design priors, and differ
+in the **emission** model, the **duration** prior, and the **input**
+they expect — so you can run several on the same data and compare
+directly.
+
+### The four grid callers (emission × duration)
 
 The pure cells of the engine’s grid share the REF/HET/ALT chain and
 differ only in two axes: the emission (categorical `gt` vs
@@ -62,7 +142,7 @@ nrow(nnil); nrow(bbnil); nrow(catiger)
 #> [1] 47
 ```
 
-## `rtiger` — rigidity segmentation
+### `rtiger` — rigidity segmentation
 
 A Julia-free port of the RTIGER rigidity HMM (EM + Viterbi + border
 re-placement), the count-emission rigidity cell. `rigidity` is the
@@ -79,7 +159,7 @@ head(rt, 3)
 #> 3 nilHMM     B NIL01   2    98554 223047189     0
 ```
 
-## `binhmm` — per-bin calling
+### `binhmm` — per-bin calling
 
 Bins the genome (default 1 Mb) and calls per-bin state with an anchored
 3-state Gaussian-emission HMM. Good for noisy or uneven coverage.
@@ -94,7 +174,7 @@ head(bh, 3)
 #> 3 nilHMM     B NIL01   2    98554 243484148     0
 ```
 
-## `googa` / `atlas` — competitive-alignment (transcript ancestry)
+### `googa` / `atlas` — competitive-alignment (transcript ancestry)
 
 For transcript / competitive-alignment data: `n_ref`/`n_alt` are the
 recurrent and donor read counts, thresholded into hard genotype calls
@@ -121,7 +201,7 @@ head(gg, 3); head(at, 3)
 #> 3 nilHMM     B NIL01   2    98554 243484148     0
 ```
 
-## `lbimpute` — LB-Impute port (distance-dependent transition)
+### `lbimpute` — LB-Impute port (distance-dependent transition)
 
 A native port of LB-Impute (Fragoso et al. 2014) for biallelic
 populations: a coverage-aware emission bounded by `genotypeerr`, and a
@@ -138,43 +218,7 @@ head(lb, 3)
 #> 3 nilHMM     B NIL01   2    98554 223047189     0
 ```
 
-## The no-HMM genotype baseline (`call_gt()`, not a caller)
-
-The het-excess “control” is a per-site **genotype** call, deliberately
-**not** an ancestry caller — nilHMM keeps a wall between the ancestry
-mosaic and genotypes, so
-[`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md)
-does not dispatch it. Call
-[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
-directly: each `(marker, sample)` is decided independently from its own
-read counts, with no linkage. `prior = "flat"` gives the
-maximum-likelihood call (het-blind at depth 1); `prior = "hwe"` gives
-the Hardy–Weinberg posterior MAP (het-**excess** at low depth).
-
-``` r
-
-ml_calls <- call_gt(counts$n_ref, counts$n_alt, prior = "flat")  # maximum likelihood
-hw_calls <- call_gt(counts$n_ref, counts$n_alt, prior = "hwe")   # HWE MAP (het-excess)
-table(ml_calls, useNA = "ifany"); table(hw_calls, useNA = "ifany")
-#> ml_calls
-#>    0    1    2 <NA> 
-#> 1864  214  313    9
-#> hw_calls
-#>    0    1    2 <NA> 
-#> 1883  189  319    9
-```
-
-These are genotype calls (0/1/2), not the segment schema. To bring a
-genotype baseline into the ancestry comparison, convert it yourself
-([`to_segments()`](https://sawers-rellan-labs.github.io/nilhmm/reference/to_segments.md)
-on the genotype-as-state); the package provides no genotype→mosaic
-shortcut.
-[`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
-is also distinct from the deterministic
-[`interpolate_genotype()`](https://sawers-rellan-labs.github.io/nilhmm/reference/interpolate_genotype.md)
-densifier.
-
-## `fsfhap` — full-sib families
+### `fsfhap` — full-sib families
 
 A port of TASSEL’s FSFHap. Unlike the per-line callers it **pools each
 family**, so it needs a `family` grouping and a called genotype `g`. See
@@ -192,7 +236,7 @@ fam <- transform(gt, family = donor)          # a family grouping on the genotyp
 
 Because the output schema is shared, comparison is a table join away —
 e.g. how many segments and which states each caller produced on the same
-counts:
+simulated cohort:
 
 ``` r
 
