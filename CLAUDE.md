@@ -9,11 +9,14 @@ Guidance for Claude Code (claude.ai/code) working in this repository.
 **duration-aware 3-state (REF / HET / ALT) HMM engine** with two swappable axes,
 whose combinations express a family of named callers.
 
-> IMPORTANT: This package is **R + Rcpp**, not Python. It began as a Python package
-> (Jim Holland's [nNIL](https://github.com/ncsumaize/nNIL) methodology); that
-> original is **frozen at `legacy/python/`** (tag `python-final`) and is not the
-> live code. Ignore any Python-era description — the authoritative overview is
-> `README.md` and the design-of-record docs under `design/`.
+> IMPORTANT: This package is **R + Rcpp**, not Python. It began as the maintainer's
+> Python optimization of Jim Holland's [nNIL](https://github.com/ncsumaize/nNIL)
+> methodology. That Python optimization (a reorganization of Jim's code, **not**
+> Jim's original) is **frozen at `legacy/python/`** (tag `python-final`) and is not
+> the live code; Jim's original nNIL is at
+> [`ncsumaize/nNIL`](https://github.com/ncsumaize/nNIL). Ignore any Python-era
+> description — the authoritative overview is `README.md` and the design-of-record
+> docs under `design/`.
 
 ## The one-verb API
 
