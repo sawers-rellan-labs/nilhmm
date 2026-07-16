@@ -169,37 +169,3 @@ call_gt <- function(n_ref, n_alt,
        l1 = log(2) + log(p) + log1p(-p),
        l2 = 2 * log(p))
 }
-
-# call_states(caller = "ml" | "hwemap") backend: the no-HMM per-site genotype
-# baselines. `ml` uses a flat prior (pure argmax genotype-likelihood = maximum
-# likelihood); `hwemap` uses the per-marker Hardy-Weinberg prior (posterior mode
-# = MAP; the het-excess control). Each (marker, sample) is decided independently
-# from its own (n_ref, n_alt) -- no linkage/duration. For "hwe" the allele
-# frequency `p` is pooled across the cohort PER (chr, pos) so the HWE prior is a
-# proper population estimate (not the circular single-marker self-estimate).
-# Zero-depth markers carry no signal and are dropped (call_gt returns NA there).
-.gt_states <- function(data, prior, error, source = "nilHMM",
-                       donor = NA_character_, has_donor = FALSE) {
-  af <- NULL
-  if (identical(prior, "hwe")) {
-    key <- paste(data$chr, data$pos, sep = ":")
-    tot <- stats::ave(data$n_ref + data$n_alt, key, FUN = sum)
-    alt <- stats::ave(data$n_alt, key, FUN = sum)
-    af  <- ifelse(tot > 0, alt / tot, 0.5)
-  }
-  call <- call_gt(data$n_ref, data$n_alt, prior = prior, af = af, error = error)
-  keep <- !is.na(call)
-  st <- data.frame(
-    source = source,
-    donor  = if (has_donor) as.character(data$donor) else donor,
-    name   = data$name,
-    chr    = as.integer(data$chr),
-    pos    = as.integer(data$pos),
-    state  = as.integer(call),
-    stringsAsFactors = FALSE)[keep, , drop = FALSE]
-  if (!nrow(st))
-    return(data.frame(source = character(), donor = character(), name = character(),
-                      chr = integer(), pos = integer(), state = integer(),
-                      stringsAsFactors = FALSE))
-  st[order(st$donor, st$name, st$chr, st$pos), , drop = FALSE]
-}

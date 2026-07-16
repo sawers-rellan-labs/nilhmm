@@ -7,7 +7,7 @@
 call_states(
   data,
   caller = c("nnil", "bbnil", "catiger", "rtiger", "binhmm", "googa", "atlas",
-    "lbimpute", "fsfhap", "ml", "hwemap", "pedigree"),
+    "lbimpute", "fsfhap", "pedigree"),
   family = NULL,
   phet = NULL,
   pedigree = NULL,
@@ -51,20 +51,24 @@ call_states(
 )
 }
 \arguments{
-\item{data}{Long observation table with columns \verb{name, chr, pos} and either
-\verb{n_ref, n_alt} read counts (from \code{\link[=read_counts]{read_counts()}}; for the count callers
-\code{bbnil}/\code{rtiger}, \code{binhmm}, the competitive-alignment callers \code{googa}/\code{atlas},
-\code{lbimpute}, \code{ml}/\code{hwemap}) or a pre-called hard-genotype column \code{g} in
-\verb{\{0,1,2,3\}} (from \code{\link[=read_vcf_gt]{read_vcf_gt()}}; the categorical gt callers
-\code{nnil}/\code{catiger}). Optionally \code{donor}.}
+\item{data}{Long observation table with columns \verb{name, chr, pos} and one of:
+\verb{n_ref, n_alt} read counts (from \code{\link[=read_counts]{read_counts()}}; accepted by every
+count/threshold caller --- \code{bbnil}/\code{rtiger}, \code{binhmm}, \code{googa}/\code{atlas},
+\code{lbimpute}, and the gt callers \code{nnil}/\code{catiger}, which hard-call the counts
+internally); a pre-called hard-genotype column \code{g} in \verb{\{0,1,2,3\}} (from
+\code{\link[=read_vcf_gt]{read_vcf_gt()}}; the gt callers \code{nnil}/\code{catiger}, plus \code{fsfhap}/\code{pedigree});
+or a pre-binned \code{alt_freq} (with \verb{start_bp, end_bp}) for \code{binhmm}. Optionally
+\code{donor}.}
 
 \item{caller}{One of \code{"nnil"}, \code{"bbnil"}, \code{"catiger"}, \code{"rtiger"}, \code{"binhmm"},
-\code{"googa"}, \code{"atlas"}, \code{"lbimpute"}, \code{"fsfhap"}, \code{"ml"}, \code{"hwemap"},
-\code{"pedigree"}. The six gt/count grid cells: \code{nnil} (gt + geometric),
-\code{bbnil} (count + geometric), \code{catiger} (gt + rigidity), \code{rtiger} (count +
-rigidity), plus the GOOGA-threshold transcript pair \code{googa} (gt + geometric,
-faithful GOOGA) and \code{atlas} (gt + rigidity, this work). \code{ml}/\code{hwemap} are the
-no-HMM per-site genotype baselines (flat = maximum likelihood, HWE = MAP).}
+\code{"googa"}, \code{"atlas"}, \code{"lbimpute"}, \code{"fsfhap"}, \code{"pedigree"}. The six gt/count
+grid cells: \code{nnil} (gt + geometric), \code{bbnil} (count + geometric), \code{catiger}
+(gt + rigidity), \code{rtiger} (count + rigidity), plus the GOOGA-threshold
+transcript pair \code{googa} (gt + geometric, faithful GOOGA) and \code{atlas} (gt +
+rigidity, this work). For the no-HMM per-site genotype baseline (the paper's
+"control"), call the genotype caller \code{\link[=call_gt]{call_gt()}} directly (\code{prior = "flat"}
+for the maximum-likelihood call, \code{prior = "hwe"} for the HWE MAP) --- it is a
+\emph{genotype} caller, deliberately separate from the ancestry callers here.}
 
 \item{family}{\code{fsfhap} caller only: per-row family grouping (a vector length
 \code{nrow(data)}, or supply a \code{family} column on \code{data}). FSFHap pools each family.}
@@ -142,8 +146,7 @@ carry no emission signal — they only slow decoding, marginally inflate the
 geometric callers' fragmentation, and dilute the rigidity run. \code{binhmm} is
 unaffected (it drops truly-empty bins internally; a future per-bin frequency
 gate would be a separate \code{min_freq}); \code{googa}/\code{atlas} have their own
-\code{atlas_min_reads} gate; \code{ml}/\code{hwemap} keep every covered marker (low depth is
-the point of the het-excess baseline).}
+\code{atlas_min_reads} gate.}
 
 \item{rtiger_fit}{\code{rtiger} caller only: a pre-computed RTIGER fit from
 \code{\link[=fit_rtiger]{fit_rtiger()}}, reused across per-chromosome decodes to avoid re-fitting

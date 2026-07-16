@@ -15,9 +15,13 @@ The named callers are now the explicit coordinates of the engine's
 * Removed the `emission = c("count", "gt")` override on `call_ancestry()`/
   `call_states()`. Each grid caller now pins its own emission, so the override is
   redundant — choose the caller instead.
-* New no-HMM per-site genotype baselines **`ml`** (flat prior → maximum-likelihood
-  call; het-blind at depth 1) and **`hwemap`** (HWE prior → MAP; the het-excess
-  reference). Both are thin wrappers over `call_gt()`.
+* The no-HMM per-site **genotype** baseline (the paper's het-excess "control") is
+  `call_gt()`, a *genotype* caller — **not** an ancestry caller. It is deliberately
+  not dispatchable through `call_ancestry()`, keeping the terminology wall between
+  the ancestry mosaic and per-site genotypes: `call_gt(prior = "flat")` is the
+  maximum-likelihood call, `call_gt(prior = "hwe")` the HWE MAP (het-excess). A
+  consumer that wants it in an ancestry comparison converts it (`to_segments()`)
+  itself; the package provides no genotype→mosaic shortcut.
 * `caller_sweep()` renamed its count option `"nnil"` → `"bbnil"` (the swept
   `rrate` grid is the count/geometric caller).
 * **GOOGA transcript callers split into `googa` and `atlas`.** The GOOGA source and
