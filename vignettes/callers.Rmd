@@ -13,12 +13,26 @@ knitr::opts_chunk$set(eval = requireNamespace("simcross", quietly = TRUE))
 set.seed(1)
 ```
 
-nilHMM ships a family of named ancestry callers. They all share the 3-state
-REF/HET/ALT chain and the breeding-design priors, and all return the same segment
-schema — so you can
-run several on the same data and compare directly. They differ in the **emission**
-model, the **duration** prior, and the **input** they expect. This vignette runs
-one minimal example of each on self-contained synthetic data.
+nilHMM draws a firm line between two different operations on the same sequencing
+data. Keeping them apart is a deliberate design choice, and it is the key to reading
+the rest of this vignette:
+
+- **Genotype calling** — deciding the genotype at a marker from *that marker's own
+  read observations*, one site at a time, with **no linkage**. This is `call_gt()`.
+  Its output is a per-site genotype (`0/1/2`) — an *observation-level* call, not an
+  inference across the genome.
+- **Ancestry-mosaic inference** — reconstructing the REF/HET/ALT ancestry state
+  *along the chromosome*, borrowing strength across neighbouring markers through the
+  HMM's linkage (duration) model. This is the family of named **callers**, run
+  through `call_ancestry()`. Its output is the common segment schema — the ancestry
+  **mosaic**.
+
+The wall between them is enforced, not incidental: an ancestry caller never silently
+calls genotypes for you (`nnil`/`catiger` require *called* genotypes; they will not
+threshold read counts), and `call_gt()` is not dispatchable through
+`call_ancestry()`. So this vignette **starts with the genotype call**, then walks
+the ancestry callers — all on the same synthetic data, all returning the same
+segment schema so you can compare them directly.
 
 ```{r setup}
 library(nilHMM)
@@ -28,8 +42,9 @@ library(nilHMM)
 
 `simulate_nil()` builds a BC2S2 cohort (donor **B** on recurrent parent **A**) on
 the bundled maize map — the **truth** — and `simulate_counts()` degrades it to
-observed data carrying **both** allelic counts (`n_ref`/`n_alt`, for the count
-callers) and a hard genotype `g` in `{0,1,2,3}` (for the genotype callers):
+observed data carrying **both** allelic read counts (`n_ref`/`n_alt`, for the
+count/BetaBinomial callers and `call_gt()`) and a called genotype `g` in `{0,1,2,3}`
+(for the categorical gt callers `nnil`/`catiger`):
 
 ```{r sim}
 truth <- simulate_nil("BC2S2", n = 8, chr = 1:2, n_markers = 300, donor = "B",
@@ -39,7 +54,46 @@ counts <- obs[c("name", "donor", "chr", "pos", "n_ref", "n_alt")]
 gt     <- obs[c("name", "donor", "chr", "pos", "g")]
 ```
 
-## The four grid callers (emission × duration)
+## Step 1 — the genotype call: `call_gt()`
+
+Before any ancestry inference, you can ask the most basic question of the data:
+*what is the genotype at each marker?* `call_gt()` answers it **per site**, deciding
+each `(marker, sample)` from that marker's own `(n_ref, n_alt)` — no linkage, no
+neighbours, no HMM. It is a **genotype** caller, not an ancestry caller, so it is
+called directly (never through `call_ancestry()`), and its output is a genotype
+`0/1/2` (with `NA` at zero depth), **not** the ancestry mosaic.
+
+The single-locus prior is the whole story of the two useful settings:
+
+- `prior = "flat"` → the maximum-likelihood genotype (argmax genotype-likelihood).
+  Het-blind at depth 1: one ALT read alone reads as ALT-hom.
+- `prior = "hwe"` → the Hardy–Weinberg posterior MAP. At low depth this is
+  deliberately **het-excess** (one ALT read reads as HET) — the classic no-HMM
+  "control" that the ancestry callers must beat.
+
+```{r baselines}
+ml_calls <- call_gt(counts$n_ref, counts$n_alt, prior = "flat")  # maximum likelihood
+hw_calls <- call_gt(counts$n_ref, counts$n_alt, prior = "hwe")   # HWE MAP (het-excess)
+table(ml_calls, useNA = "ifany"); table(hw_calls, useNA = "ifany")
+```
+
+That is the entire genotype layer. Everything below **infers ancestry**: it takes
+observations (read counts, or genotypes you have *already* called) and reconstructs
+the REF/HET/ALT mosaic *along the chromosome* using linkage. If you want a genotype
+baseline inside an ancestry comparison, you convert these calls yourself
+(`to_segments()` on the genotype-as-state) — the package offers no genotype→mosaic
+shortcut, and `call_gt()` is also distinct from the deterministic
+`interpolate_genotype()` densifier.
+
+## The ancestry callers
+
+Everything from here runs through `call_ancestry()` and returns the ancestry mosaic
+(the segment schema). The callers share the 3-state REF/HET/ALT chain and the
+breeding-design priors, and differ in the **emission** model, the **duration**
+prior, and the **input** they expect — so you can run several on the same data and
+compare directly.
+
+### The four grid callers (emission × duration)
 
 The pure cells of the engine's grid share the REF/HET/ALT chain and differ only in
 two axes: the emission (categorical `gt` vs count/BetaBinomial) and the duration
@@ -63,7 +117,7 @@ catiger <- call_ancestry(gt,     caller = "catiger", design = "BC2S2", rigidity 
 nrow(nnil); nrow(bbnil); nrow(catiger)
 ```
 
-## `rtiger` — rigidity segmentation
+### `rtiger` — rigidity segmentation
 
 A Julia-free port of the RTIGER rigidity HMM (EM + Viterbi + border re-placement),
 the count-emission rigidity cell. `rigidity` is the integer minimum run length.
@@ -74,7 +128,7 @@ rt <- call_ancestry(counts, caller = "rtiger", design = "BC2S2",
 head(rt, 3)
 ```
 
-## `binhmm` — per-bin calling
+### `binhmm` — per-bin calling
 
 Bins the genome (default 1 Mb) and calls per-bin state with an anchored 3-state
 Gaussian-emission HMM. Good for noisy or uneven coverage.
@@ -84,7 +138,7 @@ bh <- call_ancestry(counts, caller = "binhmm", design = "BC2S2", bin_size = 5e6)
 head(bh, 3)
 ```
 
-## `googa` / `atlas` — competitive-alignment (transcript ancestry)
+### `googa` / `atlas` — competitive-alignment (transcript ancestry)
 
 For transcript / competitive-alignment data: `n_ref`/`n_alt` are the recurrent and
 donor read counts, thresholded into hard genotype calls (`atlas_thresh`,
@@ -101,7 +155,7 @@ at <- call_ancestry(counts, caller = "atlas", design = "BC2S2", rigidity = 5L,
 head(gg, 3); head(at, 3)
 ```
 
-## `lbimpute` — LB-Impute port (distance-dependent transition)
+### `lbimpute` — LB-Impute port (distance-dependent transition)
 
 A native port of LB-Impute (Fragoso et al. 2014) for biallelic populations: a
 coverage-aware emission bounded by `genotypeerr`, and a distance-dependent
@@ -113,27 +167,7 @@ lb <- call_ancestry(counts, caller = "lbimpute", recombdist = 1e7, genotypeerr =
 head(lb, 3)
 ```
 
-## The no-HMM genotype baseline (`call_gt()`, not a caller)
-
-The het-excess "control" is a per-site **genotype** call, deliberately **not** an
-ancestry caller — nilHMM keeps a wall between the ancestry mosaic and genotypes, so
-`call_ancestry()` does not dispatch it. Call `call_gt()` directly: each
-`(marker, sample)` is decided independently from its own read counts, with no
-linkage. `prior = "flat"` gives the maximum-likelihood call (het-blind at depth 1);
-`prior = "hwe"` gives the Hardy–Weinberg posterior MAP (het-**excess** at low depth).
-
-```{r baselines}
-ml_calls <- call_gt(counts$n_ref, counts$n_alt, prior = "flat")  # maximum likelihood
-hw_calls <- call_gt(counts$n_ref, counts$n_alt, prior = "hwe")   # HWE MAP (het-excess)
-table(ml_calls, useNA = "ifany"); table(hw_calls, useNA = "ifany")
-```
-
-These are genotype calls (0/1/2), not the segment schema. To bring a genotype
-baseline into the ancestry comparison, convert it yourself (`to_segments()` on the
-genotype-as-state); the package provides no genotype→mosaic shortcut. `call_gt()` is
-also distinct from the deterministic `interpolate_genotype()` densifier.
-
-## `fsfhap` — full-sib families
+### `fsfhap` — full-sib families
 
 A port of TASSEL's FSFHap. Unlike the per-line callers it **pools each family**, so
 it needs a `family` grouping and a called genotype `g`. See `vignette("fsfhap")`
@@ -147,7 +181,7 @@ fam <- transform(gt, family = donor)          # a family grouping on the genotyp
 ## Comparing callers
 
 Because the output schema is shared, comparison is a table join away — e.g. how
-many segments and which states each caller produced on the same counts:
+many segments and which states each caller produced on the same simulated cohort:
 
 ```{r compare}
 summ <- function(x) c(segments = nrow(x), states = length(unique(x$state)))
