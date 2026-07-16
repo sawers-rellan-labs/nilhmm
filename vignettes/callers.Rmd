@@ -45,9 +45,10 @@ The pure cells of the engine's grid share the REF/HET/ALT chain and differ only 
 two axes: the emission (categorical `gt` vs count/BetaBinomial) and the duration
 (geometric vs rigidity).
 
-* **`nnil`** — Holland's nNIL: categorical `gt` emission + geometric duration. A
-  called genotype `g` is used directly; read counts are first hard-called
-  (1/3–2/3 cutoffs). Error model: `germ`, `gert`, `p`, `mr`, `nir`.
+* **`nnil`** — Holland's nNIL: categorical `gt` emission + geometric duration.
+  Takes a **called genotype** `g` column; it does *not* threshold read counts into
+  genotypes (hard-calling is your explicit step, e.g. `call_gt()`). Error model:
+  `germ`, `gert`, `p`, `mr`, `nir`.
 * **`bbnil`** — the low-coverage count extension: count/BetaBinomial emission
   (`err`, `conc`; `fit_means = TRUE` EM-fits the per-state alt fractions) + the
   same geometric duration.

@@ -52,15 +52,18 @@ non-informative-marker rate.}
 \code{list(emission, duration)}.
 }
 \description{
-The named cells of the shared engine's grid (emission x duration; the gt row
-also varies by hard-call thresholding lineage):
+The named cells of the shared engine's grid (emission x duration). All four
+gt-emission callers use the same categorical model but obtain \code{g} differently:
+\code{nnil}/\code{catiger} consume a supplied \code{g} (called genotypes), while \code{googa}/\code{atlas}
+derive \code{g} by GOOGA thresholding of competitive counts.
 \itemize{
 \item \code{nnil}    : categorical \code{gt} emission + geometric duration -- Holland's
-original NIL caller on hard genotype calls (1/3-2/3 dosage cutoffs).
+original NIL caller on CALLED genotypes (nNIL never thresholds read counts;
+the user supplies a \code{g} column).
 \item \code{bbnil}   : count/BetaBinomial emission + geometric duration -- the
 low-coverage read-count extension of nNIL; the self-transition is the smoother.
 \item \code{catiger} : categorical \code{gt} emission + rigidity duration (S7) -- the
-Holland-threshold categorical + minimum-run-length caller.
+called-genotype categorical + minimum-run-length caller.
 \item \code{rtiger}  : count/BetaBinomial emission + rigidity duration (S7).
 \item \code{googa}   : categorical \code{gt} emission + geometric duration, with GOOGA
 competitive-alignment thresholds -- the faithful GOOGA/Veltsos reproduction.

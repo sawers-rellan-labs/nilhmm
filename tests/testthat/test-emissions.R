@@ -9,9 +9,14 @@ test_that("gt emission matrix is a valid categorical distribution (Holland's emi
 
 test_that("the gt caller runs end-to-end and returns valid calls", {
   raw <- read_golden_counts(golden_slice_path("skim", "counts", "PN14_SID1259.chr1.tsv"))
-  counts <- data.frame(name = "PN14_SID1259", chr = as.integer(sub("^chr", "", raw$chr)),
-                       pos = raw$pos, n_ref = raw$n_ref, n_alt = raw$n_alt, donor = "Zd")
-  gt <- call_ancestry(counts, "nnil", design = "BC2S2", rrate = 7e-6)  # nnil = gt (categorical)
+  # nnil is the categorical gt caller: it consumes CALLED genotypes, not read
+  # counts. Hard-call the counts explicitly here (the user's decision) to a `g`
+  # column, then run nnil.
+  g <- with(raw, ifelse(n_ref + n_alt == 0L, 3L,
+              ifelse(n_alt == 0L, 0L, ifelse(n_ref == 0L, 2L, 1L))))
+  gtin <- data.frame(name = "PN14_SID1259", chr = as.integer(sub("^chr", "", raw$chr)),
+                     pos = raw$pos, g = as.integer(g), donor = "Zd")
+  gt <- call_ancestry(gtin, "nnil", design = "BC2S2", rrate = 7e-6)
   expect_true(all(gt$state %in% 0:2))
   expect_true(all(gt$end_bp >= gt$start_bp))
   expect_identical(unique(gt$chr), 1L)

@@ -25,26 +25,29 @@ expect_valid_calls <- function(calls, info) {
   expect_true(all(calls$chr == 1L), info = info)
 }
 
-test_that("the count-input grid and wrapper callers return valid calls", {
+test_that("the count-input callers return valid calls", {
   counts <- smoke_counts()
-  # grid cells: nnil (gt+geom, g derived from counts), bbnil (count+geom),
-  # catiger (gt+rigidity), rtiger (count+rigidity)
-  expect_valid_calls(
-    call_ancestry(counts, caller = "nnil", design = "BC2S2", rrate = 7e-6), "nnil")
+  # count-emission grid cells (bbnil geometric, rtiger rigidity)
   expect_valid_calls(
     call_ancestry(counts, caller = "bbnil", design = "BC2S2", rrate = 7e-6), "bbnil")
   expect_valid_calls(
-    call_ancestry(counts, caller = "catiger", design = "BC2S2", rigidity = 5L), "catiger")
-  expect_valid_calls(
     call_ancestry(counts, caller = "rtiger", design = "BC2S2", rigidity = 5L, seed = 1L), "rtiger")
-  # off-axis / wrapper; googa (gt + geometric) and atlas (gt + rigidity) share the
-  # GOOGA competitive-alignment thresholding
+  # off-axis / wrapper; googa (gt + geometric) and atlas (gt + rigidity) hard-call
+  # the competitive counts by GOOGA's explicit thresholds (their defined behaviour)
   expect_valid_calls(
     call_ancestry(counts, caller = "binhmm", design = "BC2S2"), "binhmm")
   expect_valid_calls(
     call_ancestry(counts, caller = "googa", design = "BC2S2"), "googa")
   expect_valid_calls(
     call_ancestry(counts, caller = "atlas", design = "BC2S2", rigidity = 5L), "atlas")
+})
+
+test_that("gt callers (nnil, catiger) refuse read counts -- no silent hard-calling", {
+  # Called genotypes are the user's explicit decision; nnil/catiger do NOT threshold
+  # read counts into genotypes (design/TERMINOLOGY.md wall; nNIL only takes calls).
+  counts <- smoke_counts()
+  expect_error(call_ancestry(counts, caller = "nnil", design = "BC2S2"), "called genotypes")
+  expect_error(call_ancestry(counts, caller = "catiger", design = "BC2S2", rigidity = 5L), "called genotypes")
 })
 
 test_that("the no-HMM per-site genotype baselines are call_gt(), not call_ancestry callers", {

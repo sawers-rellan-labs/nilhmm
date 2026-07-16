@@ -106,9 +106,10 @@ pure (emission × duration) cells; the rest sit off the grid.
 | **`fsfhap`** | genotype-error (5-state EM) | distance-scaled (Haldane) | called `GT` for **full-sib families** (HapMap / VCF) + a `family` grouping | `design` (or `phet`), `family`, `threads` | [FSFHap](https://bitbucket.org/tasseladmin/tassel-5-source) (Swarts et al. 2014, TASSEL) |
 | **`pedigree`** | count or `gt` (input-detected) | BP over pedigree × genome | read counts or a hard-call `state`/`g`, plus a pedigree | `design`, `rrate`, `ped_*` | family-coupled belief propagation |
 
-- `nnil` — the categorical caller on hard genotype calls (Holland's error model:
-  `germ`, `gert`, `p`, `mr`, `nir`); a `g` column is used directly, read counts are
-  first hard-called (1/3–2/3 cutoffs). Geometric duration, so the self-transition
+- `nnil` — the categorical caller on **called genotypes** (Holland's error model:
+  `germ`, `gert`, `p`, `mr`, `nir`); it takes a `g` column and does **not** threshold
+  read counts into genotypes — hard-calling is your explicit step (e.g. `call_gt()`),
+  never a silent one inside the caller. Geometric duration, so the self-transition
   is the smoother.
 - `bbnil` — the low-coverage count extension: pools single-read observations along
   a segment via a BetaBinomial emission (`err`, `conc`); `fit_means = TRUE` EM-fits
