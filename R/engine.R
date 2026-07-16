@@ -181,19 +181,22 @@ decode <- function(model, obs) {
 #' Data-agnostic: pass the observations in; this function never reads paths.
 #'
 #' @param data Long observation table with columns `name, chr, pos` and one of:
-#'   `n_ref, n_alt` read counts (from [read_counts()]; accepted by every
-#'   count/threshold caller --- `bbnil`/`rtiger`, `binhmm`, `googa`/`atlas`,
-#'   `lbimpute`, and the gt callers `nnil`/`catiger`, which hard-call the counts
-#'   internally); a pre-called hard-genotype column `g` in `{0,1,2,3}` (from
-#'   [read_vcf_gt()]; the gt callers `nnil`/`catiger`, plus `fsfhap`/`pedigree`);
-#'   or a pre-binned `alt_freq` (with `start_bp, end_bp`) for `binhmm`. Optionally
-#'   `donor`.
+#'   `n_ref, n_alt` read counts (from [read_counts()]; for the count/BetaBinomial
+#'   callers `bbnil`/`rtiger`, `binhmm`, the GOOGA-threshold transcript callers
+#'   `googa`/`atlas`, and `lbimpute`); a pre-called hard-genotype column `g` in
+#'   `{0,1,2,3}` (from [read_vcf_gt()]; **required** by the categorical gt callers
+#'   `nnil`/`catiger`, which never threshold read counts themselves --- see
+#'   `caller` --- and also accepted by `fsfhap`/`pedigree`); or a pre-binned
+#'   `alt_freq` (with `start_bp, end_bp`) for `binhmm`. Optionally `donor`.
 #' @param caller One of `"nnil"`, `"bbnil"`, `"catiger"`, `"rtiger"`, `"binhmm"`,
 #'   `"googa"`, `"atlas"`, `"lbimpute"`, `"fsfhap"`, `"pedigree"`. The six gt/count
 #'   grid cells: `nnil` (gt + geometric), `bbnil` (count + geometric), `catiger`
 #'   (gt + rigidity), `rtiger` (count + rigidity), plus the GOOGA-threshold
 #'   transcript pair `googa` (gt + geometric, faithful GOOGA) and `atlas` (gt +
-#'   rigidity, this work). For the no-HMM per-site genotype baseline (the paper's
+#'   rigidity, this work). The gt callers `nnil`/`catiger` require **called
+#'   genotypes** (a `g` column) --- they never threshold read counts into
+#'   genotypes; hard-calling is the user's explicit step (e.g. [call_gt()]).
+#'   For the no-HMM per-site genotype baseline (the paper's
 #'   "control"), call the genotype caller [call_gt()] directly (`prior = "flat"`
 #'   for the maximum-likelihood call, `prior = "hwe"` for the HWE MAP) --- it is a
 #'   *genotype* caller, deliberately separate from the ancestry callers here.
@@ -250,13 +253,13 @@ decode <- function(model, obs) {
 #'   [fit_rtiger()], reused across per-chromosome decodes to avoid re-fitting
 #'   (low-memory decode-reuse path). `NULL` (default) fits once internally.
 #' @param min_reads Minimum read depth to keep a marker before decoding (default
-#'   `1L`; `0L` keeps everything). Drops markers with `n_ref + n_alt < min_reads`
-#'   for the count-input grid callers (`nnil`, `bbnil`, `catiger`, `rtiger`), and
-#'   missing genotypes (`g == 3`) on the gt-input path (`nnil`/`catiger` from a
-#'   `g` column). The intent is uniform — never make a confident call from no data,
-#'   and keep the callers on the same support for comparability. Zero-read markers
-#'   carry no emission signal — they only slow decoding, marginally inflate the
-#'   geometric callers' fragmentation, and dilute the rigidity run. `binhmm` is
+#'   `1L`; `0L` keeps everything). For the count-emission callers `bbnil`/`rtiger`
+#'   it drops markers with `n_ref + n_alt < min_reads`; for the called-genotype
+#'   callers `nnil`/`catiger` it instead drops missing genotypes (`g == 3`). The
+#'   intent is uniform — never make a confident call from no data, and keep the
+#'   callers on the same support for comparability. Zero-read markers carry no
+#'   emission signal — they only slow decoding, marginally inflate `bbnil`'s
+#'   fragmentation, and dilute `rtiger`'s rigidity run. `binhmm` is
 #'   unaffected (it drops truly-empty bins internally; a future per-bin frequency
 #'   gate would be a separate `min_freq`); `googa`/`atlas` have their own
 #'   `atlas_min_reads` gate.
@@ -302,8 +305,8 @@ decode <- function(model, obs) {
 #'   real error rate is the native cure for over-fragmentation (isolated
 #'   miscalled markers are absorbed as errors rather than opening 1-marker
 #'   segments); calibrate to a clean control, don't crank blindly. Used by the gt
-#'   (categorical) callers `nnil`, `catiger`, `googa`, and `atlas` (whether the `g`
-#'   comes from a genotype column or is derived from read counts).
+#'   (categorical) callers `nnil`, `catiger` (which take a supplied `g` column) and
+#'   `googa`, `atlas` (whose `g` comes from GOOGA thresholding of competitive counts).
 #' @param atlas_thresh,atlas_het,atlas_min_reads `googa`/`atlas` callers only:
 #'   GOOGA genotype-call thresholds on the donor read fraction --- homozygous call
 #'   when a parent's fraction >= `atlas_thresh` (0.95), HET when both parents >=
@@ -356,6 +359,17 @@ call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "
     if (!(has_counts || has_gt || has_state))
       stop("call_states(): caller = 'pedigree' needs (n_ref, n_alt) read counts ",
            "or a hard-call `state`/`g` column")
+  } else if (caller %in% c("nnil", "catiger")) {
+    # The categorical gt callers consume CALLED genotypes. They do NOT threshold
+    # read counts into hard calls -- hard-calling is the user's explicit decision,
+    # not a silent step inside the ancestry caller (mirrors the genotype/mosaic
+    # wall of design/TERMINOLOGY.md; nNIL itself only ever ingests called
+    # genotypes -- ncsumaize/nNIL).
+    if (!has_gt)
+      stop("call_states(): caller = '", caller, "' needs called genotypes (a `g` ",
+           "column in {0,1,2,3}, e.g. from read_vcf_gt()). It does not threshold read ",
+           "counts into genotypes -- hard-call them explicitly first (e.g. with ",
+           "call_gt()), or use a count-emission caller ('bbnil'/'rtiger') on the counts.")
   } else if (!(has_counts || has_gt)) {
     stop("call_states(): caller = '", caller, "' needs (n_ref, n_alt) read counts ",
          "or a `g` genotype column")
@@ -454,23 +468,23 @@ call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "
     stop("call_states(): supply `design` or both `f_1` and `f_2`")
 
   # gt-input path: "no coverage" is a missing genotype (g == 3). Drop missing calls
-  # so the categorical gt callers (`nnil`/`catiger`) ignore uncovered positions too,
-  # mirroring the count covered-marker filter below.
-  if (caller %in% c("nnil", "catiger") && has_gt && !has_counts &&
+  # so the categorical gt callers (`nnil`/`catiger`, which consume called genotypes)
+  # ignore uncovered positions too, mirroring the count covered-marker filter below.
+  if (caller %in% c("nnil", "catiger") && has_gt &&
       !is.null(min_reads) && min_reads > 0L) {
     data <- data[data$g != 3L, , drop = FALSE]
     if (!nrow(data)) stop("call_states(): no non-missing genotypes after the min_reads filter")
   }
 
-  # Read-depth filter for the count-input grid callers (`nnil`/`bbnil`/`catiger`/
-  # `rtiger`): drop markers with fewer than `min_reads` total reads. A zero-read
-  # panel position carries no emission signal — it only slows decoding, marginally
-  # inflates the geometric callers' fragmentation, and dilutes the rigidity run
-  # (which requires read-covered markers anyway). This keeps the callers on the
-  # SAME marker support, so their calls are directly comparable. `binhmm` bins its
-  # own way and the `gt`/`alt_freq` inputs have no read counts to threshold, so
-  # they are exempt. `min_reads = 0L` restores decoding every input marker.
-  if (has_counts && caller %in% c("nnil", "bbnil", "catiger", "rtiger") &&
+  # Read-depth filter for the count-emission grid callers (`bbnil`/`rtiger`): drop
+  # markers with fewer than `min_reads` total reads. A zero-read panel position
+  # carries no emission signal — it only slows decoding, marginally inflates
+  # bbnil's fragmentation, and dilutes rtiger's rigidity run (which requires
+  # read-covered markers anyway). This keeps the two on the SAME marker support, so
+  # their calls are directly comparable. `binhmm` bins its own way, the gt callers
+  # consume called genotypes (not read counts), and `googa`/`atlas` have their own
+  # `atlas_min_reads` gate, so all are exempt. `min_reads = 0L` decodes every marker.
+  if (has_counts && caller %in% c("bbnil", "rtiger") &&
       !is.null(min_reads) && min_reads > 0L) {
     data <- data[data$n_ref + data$n_alt >= min_reads, , drop = FALSE]
     if (!nrow(data))
@@ -533,12 +547,12 @@ call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "
 
   # GOOGA / ATLAS callers (R/atlas.R): per-gene ancestry from competitive-alignment
   # read counts (n_ref = recurrent, n_alt = donor; ambiguous excluded upstream by
-  # the cassini pipeline). The per-unit genotype call uses GOOGA's hard fraction
-  # thresholds + a min-read gate rather than the 1/3-2/3 cutoffs. RNA/read-
-  # competition data, so the categorical gt (confusion) emission is used, NOT the
-  # count/BetaBinomial mean model. `googa` is the faithful reproduction (gt +
-  # geometric = GOOGA's recombination-fraction F2 HMM); `atlas` is this work's
-  # transcript caller (the same thresholding with the rigidity duration).
+  # the cassini pipeline). These are the ONLY callers that hard-call read counts,
+  # and they do it explicitly by GOOGA's defined fraction thresholds + a min-read
+  # gate (their whole purpose). RNA/read-competition data, so the categorical gt
+  # (confusion) emission is used, NOT the count/BetaBinomial mean model. `googa` is
+  # the faithful reproduction (gt + geometric = GOOGA's recombination-fraction F2
+  # HMM); `atlas` is this work's transcript caller (same thresholding, rigidity).
   googa <- caller %in% c("googa", "atlas")
 
   # Each grid caller pins its own emission x duration (caller_spec); the emission
@@ -580,14 +594,18 @@ call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "
     # emission means are fit pooled across a sample's chromosomes).
     obs_list <- lapply(split(dn, dn$chr, drop = TRUE), function(dc) {
       dc <- dc[order(dc$pos), , drop = FALSE]
-      if (has_gt && !has_counts) {                 # pre-called genotypes (read_vcf_gt): use g directly
-        n <- rep(NA_integer_, nrow(dc)); a <- n; g <- as.integer(dc$g)
-      } else {
-        n <- dc$n_ref + dc$n_alt; a <- dc$n_alt; f <- ifelse(n == 0, NA_real_, a / n)
-        # derived hard genotype call for the gt emission: ATLAS uses GOOGA's
-        # fraction thresholds + min-read gate; otherwise the 1/3-2/3 cutoffs.
+      if (caller %in% c("nnil", "catiger")) {      # called genotypes: use g directly
+        g <- as.integer(dc$g)
+        if (has_counts) { n <- dc$n_ref + dc$n_alt; a <- dc$n_alt }
+        else            { n <- rep(NA_integer_, nrow(dc)); a <- n }
+      } else {                                      # count input
+        n <- dc$n_ref + dc$n_alt; a <- dc$n_alt
+        # googa/atlas ALWAYS hard-call the competitive counts by GOOGA's explicit
+        # thresholds (their defined behaviour) -- never a stray `g` column. Count-
+        # emission callers (bbnil/rtiger) ignore g. nnil/catiger never reach here:
+        # they require a `g` column; the package does not silently threshold counts.
         g <- if (googa) .googa_gt_call(a, n, atlas_thresh, atlas_het, atlas_min_reads)
-             else ifelse(is.na(f), 3L, ifelse(f < 1/3, 0L, ifelse(f > 2/3, 2L, 1L)))
+             else rep(3L, nrow(dc))
       }
       list(chr = dc$chr[1], pos = dc$pos, n = n, a = a, g = g)
     })

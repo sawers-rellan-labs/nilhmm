@@ -10,6 +10,14 @@ The named callers are now the explicit coordinates of the engine's
   new **`bbnil`** caller (count/BetaBinomial + geometric) — the low-coverage count
   extension. **Migration:** `call_ancestry(counts, caller = "nnil")` →
   `caller = "bbnil"`; hard-call/`GT` inputs stay on `caller = "nnil"`.
+* **`nnil`/`catiger` require called genotypes (a `g` column) and no longer
+  threshold read counts.** The earlier build silently hard-called raw counts with a
+  1/3–2/3 allele-fraction cutoff — an incidental behaviour, not part of nNIL (which
+  only ever ingests called genotypes, `ncsumaize/nNIL`). Hard-calling is now the
+  user's explicit step: `nnil`/`catiger` on read counts errors with a pointer to
+  hard-call first (e.g. `call_gt()`) or use `bbnil`/`rtiger`. `googa`/`atlas` are
+  unaffected — GOOGA fraction-thresholding of competitive counts is their defined,
+  explicit behaviour.
 * New **`catiger`** caller: categorical `gt` emission + rigidity duration (the
   `gt`-side counterpart of `rtiger`).
 * Removed the `emission = c("count", "gt")` override on `call_ancestry()`/

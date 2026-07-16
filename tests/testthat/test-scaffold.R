@@ -20,12 +20,15 @@ test_that("emission/duration constructors return tagged specs", {
 })
 
 test_that("the count and gt emissions run via call_ancestry", {
-  d <- data.frame(name = "s", chr = 1L, pos = 1:6, n_ref = c(2L,0L,1L,2L,0L,1L),
-                  n_alt = c(0L,2L,1L,0L,2L,0L), donor = "Zx")
-  for (cc in list(list(caller="bbnil"), list(caller="nnil"))) {  # count (bbnil), gt (nnil)
-    g <- do.call(call_ancestry, c(list(d, design = "BC2S2", rrate = 0.01), cc))
-    expect_true(all(g$state %in% 0:2))
-  }
+  # count emission (bbnil) takes read counts; gt emission (nnil) takes CALLED
+  # genotypes -- it does not threshold counts, so feed it a `g` column.
+  cnt <- data.frame(name = "s", chr = 1L, pos = 1:6, n_ref = c(2L,0L,1L,2L,0L,1L),
+                    n_alt = c(0L,2L,1L,0L,2L,0L), donor = "Zx")
+  gt  <- data.frame(name = "s", chr = 1L, pos = 1:6, g = c(0L,2L,1L,0L,2L,0L), donor = "Zx")
+  bb <- call_ancestry(cnt, caller = "bbnil", design = "BC2S2", rrate = 0.01)
+  nn <- call_ancestry(gt,  caller = "nnil",  design = "BC2S2", rrate = 0.01)
+  expect_true(all(bb$state %in% 0:2))
+  expect_true(all(nn$state %in% 0:2))
 })
 
 test_that("viterbi_log_cpp decodes a trivial 2-state chain", {

@@ -86,6 +86,6 @@ test_that("threaded decode (parallel=TRUE) is identical to serial", {
 
 test_that("call_ancestry rejects missing priors and bad columns", {
   d <- data.frame(name = "s", chr = 1L, pos = 1L, n_ref = 0L, n_alt = 0L)
-  expect_error(call_ancestry(d, caller = "nnil"), "supply")
-  expect_error(call_ancestry(data.frame(x = 1), caller = "nnil", design = "BC2S2"), "columns")
+  expect_error(call_ancestry(d, caller = "bbnil"), "supply")               # count caller, no design
+  expect_error(call_ancestry(data.frame(x = 1), caller = "bbnil", design = "BC2S2"), "columns")
 })

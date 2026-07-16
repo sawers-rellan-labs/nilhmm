@@ -2,32 +2,38 @@
 # PACKAGE; the callers are explicit methods inside it. This kills the
 # package-vs-caller ambiguity.
 #
-# The named cells of the grid. Two things vary: the emission x duration axes, and
-# (on the gt row) the hard-call thresholding lineage -- Holland's 1/3-2/3 dosage
-# cutoffs vs GOOGA's competitive-alignment fraction thresholds:
+# The named cells of the grid (emission x duration). The two gt-emission rows
+# differ by INPUT: `nnil`/`catiger` consume CALLED genotypes (the user hard-calls
+# upstream -- the package never thresholds read counts into genotypes), whereas
+# `googa`/`atlas` apply GOOGA's competitive-alignment fraction thresholds to
+# transcript counts as their defined, explicit step:
 #
 #                              geometric        rigidity
-#   gt, Holland thresholds     nnil             catiger
-#   gt, GOOGA thresholds       googa            atlas
+#   gt, called genotypes       nnil             catiger
+#   gt, GOOGA-thresholded      googa            atlas
 #   count / BetaBinomial       bbnil            rtiger
 #
 # `googa` is the faithful GOOGA/Veltsos reproduction (categorical + geometric =
 # recombination-fraction F2 HMM); `atlas` is this work's transcript caller (the
 # same GOOGA thresholding with the rigidity duration). `nnil`/`googa` share the
-# emission x duration spec (gt + geometric) and differ only in the hard-call rule;
-# likewise `catiger`/`atlas` (gt + rigidity). The GOOGA thresholding itself is
-# applied in [call_ancestry()], not here.
+# emission x duration spec (gt + geometric) and differ only in how `g` is obtained
+# (a supplied genotype column vs GOOGA thresholding of counts); likewise
+# `catiger`/`atlas` (gt + rigidity). The GOOGA thresholding is applied in
+# [call_ancestry()], not here.
 
 #' Resolve a named caller into emission + duration specs
 #'
-#' The named cells of the shared engine's grid (emission x duration; the gt row
-#' also varies by hard-call thresholding lineage):
+#' The named cells of the shared engine's grid (emission x duration). All four
+#' gt-emission callers use the same categorical model but obtain `g` differently:
+#' `nnil`/`catiger` consume a supplied `g` (called genotypes), while `googa`/`atlas`
+#' derive `g` by GOOGA thresholding of competitive counts.
 #' - `nnil`    : categorical `gt` emission + geometric duration -- Holland's
-#'   original NIL caller on hard genotype calls (1/3-2/3 dosage cutoffs).
+#'   original NIL caller on CALLED genotypes (nNIL never thresholds read counts;
+#'   the user supplies a `g` column).
 #' - `bbnil`   : count/BetaBinomial emission + geometric duration -- the
 #'   low-coverage read-count extension of nNIL; the self-transition is the smoother.
 #' - `catiger` : categorical `gt` emission + rigidity duration (S7) -- the
-#'   Holland-threshold categorical + minimum-run-length caller.
+#'   called-genotype categorical + minimum-run-length caller.
 #' - `rtiger`  : count/BetaBinomial emission + rigidity duration (S7).
 #' - `googa`   : categorical `gt` emission + geometric duration, with GOOGA
 #'   competitive-alignment thresholds -- the faithful GOOGA/Veltsos reproduction.

@@ -52,20 +52,23 @@ call_states(
 }
 \arguments{
 \item{data}{Long observation table with columns \verb{name, chr, pos} and one of:
-\verb{n_ref, n_alt} read counts (from \code{\link[=read_counts]{read_counts()}}; accepted by every
-count/threshold caller --- \code{bbnil}/\code{rtiger}, \code{binhmm}, \code{googa}/\code{atlas},
-\code{lbimpute}, and the gt callers \code{nnil}/\code{catiger}, which hard-call the counts
-internally); a pre-called hard-genotype column \code{g} in \verb{\{0,1,2,3\}} (from
-\code{\link[=read_vcf_gt]{read_vcf_gt()}}; the gt callers \code{nnil}/\code{catiger}, plus \code{fsfhap}/\code{pedigree});
-or a pre-binned \code{alt_freq} (with \verb{start_bp, end_bp}) for \code{binhmm}. Optionally
-\code{donor}.}
+\verb{n_ref, n_alt} read counts (from \code{\link[=read_counts]{read_counts()}}; for the count/BetaBinomial
+callers \code{bbnil}/\code{rtiger}, \code{binhmm}, the GOOGA-threshold transcript callers
+\code{googa}/\code{atlas}, and \code{lbimpute}); a pre-called hard-genotype column \code{g} in
+\verb{\{0,1,2,3\}} (from \code{\link[=read_vcf_gt]{read_vcf_gt()}}; \strong{required} by the categorical gt callers
+\code{nnil}/\code{catiger}, which never threshold read counts themselves --- see
+\code{caller} --- and also accepted by \code{fsfhap}/\code{pedigree}); or a pre-binned
+\code{alt_freq} (with \verb{start_bp, end_bp}) for \code{binhmm}. Optionally \code{donor}.}
 
 \item{caller}{One of \code{"nnil"}, \code{"bbnil"}, \code{"catiger"}, \code{"rtiger"}, \code{"binhmm"},
 \code{"googa"}, \code{"atlas"}, \code{"lbimpute"}, \code{"fsfhap"}, \code{"pedigree"}. The six gt/count
 grid cells: \code{nnil} (gt + geometric), \code{bbnil} (count + geometric), \code{catiger}
 (gt + rigidity), \code{rtiger} (count + rigidity), plus the GOOGA-threshold
 transcript pair \code{googa} (gt + geometric, faithful GOOGA) and \code{atlas} (gt +
-rigidity, this work). For the no-HMM per-site genotype baseline (the paper's
+rigidity, this work). The gt callers \code{nnil}/\code{catiger} require \strong{called
+genotypes} (a \code{g} column) --- they never threshold read counts into
+genotypes; hard-calling is the user's explicit step (e.g. \code{\link[=call_gt]{call_gt()}}).
+For the no-HMM per-site genotype baseline (the paper's
 "control"), call the genotype caller \code{\link[=call_gt]{call_gt()}} directly (\code{prior = "flat"}
 for the maximum-likelihood call, \code{prior = "hwe"} for the HWE MAP) --- it is a
 \emph{genotype} caller, deliberately separate from the ancestry callers here.}
@@ -137,13 +140,13 @@ threads. \code{fsfhap}: family x chromosome units decoded in parallel
 \item{postprocess}{RTIGER caller only: apply the border re-placement (default TRUE).}
 
 \item{min_reads}{Minimum read depth to keep a marker before decoding (default
-\code{1L}; \code{0L} keeps everything). Drops markers with \code{n_ref + n_alt < min_reads}
-for the count-input grid callers (\code{nnil}, \code{bbnil}, \code{catiger}, \code{rtiger}), and
-missing genotypes (\code{g == 3}) on the gt-input path (\code{nnil}/\code{catiger} from a
-\code{g} column). The intent is uniform — never make a confident call from no data,
-and keep the callers on the same support for comparability. Zero-read markers
-carry no emission signal — they only slow decoding, marginally inflate the
-geometric callers' fragmentation, and dilute the rigidity run. \code{binhmm} is
+\code{1L}; \code{0L} keeps everything). For the count-emission callers \code{bbnil}/\code{rtiger}
+it drops markers with \code{n_ref + n_alt < min_reads}; for the called-genotype
+callers \code{nnil}/\code{catiger} it instead drops missing genotypes (\code{g == 3}). The
+intent is uniform — never make a confident call from no data, and keep the
+callers on the same support for comparability. Zero-read markers carry no
+emission signal — they only slow decoding, marginally inflate \code{bbnil}'s
+fragmentation, and dilute \code{rtiger}'s rigidity run. \code{binhmm} is
 unaffected (it drops truly-empty bins internally; a future per-bin frequency
 gate would be a separate \code{min_freq}); \code{googa}/\code{atlas} have their own
 \code{atlas_min_reads} gate.}
@@ -205,8 +208,8 @@ true heterozygotes, \code{p} fraction of hom errors called het, \code{mr} missin
 real error rate is the native cure for over-fragmentation (isolated
 miscalled markers are absorbed as errors rather than opening 1-marker
 segments); calibrate to a clean control, don't crank blindly. Used by the gt
-(categorical) callers \code{nnil}, \code{catiger}, \code{googa}, and \code{atlas} (whether the \code{g}
-comes from a genotype column or is derived from read counts).}
+(categorical) callers \code{nnil}, \code{catiger} (which take a supplied \code{g} column) and
+\code{googa}, \code{atlas} (whose \code{g} comes from GOOGA thresholding of competitive counts).}
 }
 \value{
 data.frame of per-unit states
