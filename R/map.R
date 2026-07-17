@@ -32,18 +32,31 @@ load_map <- function(version = "v5") {
   map <- as.data.frame(map, stringsAsFactors = FALSE)
   if (!all(c("chr", from, to) %in% names(map)))
     stop(".marey(): map needs columns chr, ", from, ", ", to)
-  fns <- lapply(split(map, map$chr), function(d) {
-    y <- tapply(d[[to]], d[[from]], mean)          # collapse duplicate `from`
-    x <- as.numeric(names(y)); o <- order(x)
-    s <- stats::splinefun(x[o], as.numeric(y)[o], method = "hyman")
+  idx <- split(seq_len(nrow(map)), map$chr)
+  # markers should arrive sorted by (chr, position); we sort internally anyway
+  # (splinefun needs ascending x, and native maps aren't guaranteed sorted), but
+  # a genuinely out-of-order `from` column signals a caller bug worth flagging.
+  unsorted <- vapply(idx, function(i) is.unsorted(map[[from]][i]), logical(1))
+  if (any(unsorted))
+    warning(".marey(): `", from, "` not sorted on chromosome(s) ",
+            paste(names(idx)[unsorted], collapse = ", "), "; sorting internally.")
+  fns <- lapply(idx, function(i) {
+    ch <- map$chr[i][1]
+    y  <- tapply(map[[to]][i], map[[from]][i], mean)  # collapse duplicate `from` by mean
+    x  <- as.numeric(names(y))                        # tapply names sort as strings ->
+    o  <- order(x)                                    # numeric re-sort for splinefun
+    if (length(x) < 2L)
+      stop(".marey(): chromosome ", ch, " has < 2 distinct `", from,
+           "` values; cannot fit a spline.")
+    s   <- stats::splinefun(x[o], as.numeric(y)[o], method = "hyman")
     rng <- range(x)
-    function(v) s(pmin(pmax(v, rng[1]), rng[2]))   # clamp to observed range
+    function(v) s(pmin(pmax(v, rng[1]), rng[2]))       # clamp to observed range
   })
   function(chr, x) {
     x <- as.numeric(x); chr <- rep(as.character(chr), length.out = length(x))
     out <- numeric(length(x))
     for (ch in unique(chr)) {
-      if (is.null(fns[[ch]])) stop("map interpolation: chromosome not in map: ", ch)
+      if (is.null(fns[[ch]])) stop(".marey(): chromosome not in map: ", ch)
       out[chr == ch] <- fns[[ch]](x[chr == ch])
     }
     out

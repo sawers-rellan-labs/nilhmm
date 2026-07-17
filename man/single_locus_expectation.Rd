@@ -23,8 +23,10 @@ selfing transition matrices for the design named by \code{design} (\code{"BC<n>S
 \code{n} backcrosses to the recurrent parent, then \code{m} generations of selfing. The
 genotype basis is \verb{(AA, Aa, aa)} with \code{AA} the recurrent (backcross-target)
 homozygote and \code{aa} the donor homozygote, so the recurrent allele is \code{A}
-(frequency \code{p_A}) and the donor allele is \code{a} (frequency \code{p_a = 0.5^(n + 1)},
-fixed by the backcrosses and invariant across selfing). The backcross matrix \code{B}
+(frequency \code{p_A}) and the donor allele is \code{a}. The donor allele frequency after
+the backcrosses is \code{p_a = (aa + Aa/2) * 0.5^n} in terms of the starting F1
+composition \verb{f1 = (AA, Aa, aa)} -- \code{0.5^(n + 1)} for the default fully-het F1 --
+and selfing leaves it invariant. The backcross matrix \code{B}
 mates each generation to \code{AA} (\code{aa -> Aa}, \verb{Aa -> half AA / half Aa}) and the
 selfing matrix \code{S} splits a quarter of the remaining \code{Aa} into equal parts
 \code{AA}/\code{aa} each generation.

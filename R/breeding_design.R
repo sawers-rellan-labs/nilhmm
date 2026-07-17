@@ -29,8 +29,10 @@ parse_design <- function(design) {
 #' `n` backcrosses to the recurrent parent, then `m` generations of selfing. The
 #' genotype basis is `(AA, Aa, aa)` with `AA` the recurrent (backcross-target)
 #' homozygote and `aa` the donor homozygote, so the recurrent allele is `A`
-#' (frequency `p_A`) and the donor allele is `a` (frequency `p_a = 0.5^(n + 1)`,
-#' fixed by the backcrosses and invariant across selfing). The backcross matrix `B`
+#' (frequency `p_A`) and the donor allele is `a`. The donor allele frequency after
+#' the backcrosses is `p_a = (aa + Aa/2) * 0.5^n` in terms of the starting F1
+#' composition `f1 = (AA, Aa, aa)` -- `0.5^(n + 1)` for the default fully-het F1 --
+#' and selfing leaves it invariant. The backcross matrix `B`
 #' mates each generation to `AA` (`aa -> Aa`, `Aa -> half AA / half Aa`) and the
 #' selfing matrix `S` splits a quarter of the remaining `Aa` into equal parts
 #' `AA`/`aa` each generation.

@@ -28,8 +28,9 @@ refine_ancestry(
 \code{taxon} joins to \code{mosaic$name}; a \code{taxon} used as a parent but absent from
 \code{mosaic} is a latent ancestor.}
 
-\item{design}{Breeding design \code{"BC{n}S{m}"} -> founder prior \code{pi_0} and
-per-node \code{meioses} (via \code{\link[=breeding_prior]{breeding_prior()}}).}
+\item{design}{Breeding design \code{"BC{n}S{m}"}: the founder prior \code{pi_0} is derived
+via \code{\link[=breeding_prior]{breeding_prior()}}; per-node \code{meioses} come from the BC count and pedigree
+depth.}
 
 \item{emission}{\code{"gt"} (depth-blind, over hard states) or \code{"count"}
 (depth-aware BetaBinomial over \code{n_ref}/\code{n_alt}).}
