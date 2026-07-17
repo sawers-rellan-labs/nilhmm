@@ -28,8 +28,18 @@ caller_sweep(
 )
 }
 \arguments{
-\item{data}{Common input: \verb{name, chr, pos, n_ref, n_alt} (+ optional \code{donor};
-\code{lbimpute} with \code{unit = "cm"} also needs a \code{cm} map-position column).}
+\item{data}{Common columns \verb{name, chr, pos}, plus the caller's emission input,
+which differs by caller:
+\itemize{
+\item \code{bbnil}, \code{rtiger}, \code{lbimpute} consume the allelic read counts \verb{n_ref, n_alt}
+(+ optional \code{donor}; \code{lbimpute} with \code{unit = "cm"} also needs a \code{cm}
+map-position column).
+\item \code{nnil} is categorical: it consumes hard genotype calls in an integer \code{g}
+column (\code{0/1/2/3}, \code{3} = missing) produced by \code{\link[=call_gt]{call_gt()}}, and does not
+threshold read counts itself. \code{nnil} requires only \code{g} -- \code{n_ref}/\code{n_alt}
+are not needed, and if present they are ignored (with a warning). \code{min_reads}
+is likewise a no-op for \code{nnil} (a categorical caller has no read depth).
+}}
 
 \item{caller}{\code{"rtiger"} (sweeps \code{rigidity}), \code{"bbnil"} or \code{"nnil"} (both sweep
 \code{rrate}; \code{bbnil} = count/BetaBinomial emission on read counts, \code{nnil} =
