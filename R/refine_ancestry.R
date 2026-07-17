@@ -179,8 +179,9 @@
 #'   [read_pedigree()]-shaped data.frame (`taxon, family, parent1, parent2`).
 #'   `taxon` joins to `mosaic$name`; a `taxon` used as a parent but absent from
 #'   `mosaic` is a latent ancestor.
-#' @param design Breeding design `"BC{n}S{m}"` -> founder prior `pi_0` and
-#'   per-node `meioses` (via [breeding_prior()]).
+#' @param design Breeding design `"BC{n}S{m}"`: the founder prior `pi_0` is derived
+#'   via [breeding_prior()]; per-node `meioses` come from the BC count and pedigree
+#'   depth.
 #' @param emission `"gt"` (depth-blind, over hard states) or `"count"`
 #'   (depth-aware BetaBinomial over `n_ref`/`n_alt`).
 #' @param err Genotyping/read error: [emission_gt()] `germ` when `emission="gt"`

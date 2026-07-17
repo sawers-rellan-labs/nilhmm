@@ -165,8 +165,9 @@ Data-agnostic helpers for the companion `zealhmm` QTL-mapping pipeline; they tak
 - **Data-agnostic** — keep paths/sample lists out of package functions.
 - `rtiger` is a **Julia-free** port (no Julia needed); `rebmix` is an optional
   `Suggests` (bit-exact `binhmm` clustering reproduction only).
-- `load_map()` is currently a **stub** (Task 4) — the bundled B73 v5 consensus map
-  is not yet wired in.
+- `load_map()` returns the bundled B73 v5 consensus map (`maize_map_v5`); the
+  cM↔bp Marey-spline interpolators (`bp_to_cm`/`cm_to_bp`/`cm_to_mb`) default to it
+  and accept any `chr/bp/cm` map.
 
 ## Related
 

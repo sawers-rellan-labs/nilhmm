@@ -25,8 +25,16 @@
 #' when `fit_means = FALSE`) and sweep `values`, fanning the decodes over
 #' `threads`. `refit` controls the accuracy/speed trade (see details).
 #'
-#' @param data Common input: `name, chr, pos, n_ref, n_alt` (+ optional `donor`;
-#'   `lbimpute` with `unit = "cm"` also needs a `cm` map-position column).
+#' @param data Common columns `name, chr, pos`, plus the caller's emission input,
+#'   which differs by caller:
+#'   * `bbnil`, `rtiger`, `lbimpute` consume the allelic read counts `n_ref, n_alt`
+#'     (+ optional `donor`; `lbimpute` with `unit = "cm"` also needs a `cm`
+#'     map-position column).
+#'   * `nnil` is categorical: it consumes hard genotype calls in an integer `g`
+#'     column (`0/1/2/3`, `3` = missing) produced by [call_gt()], and does not
+#'     threshold read counts itself. `nnil` requires only `g` -- `n_ref`/`n_alt`
+#'     are not needed, and if present they are ignored (with a warning). `min_reads`
+#'     is likewise a no-op for `nnil` (a categorical caller has no read depth).
 #' @param caller `"rtiger"` (sweeps `rigidity`), `"bbnil"` or `"nnil"` (both sweep
 #'   `rrate`; `bbnil` = count/BetaBinomial emission on read counts, `nnil` =
 #'   categorical genotype emission on a hard-called `g` column), or `"lbimpute"`
@@ -74,8 +82,19 @@ caller_sweep <- function(data, caller = c("nnil", "bbnil", "rtiger", "lbimpute")
   if (!all(c("name", "chr", "pos") %in% names(data)))
     stop("caller_sweep(): data needs columns name, chr, pos")
   if (!length(values)) stop("caller_sweep(): `values` is empty")
-  if (!all(c("n_ref", "n_alt") %in% names(data)))
-    stop("caller_sweep(): needs n_ref/n_alt read counts")
+  is_gt <- caller == "nnil"                       # categorical: consumes `g`, not counts
+  has_counts <- all(c("n_ref", "n_alt") %in% names(data))
+  if (is_gt) {
+    if (!("g" %in% names(data)))
+      stop("caller_sweep(nnil): needs a hard-called `g` column (0/1/2/3, 3 = ",
+           "missing) from call_gt(); the categorical emission does not threshold ",
+           "read counts.")
+    if (has_counts)
+      warning("caller_sweep(nnil): `n_ref`/`n_alt` present but ignored -- nnil ",
+              "consumes the hard-called `g` column, not read counts.")
+  } else if (!has_counts) {
+    stop("caller_sweep(", caller, "): needs `n_ref`/`n_alt` read counts.")
+  }
   has_donor <- "donor" %in% names(data)
   fan <- function(X, FUN) {
     r <- if (threads > 1L && .Platform$OS.type == "unix")
@@ -98,9 +117,9 @@ caller_sweep <- function(data, caller = c("nnil", "bbnil", "rtiger", "lbimpute")
                                   design, f_1, f_2, threads, source, donor, has_donor))
   }
 
-  if (!is.null(min_reads) && min_reads > 0L)
+  if (!is_gt && !is.null(min_reads) && min_reads > 0L)   # counts-based; no-op for nnil (categorical)
     data <- data[data$n_ref + data$n_alt >= min_reads, , drop = FALSE]
-  if (!nrow(data)) stop("caller_sweep(): no markers with >= min_reads reads")
+  if (!nrow(data)) stop("caller_sweep(): no markers left after the read-depth filter")
 
   # ---------------- rtiger: EM (once / warm / cold) + decode per rigidity -----
   if (caller == "rtiger") {
@@ -127,11 +146,7 @@ caller_sweep <- function(data, caller = c("nnil", "bbnil", "rtiger", "lbimpute")
   # categorical genotype-confusion emission on hard-called genotypes (a `g` column
   # in {0,1,2,3}); bbnil uses the count/BetaBinomial emission on read counts.
   # caller_spec() supplies the matching emission + duration for the requested caller.
-  is_gt <- caller == "nnil"
-  if (is_gt && !("g" %in% names(data)))
-    stop("caller_sweep(nnil): needs a hard-called `g` column (0/1/2/3). The ",
-         "categorical emission does not threshold read counts -- hard-call them ",
-         "first with call_gt().")
+  # (nnil's required `g` column and the counts-ignored warning are checked up front.)
   priors <- .state_freqs(design, f_1, f_2, "caller_sweep")
   spec_of <- function(v) caller_spec(caller, rrate = v, err = err, conc = conc, fit_means = fit_means)
   ref_rrate <- if (is.null(ref)) stats::median(values) else ref
@@ -148,7 +163,9 @@ caller_sweep <- function(data, caller = c("nnil", "bbnil", "rtiger", "lbimpute")
     dn <- by_name[[nm]]
     obs_list <- lapply(split(dn, dn$chr, drop = TRUE), function(dc) {
       dc <- dc[order(dc$pos), , drop = FALSE]
-      list(chr = dc$chr[1], pos = dc$pos, n = dc$n_ref + dc$n_alt, a = dc$n_alt,
+      list(chr = dc$chr[1], pos = dc$pos,
+           n = if (has_counts) dc$n_ref + dc$n_alt else NULL,   # gt emission ignores n/a
+           a = if (has_counts) dc$n_alt else NULL,
            g = if ("g" %in% names(dc)) as.integer(dc$g) else NULL)
     })
     ref_theta <- if (need_ref) .em_fit_means(obs_list, emission, td_ref, theta0) else theta0
