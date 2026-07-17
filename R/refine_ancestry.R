@@ -19,11 +19,11 @@
 # data-agnostic. Families are processed independently; latent ungenotyped ancestors
 # (taxa named as parents but absent from the data) impose chromosome continuity.
 
-# donor genome fraction q and founder prior pi_0 from a design, derived (not typed):
-# design_priors() gives terminal f_1 (HET) + f_2 (donor-hom); q = f_2 + f_1/2.
+# donor allele frequency q and founder prior pi_0 from a design, derived (not typed):
+# breeding_prior() gives the terminal c(REF, HET, ALT); q = ALT + HET/2 = p_a.
 .founder_prior <- function(design) {
-  d <- design_priors(design)
-  q <- d$f_2 + d$f_1 / 2                       # donor genome fraction (selfing-invariant)
+  p <- breeding_prior(design)
+  q <- p[["ALT"]] + p[["HET"]] / 2             # donor allele frequency (selfing-invariant)
   c(1 - 2 * q, 2 * q, 0)                       # BC founder: all donor content is het
 }
 
@@ -180,7 +180,7 @@
 #'   `taxon` joins to `mosaic$name`; a `taxon` used as a parent but absent from
 #'   `mosaic` is a latent ancestor.
 #' @param design Breeding design `"BC{n}S{m}"` -> founder prior `pi_0` and
-#'   per-node `meioses` (via [design_priors()]).
+#'   per-node `meioses` (via [breeding_prior()]).
 #' @param emission `"gt"` (depth-blind, over hard states) or `"count"`
 #'   (depth-aware BetaBinomial over `n_ref`/`n_alt`).
 #' @param err Genotyping/read error: [emission_gt()] `germ` when `emission="gt"`

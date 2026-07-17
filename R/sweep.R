@@ -132,9 +132,7 @@ caller_sweep <- function(data, caller = c("nnil", "bbnil", "rtiger", "lbimpute")
     stop("caller_sweep(nnil): needs a hard-called `g` column (0/1/2/3). The ",
          "categorical emission does not threshold read counts -- hard-call them ",
          "first with call_gt().")
-  priors <- if (!is.null(design)) design_priors(design)
-            else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
-            else stop("caller_sweep(", caller, "): supply `design` or both `f_1`, `f_2`")
+  priors <- .state_freqs(design, f_1, f_2, "caller_sweep")
   spec_of <- function(v) caller_spec(caller, rrate = v, err = err, conc = conc, fit_means = fit_means)
   ref_rrate <- if (is.null(ref)) stats::median(values) else ref
   emission <- spec_of(ref_rrate)$emission  # rrate-independent; gt emission ignores theta

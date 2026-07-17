@@ -129,7 +129,7 @@
 #' # Per-(sample, chromosome) count obs: n = depth, a = alt count.
 #' obs <- data.frame(n = c(10, 9, 11, 8, 12), a = c(0, 0, 1, 4, 6))
 #' model <- fit(obs, emission_count(), duration_geometric(1e-4),
-#'              priors = design_priors("BC2S2"))
+#'              priors = list(f_1 = 0.0625, f_2 = 0.0938))
 #' @export
 fit <- function(obs, emission, duration, priors, control = list()) {
   td <- .duration_transition(duration, priors)
@@ -162,7 +162,7 @@ fit <- function(obs, emission, duration, priors, control = list()) {
 #' @examples
 #' obs <- data.frame(n = c(10, 9, 11, 8, 12), a = c(0, 0, 1, 4, 6))
 #' model <- fit(obs, emission_count(), duration_geometric(1e-4),
-#'              priors = design_priors("BC2S2"))
+#'              priors = list(f_1 = 0.0625, f_2 = 0.0938))
 #' decode(model, obs)
 #' @export
 decode <- function(model, obs) {
@@ -505,9 +505,7 @@ call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "
   # fraction rather than modelling reads). Only priors (start freqs) feed it.
   if (caller == "binhmm") {
     cluster_method <- match.arg(cluster_method)
-    priors <- if (!is.null(design)) design_priors(design)
-              else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
-              else stop("call_states(): supply `design` or both `f_1` and `f_2`")
+    priors <- .state_freqs(design, f_1, f_2)
     return(.binhmm_states(data, bin_size, cluster_method, priors,
                           source, donor, has_donor,
                           joint_clust = joint_clust, obs_weights = obs_weights))
@@ -561,9 +559,7 @@ call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "
                       err = err, conc = conc, fit_means = fit_means,
                       xrate = xrate, germ = germ, gert = gert, p = p, mr = mr, nir = nir)
 
-  priors <- if (!is.null(design)) design_priors(design)
-            else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
-            else stop("call_states(): supply `design` or both `f_1` and `f_2`")
+  priors <- .state_freqs(design, f_1, f_2)
 
   td     <- .duration_transition(spec$duration, priors)   # same for all samples
   theta0 <- .emission_theta(spec$emission)

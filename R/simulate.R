@@ -62,14 +62,12 @@ build_marker_grid <- function(map, n_markers = 2000L) {
   chrs <- sort(unique(map$chr))
   span <- vapply(chrs, function(ch) { b <- map$bp[map$chr == ch]; max(b) - min(b) }, numeric(1))
   quota <- pmax(2L, as.integer(round(n_markers * span / sum(span))))
+  to_cm <- bp_to_cm(map)                                    # monotone bp -> cM (Marey, R/map.R)
   do.call(rbind, lapply(seq_along(chrs), function(i) {
-    sub <- map[map$chr == chrs[i], , drop = FALSE]
-    cm_by_bp <- tapply(sub$cm, sub$bp, mean)                # collapse duplicate bp
-    bp_u <- as.numeric(names(cm_by_bp)); o <- order(bp_u)
-    f <- stats::splinefun(bp_u[o], as.numeric(cm_by_bp)[o], method = "hyman")  # monotone bp -> cM
-    gbp <- round(seq(min(bp_u), max(bp_u), length.out = quota[i]))
+    b <- map$bp[map$chr == chrs[i]]
+    gbp <- round(seq(min(b), max(b), length.out = quota[i]))
     data.frame(chr = as.integer(chrs[i]), pos = as.integer(gbp),
-               cm = as.numeric(f(gbp)), stringsAsFactors = FALSE)
+               cm = as.numeric(to_cm(chrs[i], gbp)), stringsAsFactors = FALSE)
   }))
 }
 

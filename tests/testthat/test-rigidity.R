@@ -15,7 +15,7 @@ rig_counts <- function(sample = "PN14_SID1259", donor = "Zd") {
 # (a) engine duration_rigidity --------------------------------------------------
 test_that("duration_rigidity expands each macro-state into r sub-states", {
   model <- nilHMM:::fit(list(n = 1L, a = 0L), emission_count(),
-                        duration_rigidity(5L, 0.01), design_priors("BC2S2"))
+                        duration_rigidity(5L, 0.01), nilHMM:::.state_freqs("BC2S2"))
   expect_equal(model$n_sub, 5L)
   expect_equal(length(model$log_start), 3L * 5L)   # 3 macro-states x r
 })
@@ -23,7 +23,7 @@ test_that("duration_rigidity expands each macro-state into r sub-states", {
 test_that("duration_rigidity enforces the minimum run length (interior segments)", {
   counts <- rig_counts()
   obs   <- list(n = counts$n_ref + counts$n_alt, a = counts$n_alt)
-  model <- nilHMM:::fit(obs, emission_count(), duration_rigidity(8L, 0.01), design_priors("BC2S2"))
+  model <- nilHMM:::fit(obs, emission_count(), duration_rigidity(8L, 0.01), nilHMM:::.state_freqs("BC2S2"))
   path  <- nilHMM:::decode(model, obs)
   expect_true(all(path %in% 0:2))
   runs <- rle(path)$lengths

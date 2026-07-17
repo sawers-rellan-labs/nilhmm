@@ -6,7 +6,7 @@
 \usage{
 caller_sweep(
   data,
-  caller = c("rtiger", "bbnil", "lbimpute"),
+  caller = c("nnil", "bbnil", "rtiger", "lbimpute"),
   values,
   refit = c("none", "cold"),
   design = NULL,
@@ -31,8 +31,10 @@ caller_sweep(
 \item{data}{Common input: \verb{name, chr, pos, n_ref, n_alt} (+ optional \code{donor};
 \code{lbimpute} with \code{unit = "cm"} also needs a \code{cm} map-position column).}
 
-\item{caller}{\code{"rtiger"} (sweeps \code{rigidity}), \code{"bbnil"} (sweeps \code{rrate}), or
-\code{"lbimpute"} (sweeps \code{recombdist}).}
+\item{caller}{\code{"rtiger"} (sweeps \code{rigidity}), \code{"bbnil"} or \code{"nnil"} (both sweep
+\code{rrate}; \code{bbnil} = count/BetaBinomial emission on read counts, \code{nnil} =
+categorical genotype emission on a hard-called \code{g} column), or \code{"lbimpute"}
+(sweeps \code{recombdist}).}
 
 \item{values}{Parameter grid to sweep.}
 
