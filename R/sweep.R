@@ -27,8 +27,10 @@
 #'
 #' @param data Common input: `name, chr, pos, n_ref, n_alt` (+ optional `donor`;
 #'   `lbimpute` with `unit = "cm"` also needs a `cm` map-position column).
-#' @param caller `"rtiger"` (sweeps `rigidity`), `"bbnil"` (sweeps `rrate`), or
-#'   `"lbimpute"` (sweeps `recombdist`).
+#' @param caller `"rtiger"` (sweeps `rigidity`), `"bbnil"` or `"nnil"` (both sweep
+#'   `rrate`; `bbnil` = count/BetaBinomial emission on read counts, `nnil` =
+#'   categorical genotype emission on a hard-called `g` column), or `"lbimpute"`
+#'   (sweeps `recombdist`).
 #' @param values Parameter grid to sweep.
 #' @param refit `"none"` (fit once at `ref` and reuse -- exact at `ref`, a close
 #'   approximation elsewhere; recommended for calibration, as it isolates the
@@ -60,7 +62,7 @@
 #' @return A common-schema segment table with an added column named for the swept
 #'   parameter (`rigidity`, `rrate`, or `recombdist`) tagging each value's calls.
 #' @export
-caller_sweep <- function(data, caller = c("rtiger", "bbnil", "lbimpute"), values,
+caller_sweep <- function(data, caller = c("nnil", "bbnil", "rtiger", "lbimpute"), values,
                          refit = c("none", "cold"),
                          design = NULL, f_1 = NULL, f_2 = NULL, threads = 1L,
                          ref = NULL, min_reads = 1L, err = 0.01, conc = 20,
@@ -120,26 +122,36 @@ caller_sweep <- function(data, caller = c("rtiger", "bbnil", "lbimpute"), values
     return(do.call(rbind, segs))
   }
 
-  # ---------------- bbnil: per-sample emission + decode per rrate -------------
+  # ---- nnil (categorical gt) / bbnil (count): geometric caller, decode per rrate --
+  # Both are geometric-duration callers differing only in emission. nnil uses the
+  # categorical genotype-confusion emission on hard-called genotypes (a `g` column
+  # in {0,1,2,3}); bbnil uses the count/BetaBinomial emission on read counts.
+  # caller_spec() supplies the matching emission + duration for the requested caller.
+  is_gt <- caller == "nnil"
+  if (is_gt && !("g" %in% names(data)))
+    stop("caller_sweep(nnil): needs a hard-called `g` column (0/1/2/3). The ",
+         "categorical emission does not threshold read counts -- hard-call them ",
+         "first with call_gt().")
   priors <- if (!is.null(design)) design_priors(design)
             else if (!is.null(f_1) && !is.null(f_2)) list(f_1 = f_1, f_2 = f_2)
-            else stop("caller_sweep(bbnil): supply `design` or both `f_1`, `f_2`")
-  emission <- emission_count(err, conc, fit_means)
-  theta0 <- .emission_theta(emission)
+            else stop("caller_sweep(", caller, "): supply `design` or both `f_1`, `f_2`")
+  spec_of <- function(v) caller_spec(caller, rrate = v, err = err, conc = conc, fit_means = fit_means)
   ref_rrate <- if (is.null(ref)) stats::median(values) else ref
-  td_of <- function(v) .duration_transition(
-    caller_spec("bbnil", rrate = v, err = err, conc = conc, fit_means = fit_means)$duration, priors)
+  emission <- spec_of(ref_rrate)$emission  # rrate-independent; gt emission ignores theta
+  theta0 <- .emission_theta(emission)      # NA for the categorical (gt) emission
+  td_of <- function(v) .duration_transition(spec_of(v)$duration, priors)
   by_name <- split(data, data$name, drop = TRUE)
 
   # Phase 1 (parallel): per-sample chains + (for none/warm) a reference emission
   # fit at ref_rrate. Fixed-means needs no fit; cold refits per value in phase 2.
   td_ref <- td_of(ref_rrate)
-  need_ref <- isTRUE(fit_means) && refit == "none"
+  need_ref <- isTRUE(fit_means) && refit == "none" && !is_gt   # gt has no means to fit
   samples <- fan(names(by_name), function(nm) {
     dn <- by_name[[nm]]
     obs_list <- lapply(split(dn, dn$chr, drop = TRUE), function(dc) {
       dc <- dc[order(dc$pos), , drop = FALSE]
-      list(chr = dc$chr[1], pos = dc$pos, n = dc$n_ref + dc$n_alt, a = dc$n_alt)
+      list(chr = dc$chr[1], pos = dc$pos, n = dc$n_ref + dc$n_alt, a = dc$n_alt,
+           g = if ("g" %in% names(dc)) as.integer(dc$g) else NULL)
     })
     ref_theta <- if (need_ref) .em_fit_means(obs_list, emission, td_ref, theta0) else theta0
     list(name = nm, donor = if (has_donor) dn$donor[1] else donor,
@@ -159,7 +171,7 @@ caller_sweep <- function(data, caller = c("rtiger", "bbnil", "lbimpute"), values
   # that sort per value is byte-identical to a whole-cohort to_segments per value.
   seglist <- fan(seq_len(nrow(jobs)), function(j) {
     s <- samples[[jobs$si[j]]]; td <- tds[[jobs$vi[j]]]; v <- values[jobs$vi[j]]
-    theta <- if (!isTRUE(fit_means)) theta0            # fixed emission: rrate-independent (exact)
+    theta <- if (is_gt || !isTRUE(fit_means)) theta0   # gt / fixed-means: rrate-independent (exact)
              else if (refit == "none") s$ref_theta     # fit once at ref, reuse
              else .em_fit_means(s$obs_list, emission, td, theta0)   # cold: refit per value
     model <- structure(list(theta = theta, log_start = td$log_start,
