@@ -32,9 +32,9 @@ test_that("high depth: the data dominates any prior", {
 })
 
 test_that("numeric prior: design prior resists the low-depth het flip", {
-  # design_prior('BC2S3') = c(REF=.8594, HET=.0312, ALT=.1094): a single ALT read
+  # breeding_prior('BC2S3') = c(REF=.8594, HET=.0312, ALT=.1094): a single ALT read
   # is called hom-ALT (the tiny HET prior can't lift P1 above P2).
-  fp <- design_prior("BC2S3")
+  fp <- breeding_prior("BC2S3")
   expect_equal(unname(round(fp, 4)), c(0.8594, 0.0312, 0.1094))
   expect_equal(call_gt(0, 1, prior = fp), 2L)
   # an unnormalized vector is renormalized: c(2,2,2) == flat.

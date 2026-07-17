@@ -42,8 +42,11 @@ Numeric states: **0 = REF** (recurrent hom, e.g. B73), **1 = HET**, **2 = ALT**
   model with an explicit genotyping-error model: `germ, gert, p, mr, nir`).
 - **Duration** — `duration_geometric()`, `duration_rigidity()` (minimum-run-length
   prior), or `duration_hsmm()`.
-- **Design priors** — `design_priors()` sets the state frequencies (`f_1`, `f_2`)
-  from a breeding design (e.g. `"BC2S2"`).
+- **Design priors** — `single_locus_expectation("BCnSm")` propagates the
+  single-locus genotype-frequency vector through the backcross/selfing transition
+  matrices (any design, no lookup); `breeding_prior()` wraps it as the public
+  `c(REF, HET, ALT)` prior consumed by `call_gt()` and the engine's state
+  frequencies. (Internal `.state_freqs()` maps a design to the engine's `f_1`/`f_2`.)
 - **Engine** — `fit()` (EM / parameter fitting) then `decode()` (Viterbi /
   posteriors) → `to_segments()` (RLE to the common schema).
 
@@ -120,11 +123,12 @@ Data-agnostic helpers for the companion `zealhmm` QTL-mapping pipeline; they tak
 - `R/` — R layer. Entry `engine.R` (`call_ancestry`, `fit`, `decode`,
   `to_segments`); `callers.R` (`caller_spec` — per-caller definitions);
   `emissions.R` (`emission_count`/`emission_gt`); `duration.R` (`duration_*`);
-  `presets_design.R` (`design_priors`, `cm_to_mb`) / `presets_regime.R`
+  `breeding_design.R` (`single_locus_expectation`, `breeding_prior`,
+  `parse_design`) / `emission_regime.R`
   (`select_emission`); `io.R` (`read_counts`, `read_vcf_gt`); `calibrate.R`
   (`calibrate_r`); `sweep.R` (`caller_sweep`); `rtiger.R`, `binhmm.R`, `atlas.R`,
   `lbimpute.R`; `io.R` also holds `write_vcf_impute` (LB-Impute imputed-VCF output);
-  `map.R` (`load_map`, stub); `interpolate_genotype.R` (genotype densification);
+  `map.R` (`load_map`, `cm_to_mb` stub); `interpolate_genotype.R` (genotype densification);
   `pairwise_distance.R` / `select_independent.R` (LD marker thinning);
   `plot.R`, `nilHMM-package.R`, `RcppExports.R`.
 - `src/` — Rcpp engine: `emission_count.cpp`, `forward_backward.cpp`, `viterbi.cpp`,

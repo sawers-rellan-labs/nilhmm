@@ -38,7 +38,7 @@
 #'     is circular at low depth.}
 #'   \item{numeric `c(f_REF, f_HET, f_ALT)`}{A **fixed** genome-wide prior,
 #'     renormalized to sum 1. Covers both the **design** prior (a vector derived
-#'     from the cross -- see [design_prior()]) and an arbitrary **custom** prior;
+#'     from the cross -- see [breeding_prior()]) and an arbitrary **custom** prior;
 #'     the code path is identical.}
 #' }
 #' A length-3 numeric vector is genome-wide fixed -- it cannot express a per-marker
@@ -67,11 +67,11 @@
 #' # A single ALT read decided under four priors:
 #' call_gt(0, 1, prior = "flat")                 # 2 (hom-ALT, het-blind: argmax-GL)
 #' call_gt(0, 1, prior = "hwe", af = 0.30)        # 1 (HET, the het-excess control)
-#' call_gt(0, 1, prior = design_prior("BC2S3"))   # 2 (design prior resists the het flip)
+#' call_gt(0, 1, prior = breeding_prior("BC2S3"))   # 2 (design prior resists the het flip)
 #' call_gt(0, 1, prior = c(.98, .01, .01))        # custom fixed prior
 #' # High depth: the data dominates the prior.
 #' call_gt(0, 10, prior = "hwe", af = 0.05)       # 2
-#' @seealso [design_prior()], [interpolate_genotype()], [call_ancestry()]
+#' @seealso [breeding_prior()], [interpolate_genotype()], [call_ancestry()]
 #' @export
 call_gt <- function(n_ref, n_alt,
                     prior = "hwe",

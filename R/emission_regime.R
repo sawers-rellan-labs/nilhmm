@@ -1,5 +1,5 @@
-# Presets layer 2a: emission-by-depth regime (S5). Convenience/defaults on top
-# of the engine, NOT the engine. See docs/emission_by_depth_regime.
+# Emission-by-depth regime (S5). Convenience/defaults on top of the engine, NOT
+# the engine. See docs/emission_by_depth_regime.
 
 #' Select an emission model from sequencing depth
 #'

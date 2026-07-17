@@ -27,8 +27,9 @@ caller  =  emission model  ×  duration prior  +  design priors
 - **Duration** — the transition prior on run lengths:
   `duration_geometric()`, `duration_rigidity()` (minimum run length), or
   `duration_hsmm()`.
-- **Design priors** — `design_priors()` turns a breeding design into the state
-  frequencies (`f_1`, `f_2`).
+- **Design priors** — `breeding_prior()` turns a breeding design into the
+  genotype-frequency prior `c(REF, HET, ALT)`; the engine uses its `HET`/`ALT`
+  as the state frequencies `f_1`/`f_2`.
 
 This vignette drives the engine directly with `fit()` → `decode()` →
 `to_segments()`, which is exactly what `call_ancestry()` chains for you.
@@ -42,7 +43,7 @@ library(nilHMM)
 Each axis is a small constructor returning a spec:
 
 ```{r blocks}
-design_priors("BC2S2")     # state frequencies from the breeding design
+breeding_prior("BC2S2")    # genotype-freq prior c(REF, HET, ALT) from the design
 emission_count(err = 0.01, conc = 20)
 duration_geometric(rrate = 1e-4)
 ```
@@ -65,8 +66,9 @@ line  <- truth[truth$name == names(which.max(tapply(truth$state == 2L, truth$nam
 obs   <- simulate_counts(line, depth = 8, seed = 7)
 o     <- data.frame(n = obs$n_ref + obs$n_alt, a = obs$n_alt)    # fit()/decode(): n = depth, a = alt
 
-model <- fit(o, emission_count(err = 0.01),
-             duration_geometric(1e-4), priors = design_priors("BC2S2"))
+bp     <- breeding_prior("BC2S2")                                # c(REF, HET, ALT) from the design
+priors <- list(f_1 = bp[["HET"]], f_2 = bp[["ALT"]])             # the engine's state frequencies
+model  <- fit(o, emission_count(err = 0.01), duration_geometric(1e-4), priors = priors)
 rbind(simulated = line$state, decoded = decode(model, o))        # decode recovers the track
 ```
 
@@ -94,7 +96,7 @@ would otherwise emit as spurious one-marker segments.
 
 ```{r swap}
 rigid <- fit(o, emission_count(err = 0.01),
-             duration_rigidity(rigidity = 4L), priors = design_priors("BC2S2"))
+             duration_rigidity(rigidity = 4L), priors = priors)
 decode(rigid, o)
 ```
 

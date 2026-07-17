@@ -29,7 +29,7 @@ refine_ancestry(
 \code{mosaic} is a latent ancestor.}
 
 \item{design}{Breeding design \code{"BC{n}S{m}"} -> founder prior \code{pi_0} and
-per-node \code{meioses} (via \code{\link[=design_priors]{design_priors()}}).}
+per-node \code{meioses} (via \code{\link[=breeding_prior]{breeding_prior()}}).}
 
 \item{emission}{\code{"gt"} (depth-blind, over hard states) or \code{"count"}
 (depth-aware BetaBinomial over \code{n_ref}/\code{n_alt}).}

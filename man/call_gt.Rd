@@ -65,7 +65,7 @@ control -- a single ALT read is called HET. \code{af} supplies \code{p} per mark
 is circular at low depth.}
 \item{numeric \code{c(f_REF, f_HET, f_ALT)}}{A \strong{fixed} genome-wide prior,
 renormalized to sum 1. Covers both the \strong{design} prior (a vector derived
-from the cross -- see \code{\link[=design_prior]{design_prior()}}) and an arbitrary \strong{custom} prior;
+from the cross -- see \code{\link[=breeding_prior]{breeding_prior()}}) and an arbitrary \strong{custom} prior;
 the code path is identical.}
 }
 A length-3 numeric vector is genome-wide fixed -- it cannot express a per-marker
@@ -76,11 +76,11 @@ now.)
 # A single ALT read decided under four priors:
 call_gt(0, 1, prior = "flat")                 # 2 (hom-ALT, het-blind: argmax-GL)
 call_gt(0, 1, prior = "hwe", af = 0.30)        # 1 (HET, the het-excess control)
-call_gt(0, 1, prior = design_prior("BC2S3"))   # 2 (design prior resists the het flip)
+call_gt(0, 1, prior = breeding_prior("BC2S3"))   # 2 (design prior resists the het flip)
 call_gt(0, 1, prior = c(.98, .01, .01))        # custom fixed prior
 # High depth: the data dominates the prior.
 call_gt(0, 10, prior = "hwe", af = 0.05)       # 2
 }
 \seealso{
-\code{\link[=design_prior]{design_prior()}}, \code{\link[=interpolate_genotype]{interpolate_genotype()}}, \code{\link[=call_ancestry]{call_ancestry()}}
+\code{\link[=breeding_prior]{breeding_prior()}}, \code{\link[=interpolate_genotype]{interpolate_genotype()}}, \code{\link[=call_ancestry]{call_ancestry()}}
 }

@@ -51,12 +51,9 @@
 # Start distribution: design/f_1,f_2 only SEED the start (LB-Impute has no
 # state-frequency prior in its transition); absent, flat.
 .lbimpute_log_init <- function(design, f_1, f_2, ctx = "call_states") {
-  if (!is.null(design)) {
-    pr <- design_priors(design); log(c(1 - pr$f_1 - pr$f_2, pr$f_1, pr$f_2))
-  } else if (!is.null(f_1) && !is.null(f_2)) {
-    if (f_1 + f_2 >= 1) stop(ctx, "(): `f_1` + `f_2` must be < 1")
-    log(c(1 - f_1 - f_2, f_1, f_2))
-  } else log(rep(1 / 3, 3))
+  if (is.null(design) && (is.null(f_1) || is.null(f_2))) return(log(rep(1 / 3, 3)))
+  fs <- .state_freqs(design, f_1, f_2, ctx)
+  log(c(1 - fs$f_1 - fs$f_2, fs$f_1, fs$f_2))
 }
 
 # --- shared decode machinery ---------------------------------------------------
