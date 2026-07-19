@@ -167,7 +167,11 @@ fit <- function(obs, emission, duration, priors, control = list()) {
 #' @export
 decode <- function(model, obs) {
   em <- .expand_emission(.emission_loglik(model$emission, obs, model$theta), model$n_sub)
-  path <- viterbi_log_cpp(model$log_start, model$log_trans, em)
+  # GT (categorical) emissions tie structurally at missing/het positions; use the
+  # incumbent tie-break (keep the introgression, delay the switch back to REF) so
+  # the boundary matches Holland's hmmlearn nNIL caller. Count emissions never tie.
+  tb <- if (inherits(model$emission, "nilHMM_emission_gt")) 1L else 0L
+  path <- viterbi_log_cpp(model$log_start, model$log_trans, em, tie_break = tb)
   if (model$n_sub > 1L) path %/% model$n_sub else path
 }
 

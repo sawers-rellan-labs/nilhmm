@@ -416,15 +416,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // viterbi_log_cpp
-IntegerVector viterbi_log_cpp(NumericVector log_init, NumericMatrix log_trans, NumericMatrix log_emit);
-RcppExport SEXP _nilHMM_viterbi_log_cpp(SEXP log_initSEXP, SEXP log_transSEXP, SEXP log_emitSEXP) {
+IntegerVector viterbi_log_cpp(NumericVector log_init, NumericMatrix log_trans, NumericMatrix log_emit, int tie_break);
+RcppExport SEXP _nilHMM_viterbi_log_cpp(SEXP log_initSEXP, SEXP log_transSEXP, SEXP log_emitSEXP, SEXP tie_breakSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< NumericVector >::type log_init(log_initSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type log_trans(log_transSEXP);
     Rcpp::traits::input_parameter< NumericMatrix >::type log_emit(log_emitSEXP);
-    rcpp_result_gen = Rcpp::wrap(viterbi_log_cpp(log_init, log_trans, log_emit));
+    Rcpp::traits::input_parameter< int >::type tie_break(tie_breakSEXP);
+    rcpp_result_gen = Rcpp::wrap(viterbi_log_cpp(log_init, log_trans, log_emit, tie_break));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -486,7 +487,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_rtiger_fit_cpp", (DL_FUNC) &_nilHMM_rtiger_fit_cpp, 9},
     {"_nilHMM_rle_segments_cpp", (DL_FUNC) &_nilHMM_rle_segments_cpp, 2},
     {"_nilHMM_rle_segments_batch_cpp", (DL_FUNC) &_nilHMM_rle_segments_batch_cpp, 2},
-    {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 3},
+    {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 4},
     {"_nilHMM_viterbi_batch_cpp", (DL_FUNC) &_nilHMM_viterbi_batch_cpp, 4},
     {"_nilHMM_viterbi_batch_par_cpp", (DL_FUNC) &_nilHMM_viterbi_batch_par_cpp, 4},
     {NULL, NULL, 0}
