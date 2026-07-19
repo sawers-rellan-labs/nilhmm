@@ -15,12 +15,23 @@ using namespace Rcpp;
 //' @param log_trans K x K matrix of log transition probabilities
 //'   (row = from-state, column = to-state).
 //' @param log_emit T x K matrix of log emission probabilities per marker/state.
+//' @param tie_break Backpointer tie policy for exactly equal predecessor scores:
+//'   `0` (default) keeps the FIRST (lowest-index) predecessor; `1` ("incumbent")
+//'   keeps the LAST (highest-index) predecessor. With categorical/GT emissions,
+//'   emission-degenerate positions (missing genotype -> all states equal; het ->
+//'   REF and donor equal) make the segment boundary a genuine tie; because the
+//'   introgression states outrank REF, `tie_break = 1` keeps the introgression and
+//'   delays the switch back to REF, matching the intent of Holland's `hmmlearn`
+//'   nNIL caller. Count (BetaBinomial) emissions essentially never tie, so this is
+//'   a no-op for them. Only the transition backpointer honours this; the terminal
+//'   argmax keeps the first max (as `numpy.argmax`).
 //' @return Integer length-T most-likely state path, 0-indexed.
 //' @keywords internal
 // [[Rcpp::export]]
 IntegerVector viterbi_log_cpp(NumericVector log_init,
                               NumericMatrix log_trans,
-                              NumericMatrix log_emit) {
+                              NumericMatrix log_emit,
+                              int tie_break = 0) {
   const int T = log_emit.nrow();
   const int K = log_emit.ncol();
   if (log_init.size() != K)
@@ -39,13 +50,16 @@ IntegerVector viterbi_log_cpp(NumericVector log_init,
     psi(0, k) = 0;
   }
 
+  const bool incumbent = (tie_break == 1);
   for (int t = 1; t < T; ++t) {
     for (int k = 0; k < K; ++k) {
       double best = R_NegInf;
       int arg = 0;
       for (int j = 0; j < K; ++j) {
         double v = delta(t - 1, j) + log_trans(j, k);
-        if (v > best) { best = v; arg = j; }
+        // tie_break 0: strict '>' keeps the first (lowest j) on ties.
+        // tie_break 1: '>=' lets the last (highest j) win ties -> keep incumbent.
+        if (v > best || (incumbent && v == best)) { best = v; arg = j; }
       }
       delta(t, k) = best + log_emit(t, k);
       psi(t, k) = arg;
