@@ -1,4 +1,4 @@
-# GOOGA / ATLAS callers -- per-gene ancestry from COMPETITIVE ALIGNMENT read
+# googa / atlas callers -- per-gene ancestry from COMPETITIVE ALIGNMENT read
 # counts to the two parents (recurrent vs donor transcriptomes; the cassini
 # pipeline produces these). NOT a SNP/dosage caller and NOT the count/BetaBinomial
 # mean model -- RNA read counts are expression-driven and the allele fraction is

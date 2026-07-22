@@ -51,6 +51,28 @@ The four grid callers are the pure (emission × duration) cells: `nnil` (gt +
 geometric), `bbnil` (count + geometric), `catiger` (gt + rigidity), `rtiger`
 (count + rigidity).
 
+### Casing: the lowercase caller vs. its namesake
+
+Caller identifiers are **always lowercase** — in code, and set in **fixed-width font**
+in the paper (`\texttt{}`): `nnil`, `bbnil`, `catiger`, `rtiger`, `googa`, `atlas`,
+`binhmm`, `lbimpute`, `fsfhap`, `pedigree` (and the genotype caller `call_gt`).
+Lowercase always means **the method as implemented in this package** (this engine's
+emission × duration cell), never anything external.
+
+A capitalized / display form refers to something **different** — the external namesake
+or the population, not our caller:
+
+- `nnil` = our caller (the ported Holland nested-NIL HMM). **nNIL** = the *population*
+  (Holland's nested near-isogenic lines). Never write `nNIL` for the caller.
+- `rtiger` = the caller as implemented here (the Julia-free port). **RTIGER** = the
+  *original algorithm and its Julia implementation* (Rowan et al.).
+- The same rule extends to any caller with an upstream namesake, e.g. `googa` (our port)
+  vs. GOOGA (the original Flagel/Veltsos method). Callers introduced by this work
+  (`bbnil`, `catiger`, `atlas`) have no separate namesake and are only ever lowercase.
+
+So `nnil`/`rtiger`/`googa` name what runs in this package; `nNIL` names a population and
+`RTIGER`/GOOGA name upstream algorithms.
+
 `call_gt()` (flat prior = maximum likelihood; HWE prior = MAP / het-excess) is a
 **genotype** caller, **not** an ancestry caller — it is not in this table and not
 dispatchable through `call_ancestry()`. The genotype-vs-mosaic wall below is why:

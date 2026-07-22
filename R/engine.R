@@ -59,7 +59,7 @@
 # --- internal: run-length-encode a state path into common-schema segments ----
 # Boundaries where the state changes; start_bp/end_bp = first/last marker
 # position of each contiguous run (same convention as the Python rle_segments
-# and the RTIGER segments).
+# and the rtiger segments).
 .rle_segments <- function(path, pos, chr, name, source, donor) {
   if (length(path) == 0) return(NULL)
   r <- rle_segments_cpp(as.integer(path), as.integer(pos))   # boundaries in C++
@@ -251,9 +251,9 @@ decode <- function(model, obs) {
 #'   ([parallel::mclapply()], unix only; identical results to `threads = 1L`).
 #'   `lbimpute`: per-(name, chr) decode fan-out. Other callers ignore it (use
 #'   `parallel` for the batched count path).
-#' @param seed RTIGER caller only: the seed for its randomized init.
-#' @param postprocess RTIGER caller only: apply the border re-placement (default TRUE).
-#' @param rtiger_fit `rtiger` caller only: a pre-computed RTIGER fit from
+#' @param seed `rtiger` caller only: the seed for its randomized init.
+#' @param postprocess `rtiger` caller only: apply the border re-placement (default TRUE).
+#' @param rtiger_fit `rtiger` caller only: a pre-computed rtiger fit from
 #'   [fit_rtiger()], reused across per-chromosome decodes to avoid re-fitting
 #'   (low-memory decode-reuse path). `NULL` (default) fits once internally.
 #' @param min_reads Minimum read depth to keep a marker before decoding (default
@@ -495,7 +495,7 @@ call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "
       stop("call_states(): no markers with >= min_reads reads (", min_reads, ")")
   }
 
-  # RTIGER caller: its own EM/Viterbi (src/rtiger.cpp, R/rtiger.R) — a faithful
+  # rtiger caller: its own EM/Viterbi (src/rtiger.cpp, R/rtiger.R) — a faithful
   # port of the RTIGER fork, not the count engine. `r` is the integer rigidity;
   # `postprocess` applies the border re-placement (on by default, as RTIGER does).
   if (caller == "rtiger") {
@@ -547,7 +547,7 @@ call_states <- function(data, caller = c("nnil", "bbnil", "catiger", "rtiger", "
                             source, donor, has_donor, tcol, threads))
   }
 
-  # GOOGA / ATLAS callers (R/atlas.R): per-gene ancestry from competitive-alignment
+  # googa / atlas callers (R/atlas.R): per-gene ancestry from competitive-alignment
   # read counts (n_ref = recurrent, n_alt = donor; ambiguous excluded upstream by
   # the cassini pipeline). These are the ONLY callers that hard-call read counts,
   # and they do it explicitly by GOOGA's defined fraction thresholds + a min-read
