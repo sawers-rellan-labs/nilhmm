@@ -1,4 +1,4 @@
-# RTIGER driver: thin R orchestration over the Rcpp port in src/rtiger.cpp.
+# rtiger driver: thin R orchestration over the Rcpp port in src/rtiger.cpp.
 # The entire EM fit (E-step + M-steps + Brent emission + convergence loop) lives
 # in C++ (rtiger_fit_cpp), faithfully reproducing the fork's fit/EM
 # (rHMM_methods.jl). This R layer only builds the per-chain (k, n) observations
@@ -20,7 +20,7 @@
   list(ks = ks_list, ns = ns_list)
 }
 
-# Fit RTIGER parameters by the full C++ EM. Returns list(A, pi, alpha, beta, iterations).
+# Fit rtiger parameters by the full C++ EM. Returns list(A, pi, alpha, beta, iterations).
 # `threads` parallelizes the per-chain E-step (RcppParallel); result is
 # deterministic for a fixed thread count (Viterbi-identical to threads=1).
 # RTIGER's randomized emission init (generate_params, randomize=TRUE): jitter the
@@ -148,9 +148,9 @@
 }
 
 # call_ancestry(caller="rtiger") backend: build (k,n) observations from the
-# common input, fit + decode the faithful RTIGER, remap states
+# common input, fit + decode the faithful RTIGER port, remap states
 # [pat,het,mat]=(1,2,3) -> common [REF,HET,ALT]=(0,1,2) via state-1, and RLE to
-# the common segment schema. RTIGER fits across all samples in `data` (the
+# the common segment schema. rtiger fits across all samples in `data` (the
 # consumer groups per taxon). No post-processing yet (separate item).
 # Build the per-(sample, chr) (k = ref, n = total) observations, positions, and
 # donor labels from the common input. Shared by the single call and caller_sweep.
@@ -183,7 +183,7 @@
   }))
   if (length(short))
     stop(sprintf(
-      "rtiger: %d (sample, chromosome) chain(s) below 2*rigidity = %d covered markers (RTIGER requires >= that). Offenders%s:\n  %s",
+      "rtiger: %d (sample, chromosome) chain(s) below 2*rigidity = %d covered markers (rtiger requires >= that). Offenders%s:\n  %s",
       length(short), floor_n, if (length(short) > 10L) " (first 10)" else "",
       paste(utils::head(short, 10L), collapse = "\n  ")), call. = FALSE)
 }
@@ -214,7 +214,7 @@
   .rtiger_assemble(o$obs, o$pos, paths, o$donor_of, source)
 }
 
-#' Fit the RTIGER emission once (to reuse across per-chromosome decodes)
+#' Fit the rtiger emission once (to reuse across per-chromosome decodes)
 #'
 #' Fits the faithful RTIGER EM (emission alpha/beta + transition) on ALL chains in
 #' `data` (samples x chromosomes) and returns the fit, to be passed as
@@ -228,7 +228,7 @@
 #'   [call_states()]. Filter to covered markers upstream if using `min_reads`.
 #' @param rigidity Integer RTIGER minimum run length.
 #' @param threads,seed Passed to the fit (RcppParallel E-step; seeded init).
-#' @return An RTIGER fit `list(A, pi, alpha, beta, iterations)`.
+#' @return An rtiger fit `list(A, pi, alpha, beta, iterations)`.
 #' @seealso [call_states()]
 #' @export
 fit_rtiger <- function(data, rigidity, threads = 1L, seed = 1L) {
