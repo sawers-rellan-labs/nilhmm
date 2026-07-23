@@ -457,6 +457,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// viterbi_sweep_cpp
+IntegerMatrix viterbi_sweep_cpp(NumericVector log_init, NumericMatrix log_emit, std::string mode, Nullable<List> trans_list, Nullable<NumericVector> tpos, Nullable<NumericVector> recombdists, bool drp, int tie_break);
+RcppExport SEXP _nilHMM_viterbi_sweep_cpp(SEXP log_initSEXP, SEXP log_emitSEXP, SEXP modeSEXP, SEXP trans_listSEXP, SEXP tposSEXP, SEXP recombdistsSEXP, SEXP drpSEXP, SEXP tie_breakSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericVector >::type log_init(log_initSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type log_emit(log_emitSEXP);
+    Rcpp::traits::input_parameter< std::string >::type mode(modeSEXP);
+    Rcpp::traits::input_parameter< Nullable<List> >::type trans_list(trans_listSEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericVector> >::type tpos(tposSEXP);
+    Rcpp::traits::input_parameter< Nullable<NumericVector> >::type recombdists(recombdistsSEXP);
+    Rcpp::traits::input_parameter< bool >::type drp(drpSEXP);
+    Rcpp::traits::input_parameter< int >::type tie_break(tie_breakSEXP);
+    rcpp_result_gen = Rcpp::wrap(viterbi_sweep_cpp(log_init, log_emit, mode, trans_list, tpos, recombdists, drp, tie_break));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_count_emission_loglik_cpp", (DL_FUNC) &_nilHMM_count_emission_loglik_cpp, 4},
@@ -490,6 +508,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_nilHMM_viterbi_log_cpp", (DL_FUNC) &_nilHMM_viterbi_log_cpp, 4},
     {"_nilHMM_viterbi_batch_cpp", (DL_FUNC) &_nilHMM_viterbi_batch_cpp, 4},
     {"_nilHMM_viterbi_batch_par_cpp", (DL_FUNC) &_nilHMM_viterbi_batch_par_cpp, 4},
+    {"_nilHMM_viterbi_sweep_cpp", (DL_FUNC) &_nilHMM_viterbi_sweep_cpp, 8},
     {NULL, NULL, 0}
 };
 

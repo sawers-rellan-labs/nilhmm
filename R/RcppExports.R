@@ -544,3 +544,28 @@ viterbi_batch_par_cpp <- function(log_init, log_trans, em_uniq, inv) {
     .Call(`_nilHMM_viterbi_batch_par_cpp`, log_init, log_trans, em_uniq, inv)
 }
 
+#' Batched Viterbi over a transition grid, shared (fixed) emission
+#'
+#' @param log_init Length-S log initial-state probabilities.
+#' @param log_emit T x S log emissions (fixed across the transition grid).
+#' @param mode `"const"` (time-homogeneous; one S x S matrix per grid value via
+#'   `trans_list`) or `"distance"` (LB-Impute per-gap transition; 3 states, via
+#'   `tpos` + `recombdists` + `drp`).
+#' @param trans_list `"const"` mode: a length-V list of S x S log-transition
+#'   matrices (row = from, col = to), one per grid value.
+#' @param tpos,recombdists,drp `"distance"` mode: non-decreasing length-T
+#'   coordinate, the length-V recombdist grid (same units), and the
+#'   double-recombination penalty flag. Ignored in `"const"` mode.
+#' @param tie_break Transition-backpointer tie policy, `"const"` mode only (see
+#'   [viterbi_log_cpp()]): `0` (default) keeps the first (lowest-index)
+#'   predecessor; `1` ("incumbent") keeps the last, needed to match the GT/nnil
+#'   decode where emission-degenerate positions (missing / het) tie. `"distance"`
+#'   mode is always strict-first (byte-identical to `lb_viterbi_sweep_cpp`).
+#' @return A T x V integer matrix of 0-indexed state paths; column k is the decode
+#'   at grid value k. Terminal argmax always keeps the first max (as
+#'   `numpy.argmax`).
+#' @keywords internal
+viterbi_sweep_cpp <- function(log_init, log_emit, mode, trans_list = NULL, tpos = NULL, recombdists = NULL, drp = FALSE, tie_break = 0L) {
+    .Call(`_nilHMM_viterbi_sweep_cpp`, log_init, log_emit, mode, trans_list, tpos, recombdists, drp, tie_break)
+}
+
