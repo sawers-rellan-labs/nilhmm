@@ -54,10 +54,14 @@ Numeric states: **0 = REF** (recurrent hom, e.g. B73), **1 = HET**, **2
   [`duration_rigidity()`](https://sawers-rellan-labs.github.io/nilhmm/reference/duration_rigidity.md)
   (minimum-run-length prior), or
   [`duration_hsmm()`](https://sawers-rellan-labs.github.io/nilhmm/reference/duration_hsmm.md).
-- **Design priors** —
-  [`design_priors()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_priors.md)
-  sets the state frequencies (`f_1`, `f_2`) from a breeding design
-  (e.g. `"BC2S2"`).
+- **Design priors** — `single_locus_expectation("BCnSm")` propagates the
+  single-locus genotype-frequency vector through the backcross/selfing
+  transition matrices (any design, no lookup);
+  [`breeding_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/breeding_prior.md)
+  wraps it as the public `c(REF, HET, ALT)` prior consumed by
+  [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md)
+  and the engine’s state frequencies. (Internal `.state_freqs()` maps a
+  design to the engine’s `f_1`/`f_2`.)
 - **Engine** —
   [`fit()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fit.md)
   (EM / parameter fitting) then
@@ -158,12 +162,13 @@ they take `(data, params)` like everything else and hold no paths:
 - `R/` — R layer. Entry `engine.R` (`call_ancestry`, `fit`, `decode`,
   `to_segments`); `callers.R` (`caller_spec` — per-caller definitions);
   `emissions.R` (`emission_count`/`emission_gt`); `duration.R`
-  (`duration_*`); `presets_design.R` (`design_priors`, `cm_to_mb`) /
-  `presets_regime.R` (`select_emission`); `io.R` (`read_counts`,
-  `read_vcf_gt`); `calibrate.R` (`calibrate_r`); `sweep.R`
-  (`caller_sweep`); `rtiger.R`, `binhmm.R`, `atlas.R`, `lbimpute.R`;
-  `io.R` also holds `write_vcf_impute` (LB-Impute imputed-VCF output);
-  `map.R` (`load_map`, stub); `interpolate_genotype.R` (genotype
+  (`duration_*`); `breeding_design.R` (`single_locus_expectation`,
+  `breeding_prior`, `parse_design`) / `emission_regime.R`
+  (`select_emission`); `io.R` (`read_counts`, `read_vcf_gt`);
+  `calibrate.R` (`calibrate_r`); `sweep.R` (`caller_sweep`); `rtiger.R`,
+  `binhmm.R`, `atlas.R`, `lbimpute.R`; `io.R` also holds
+  `write_vcf_impute` (LB-Impute imputed-VCF output); `map.R`
+  (`load_map`, `cm_to_mb` stub); `interpolate_genotype.R` (genotype
   densification); `pairwise_distance.R` / `select_independent.R` (LD
   marker thinning); `plot.R`, `nilHMM-package.R`, `RcppExports.R`.
 - `src/` — Rcpp engine: `emission_count.cpp`, `forward_backward.cpp`,
@@ -215,8 +220,9 @@ they take `(data, params)` like everything else and hold no paths:
 - `rtiger` is a **Julia-free** port (no Julia needed); `rebmix` is an
   optional `Suggests` (bit-exact `binhmm` clustering reproduction only).
 - [`load_map()`](https://sawers-rellan-labs.github.io/nilhmm/reference/load_map.md)
-  is currently a **stub** (Task 4) — the bundled B73 v5 consensus map is
-  not yet wired in.
+  returns the bundled B73 v5 consensus map (`maize_map_v5`); the cM↔︎bp
+  Marey-spline interpolators (`bp_to_cm`/`cm_to_bp`/`cm_to_mb`) default
+  to it and accept any `chr/bp/cm` map.
 
 ## Related
 

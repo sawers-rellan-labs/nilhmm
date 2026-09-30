@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -46,7 +46,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">viterbi_log_cpp</span><span class="op">(</span><span class="va">log_init</span>, <span class="va">log_trans</span>, <span class="va">log_emit</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">viterbi_log_cpp</span><span class="op">(</span><span class="va">log_init</span>, <span class="va">log_trans</span>, <span class="va">log_emit</span>, tie_break <span class="op">=</span> <span class="fl">0L</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -64,6 +64,19 @@
 
 <dt id="arg-log-emit">log_emit<a class="anchor" aria-label="anchor" href="#arg-log-emit"></a></dt>
 <dd><p>T x K matrix of log emission probabilities per marker/state.</p></dd>
+
+
+<dt id="arg-tie-break">tie_break<a class="anchor" aria-label="anchor" href="#arg-tie-break"></a></dt>
+<dd><p>Backpointer tie policy for exactly equal predecessor scores:
+<code>0</code> (default) keeps the FIRST (lowest-index) predecessor; <code>1</code> ("incumbent")
+keeps the LAST (highest-index) predecessor. With categorical/GT emissions,
+emission-degenerate positions (missing genotype -&gt; all states equal; het -&gt;
+REF and donor equal) make the segment boundary a genuine tie; because the
+introgression states outrank REF, <code>tie_break = 1</code> keeps the introgression and
+delays the switch back to REF, matching the intent of Holland's <code>hmmlearn</code>
+nNIL caller. Count (BetaBinomial) emissions essentially never tie, so this is
+a no-op for them. Only the transition backpointer honours this; the terminal
+argmax keeps the first max (as <code>numpy.argmax</code>).</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -293,17 +293,24 @@
 
       <dl><dt>
 
-          <code><a href="design_priors.html">design_priors()</a></code>
+          <code><a href="breeding_prior.html">breeding_prior()</a></code>
 
         </dt>
-        <dd>Single-locus genotype-frequency priors for a breeding design</dd>
+        <dd>Genotype-frequency prior implied by a breeding design</dd>
 
         <dt>
 
-          <code><a href="design_prior.html">design_prior()</a></code>
+          <code><a href="single_locus_expectation.html">single_locus_expectation()</a></code>
 
         </dt>
-        <dd>Design prior as a length-3 genotype-frequency vector</dd>
+        <dd>Single-locus (Mendelian) genotype expectation for a breeding design</dd>
+
+        <dt>
+
+          <code><a href="parse_design.html">parse_design()</a></code>
+
+        </dt>
+        <dd>Parse a <code>"BCnSm"</code> breeding-design string into its generation counts</dd>
 
         <dt>
 
@@ -331,7 +338,14 @@
           <code><a href="cm_to_mb.html">cm_to_mb()</a></code>
 
         </dt>
-        <dd>Convert segment sizes from cM to Mb using a map</dd>
+        <dd>Project segment cM coordinates to physical Mb</dd>
+
+        <dt>
+
+          <code><a href="map_interpolators.html">bp_to_cm()</a></code> <code><a href="map_interpolators.html">cm_to_bp()</a></code>
+
+        </dt>
+        <dd>Map interpolators: physical &lt;-&gt; genetic position</dd>
       </dl></div><div class="section level2">
       <h2 id="simulation-maps">Simulation &amp; maps<a class="anchor" aria-label="anchor" href="#simulation-maps"></a></h2>
 

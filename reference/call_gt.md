@@ -89,7 +89,7 @@ The prior *is* the argument. `prior` is polymorphic:
 
   A **fixed** genome-wide prior, renormalized to sum 1. Covers both the
   **design** prior (a vector derived from the cross – see
-  [`design_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_prior.md))
+  [`breeding_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/breeding_prior.md))
   and an arbitrary **custom** prior; the code path is identical.
 
 A length-3 numeric vector is genome-wide fixed – it cannot express a
@@ -98,7 +98,7 @@ later; out of scope now.)
 
 ## See also
 
-[`design_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_prior.md),
+[`breeding_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/breeding_prior.md),
 [`interpolate_genotype()`](https://sawers-rellan-labs.github.io/nilhmm/reference/interpolate_genotype.md),
 [`call_ancestry()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_ancestry.md)
 
@@ -110,7 +110,7 @@ call_gt(0, 1, prior = "flat")                 # 2 (hom-ALT, het-blind: argmax-GL
 #> [1] 2
 call_gt(0, 1, prior = "hwe", af = 0.30)        # 1 (HET, the het-excess control)
 #> [1] 1
-call_gt(0, 1, prior = design_prior("BC2S3"))   # 2 (design prior resists the het flip)
+call_gt(0, 1, prior = breeding_prior("BC2S3"))   # 2 (design prior resists the het flip)
 #> [1] 2
 call_gt(0, 1, prior = c(.98, .01, .01))        # custom fixed prior
 #> [1] 2

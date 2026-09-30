@@ -213,7 +213,7 @@ caller shortcut.
 [`duration_geometric()`](https://sawers-rellan-labs.github.io/nilhmm/reference/duration_geometric.md),
 [`duration_rigidity()`](https://sawers-rellan-labs.github.io/nilhmm/reference/duration_rigidity.md),
 [`duration_hsmm()`](https://sawers-rellan-labs.github.io/nilhmm/reference/duration_hsmm.md),
-[`design_priors()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_priors.md),
+`design_priors()`,
 [`fit()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fit.md),
 [`decode()`](https://sawers-rellan-labs.github.io/nilhmm/reference/decode.md)
 (engine internals);

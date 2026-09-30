@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -64,7 +64,7 @@
 <li>
 <strong>Duration</strong> — <code><a href="reference/duration_geometric.html">duration_geometric()</a></code>, <code><a href="reference/duration_rigidity.html">duration_rigidity()</a></code> (minimum-run-length prior), or <code><a href="reference/duration_hsmm.html">duration_hsmm()</a></code>.</li>
 <li>
-<strong>Design priors</strong> — <code><a href="reference/design_priors.html">design_priors()</a></code> sets the state frequencies (<code>f_1</code>, <code>f_2</code>) from a breeding design (e.g. <code>"BC2S2"</code>).</li>
+<strong>Design priors</strong> — <code>single_locus_expectation("BCnSm")</code> propagates the single-locus genotype-frequency vector through the backcross/selfing transition matrices (any design, no lookup); <code><a href="reference/breeding_prior.html">breeding_prior()</a></code> wraps it as the public <code>c(REF, HET, ALT)</code> prior consumed by <code><a href="reference/call_gt.html">call_gt()</a></code> and the engine’s state frequencies. (Internal <code>.state_freqs()</code> maps a design to the engine’s <code>f_1</code>/<code>f_2</code>.)</li>
 <li>
 <strong>Engine</strong> — <code><a href="reference/fit.html">fit()</a></code> (EM / parameter fitting) then <code><a href="reference/decode.html">decode()</a></code> (Viterbi / posteriors) → <code><a href="reference/to_segments.html">to_segments()</a></code> (RLE to the common schema).</li>
 </ul><div class="section level3">
@@ -146,7 +146,7 @@
 <div class="section level2">
 <h2 id="repository-layout">Repository layout<a class="anchor" aria-label="anchor" href="#repository-layout"></a></h2>
 <ul><li>
-<code>R/</code> — R layer. Entry <code>engine.R</code> (<code>call_ancestry</code>, <code>fit</code>, <code>decode</code>, <code>to_segments</code>); <code>callers.R</code> (<code>caller_spec</code> — per-caller definitions); <code>emissions.R</code> (<code>emission_count</code>/<code>emission_gt</code>); <code>duration.R</code> (<code>duration_*</code>); <code>presets_design.R</code> (<code>design_priors</code>, <code>cm_to_mb</code>) / <code>presets_regime.R</code> (<code>select_emission</code>); <code>io.R</code> (<code>read_counts</code>, <code>read_vcf_gt</code>); <code>calibrate.R</code> (<code>calibrate_r</code>); <code>sweep.R</code> (<code>caller_sweep</code>); <code>rtiger.R</code>, <code>binhmm.R</code>, <code>atlas.R</code>, <code>lbimpute.R</code>; <code>io.R</code> also holds <code>write_vcf_impute</code> (LB-Impute imputed-VCF output); <code>map.R</code> (<code>load_map</code>, stub); <code>interpolate_genotype.R</code> (genotype densification); <code>pairwise_distance.R</code> / <code>select_independent.R</code> (LD marker thinning); <code>plot.R</code>, <code>nilHMM-package.R</code>, <code>RcppExports.R</code>.</li>
+<code>R/</code> — R layer. Entry <code>engine.R</code> (<code>call_ancestry</code>, <code>fit</code>, <code>decode</code>, <code>to_segments</code>); <code>callers.R</code> (<code>caller_spec</code> — per-caller definitions); <code>emissions.R</code> (<code>emission_count</code>/<code>emission_gt</code>); <code>duration.R</code> (<code>duration_*</code>); <code>breeding_design.R</code> (<code>single_locus_expectation</code>, <code>breeding_prior</code>, <code>parse_design</code>) / <code>emission_regime.R</code> (<code>select_emission</code>); <code>io.R</code> (<code>read_counts</code>, <code>read_vcf_gt</code>); <code>calibrate.R</code> (<code>calibrate_r</code>); <code>sweep.R</code> (<code>caller_sweep</code>); <code>rtiger.R</code>, <code>binhmm.R</code>, <code>atlas.R</code>, <code>lbimpute.R</code>; <code>io.R</code> also holds <code>write_vcf_impute</code> (LB-Impute imputed-VCF output); <code>map.R</code> (<code>load_map</code>, <code>cm_to_mb</code> stub); <code>interpolate_genotype.R</code> (genotype densification); <code>pairwise_distance.R</code> / <code>select_independent.R</code> (LD marker thinning); <code>plot.R</code>, <code>nilHMM-package.R</code>, <code>RcppExports.R</code>.</li>
 <li>
 <code>src/</code> — Rcpp engine: <code>emission_count.cpp</code>, <code>forward_backward.cpp</code>, <code>viterbi.cpp</code>, <code>viterbi_batch.cpp</code>, <code>viterbi_batch_par.cpp</code> (RcppParallel/TBB), <code>segments.cpp</code> (RLE), <code>rtiger.cpp</code>, <code>lbimpute.cpp</code> (LB-Impute emission + distance-aware Viterbi), <code>interpolate_genotype.cpp</code>, <code>fast_indep.cpp</code> (FastIndep port), <code>pairwise_distance.cpp</code> (r2/MI/VI), plus generated <code>RcppExports.cpp</code> and <code>Makevars</code>.</li>
 <li>
@@ -175,7 +175,7 @@
 <li>
 <code>rtiger</code> is a <strong>Julia-free</strong> port (no Julia needed); <code>rebmix</code> is an optional <code>Suggests</code> (bit-exact <code>binhmm</code> clustering reproduction only).</li>
 <li>
-<code><a href="reference/load_map.html">load_map()</a></code> is currently a <strong>stub</strong> (Task 4) — the bundled B73 v5 consensus map is not yet wired in.</li>
+<code><a href="reference/load_map.html">load_map()</a></code> returns the bundled B73 v5 consensus map (<code>maize_map_v5</code>); the cM↔︎bp Marey-spline interpolators (<code>bp_to_cm</code>/<code>cm_to_bp</code>/<code>cm_to_mb</code>) default to it and accept any <code>chr/bp/cm</code> map.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="related">Related<a class="anchor" aria-label="anchor" href="#related"></a></h2>

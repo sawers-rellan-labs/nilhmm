@@ -15,7 +15,7 @@ are in Rcpp."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -97,7 +97,7 @@ reader (for <code>count</code>: columns <code>n</code>, <code>a</code>).</p></dd
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Per-(sample, chromosome) count obs: n = depth, a = alt count.</span></span></span>
 <span class="r-in"><span><span class="va">obs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">9</span>, <span class="fl">11</span>, <span class="fl">8</span>, <span class="fl">12</span><span class="op">)</span>, a <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">1</span>, <span class="fl">4</span>, <span class="fl">6</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu">fit</span><span class="op">(</span><span class="va">obs</span>, <span class="fu"><a href="emission_count.html">emission_count</a></span><span class="op">(</span><span class="op">)</span>, <span class="fu"><a href="duration_geometric.html">duration_geometric</a></span><span class="op">(</span><span class="fl">1e-4</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>             priors <span class="op">=</span> <span class="fu"><a href="design_priors.html">design_priors</a></span><span class="op">(</span><span class="st">"BC2S2"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>             priors <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>f_1 <span class="op">=</span> <span class="fl">0.0625</span>, f_2 <span class="op">=</span> <span class="fl">0.0938</span><span class="op">)</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

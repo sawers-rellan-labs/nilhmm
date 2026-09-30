@@ -97,11 +97,16 @@ A linkage-free genotype caller and helpers for the QTL-mapping pipeline
 
 Breeding-design priors, the fragment-size Null, and r calibration.
 
-- [`design_priors()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_priors.md)
-  : Single-locus genotype-frequency priors for a breeding design
+- [`breeding_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/breeding_prior.md)
+  : Genotype-frequency prior implied by a breeding design
 
-- [`design_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_prior.md)
-  : Design prior as a length-3 genotype-frequency vector
+- [`single_locus_expectation()`](https://sawers-rellan-labs.github.io/nilhmm/reference/single_locus_expectation.md)
+  : Single-locus (Mendelian) genotype expectation for a breeding design
+
+- [`parse_design()`](https://sawers-rellan-labs.github.io/nilhmm/reference/parse_design.md)
+  :
+
+  Parse a `"BCnSm"` breeding-design string into its generation counts
 
 - [`calibrate_r()`](https://sawers-rellan-labs.github.io/nilhmm/reference/calibrate_r.md)
   :
@@ -115,7 +120,11 @@ Breeding-design priors, the fragment-size Null, and r calibration.
   : Fit a design Gamma from simulated segments
 
 - [`cm_to_mb()`](https://sawers-rellan-labs.github.io/nilhmm/reference/cm_to_mb.md)
-  : Convert segment sizes from cM to Mb using a map
+  : Project segment cM coordinates to physical Mb
+
+- [`bp_to_cm()`](https://sawers-rellan-labs.github.io/nilhmm/reference/map_interpolators.md)
+  [`cm_to_bp()`](https://sawers-rellan-labs.github.io/nilhmm/reference/map_interpolators.md)
+  : Map interpolators: physical \<-\> genetic position
 
 ## Simulation & maps
 

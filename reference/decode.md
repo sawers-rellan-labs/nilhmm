@@ -29,7 +29,7 @@ rigidity the expanded sub-states are mapped back to macro-states.
 ``` r
 obs <- data.frame(n = c(10, 9, 11, 8, 12), a = c(0, 0, 1, 4, 6))
 model <- fit(obs, emission_count(), duration_geometric(1e-4),
-             priors = design_priors("BC2S2"))
+             priors = list(f_1 = 0.0625, f_2 = 0.0938))
 decode(model, obs)
 #> [1] 0 0 0 1 1
 ```

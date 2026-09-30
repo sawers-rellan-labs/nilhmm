@@ -52,9 +52,9 @@ refine_ancestry(
 
 - design:
 
-  Breeding design `"BC{n}S{m}"` -\> founder prior `pi_0` and per-node
-  `meioses` (via
-  [`design_priors()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_priors.md)).
+  Breeding design `"BC{n}S{m}"`: the founder prior `pi_0` is derived via
+  [`breeding_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/breeding_prior.md);
+  per-node `meioses` come from the BC count and pedigree depth.
 
 - emission:
 

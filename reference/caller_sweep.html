@@ -11,7 +11,7 @@ threads. refit controls the accuracy/speed trade (see details)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -54,7 +54,7 @@ when <code>fit_means = FALSE</code>) and sweep <code>values</code>, fanning the 
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">caller_sweep</span><span class="op">(</span></span>
 <span>  <span class="va">data</span>,</span>
-<span>  caller <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"rtiger"</span>, <span class="st">"bbnil"</span>, <span class="st">"lbimpute"</span><span class="op">)</span>,</span>
+<span>  caller <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"nnil"</span>, <span class="st">"bbnil"</span>, <span class="st">"rtiger"</span>, <span class="st">"lbimpute"</span><span class="op">)</span>,</span>
 <span>  <span class="va">values</span>,</span>
 <span>  refit <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"none"</span>, <span class="st">"cold"</span><span class="op">)</span>,</span>
 <span>  design <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -81,13 +81,23 @@ when <code>fit_means = FALSE</code>) and sweep <code>values</code>, fanning the 
 
 
 <dl><dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>Common input: <code>name, chr, pos, n_ref, n_alt</code> (+ optional <code>donor</code>;
-<code>lbimpute</code> with <code>unit = "cm"</code> also needs a <code>cm</code> map-position column).</p></dd>
+<dd><p>Common columns <code>name, chr, pos</code>, plus the caller's emission input,
+which differs by caller:</p><ul><li><p><code>bbnil</code>, <code>rtiger</code>, <code>lbimpute</code> consume the allelic read counts <code>n_ref, n_alt</code>
+(+ optional <code>donor</code>; <code>lbimpute</code> with <code>unit = "cm"</code> also needs a <code>cm</code>
+map-position column).</p></li>
+<li><p><code>nnil</code> is categorical: it consumes hard genotype calls in an integer <code>g</code>
+column (<code>0/1/2/3</code>, <code>3</code> = missing) produced by <code><a href="call_gt.html">call_gt()</a></code>, and does not
+threshold read counts itself. <code>nnil</code> requires only <code>g</code> – <code>n_ref</code>/<code>n_alt</code>
+are not needed, and if present they are ignored (with a warning). <code>min_reads</code>
+is likewise a no-op for <code>nnil</code> (a categorical caller has no read depth).</p></li>
+</ul></dd>
 
 
 <dt id="arg-caller">caller<a class="anchor" aria-label="anchor" href="#arg-caller"></a></dt>
-<dd><p><code>"rtiger"</code> (sweeps <code>rigidity</code>), <code>"bbnil"</code> (sweeps <code>rrate</code>), or
-<code>"lbimpute"</code> (sweeps <code>recombdist</code>).</p></dd>
+<dd><p><code>"rtiger"</code> (sweeps <code>rigidity</code>), <code>"bbnil"</code> or <code>"nnil"</code> (both sweep
+<code>rrate</code>; <code>bbnil</code> = count/BetaBinomial emission on read counts, <code>nnil</code> =
+categorical genotype emission on a hard-called <code>g</code> column), or <code>"lbimpute"</code>
+(sweeps <code>recombdist</code>).</p></dd>
 
 
 <dt id="arg-values">values<a class="anchor" aria-label="anchor" href="#arg-values"></a></dt>

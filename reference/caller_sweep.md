@@ -10,7 +10,7 @@ details).
 ``` r
 caller_sweep(
   data,
-  caller = c("rtiger", "bbnil", "lbimpute"),
+  caller = c("nnil", "bbnil", "rtiger", "lbimpute"),
   values,
   refit = c("none", "cold"),
   design = NULL,
@@ -36,12 +36,26 @@ caller_sweep(
 
 - data:
 
-  Common input: `name, chr, pos, n_ref, n_alt` (+ optional `donor`;
-  `lbimpute` with `unit = "cm"` also needs a `cm` map-position column).
+  Common columns `name, chr, pos`, plus the caller's emission input,
+  which differs by caller:
+
+  - `bbnil`, `rtiger`, `lbimpute` consume the allelic read counts
+    `n_ref, n_alt` (+ optional `donor`; `lbimpute` with `unit = "cm"`
+    also needs a `cm` map-position column).
+
+  - `nnil` is categorical: it consumes hard genotype calls in an integer
+    `g` column (`0/1/2/3`, `3` = missing) produced by
+    [`call_gt()`](https://sawers-rellan-labs.github.io/nilhmm/reference/call_gt.md),
+    and does not threshold read counts itself. `nnil` requires only `g`
+    – `n_ref`/`n_alt` are not needed, and if present they are ignored
+    (with a warning). `min_reads` is likewise a no-op for `nnil` (a
+    categorical caller has no read depth).
 
 - caller:
 
-  `"rtiger"` (sweeps `rigidity`), `"bbnil"` (sweeps `rrate`), or
+  `"rtiger"` (sweeps `rigidity`), `"bbnil"` or `"nnil"` (both sweep
+  `rrate`; `bbnil` = count/BetaBinomial emission on read counts, `nnil`
+  = categorical genotype emission on a hard-called `g` column), or
   `"lbimpute"` (sweeps `recombdist`).
 
 - values:

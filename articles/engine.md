@@ -18,8 +18,10 @@ independent axes plus a set of design priors:
   (minimum run length), or
   [`duration_hsmm()`](https://sawers-rellan-labs.github.io/nilhmm/reference/duration_hsmm.md).
 - **Design priors** —
-  [`design_priors()`](https://sawers-rellan-labs.github.io/nilhmm/reference/design_priors.md)
-  turns a breeding design into the state frequencies (`f_1`, `f_2`).
+  [`breeding_prior()`](https://sawers-rellan-labs.github.io/nilhmm/reference/breeding_prior.md)
+  turns a breeding design into the genotype-frequency prior
+  `c(REF, HET, ALT)`; the engine uses its `HET`/`ALT` as the state
+  frequencies `f_1`/`f_2`.
 
 This vignette drives the engine directly with
 [`fit()`](https://sawers-rellan-labs.github.io/nilhmm/reference/fit.md)
@@ -42,15 +44,9 @@ Each axis is a small constructor returning a spec:
 
 ``` r
 
-design_priors("BC2S2")     # state frequencies from the breeding design
-#> $g
-#> [1] "BC2S2"
-#> 
-#> $f_1
-#> [1] 0.0625
-#> 
-#> $f_2
-#> [1] 0.0938
+breeding_prior("BC2S2")    # genotype-freq prior c(REF, HET, ALT) from the design
+#>     REF     HET     ALT 
+#> 0.84375 0.06250 0.09375
 emission_count(err = 0.01, conc = 20)
 #> $type
 #> [1] "count"
@@ -102,8 +98,9 @@ line  <- truth[truth$name == names(which.max(tapply(truth$state == 2L, truth$nam
 obs   <- simulate_counts(line, depth = 8, seed = 7)
 o     <- data.frame(n = obs$n_ref + obs$n_alt, a = obs$n_alt)    # fit()/decode(): n = depth, a = alt
 
-model <- fit(o, emission_count(err = 0.01),
-             duration_geometric(1e-4), priors = design_priors("BC2S2"))
+bp     <- breeding_prior("BC2S2")                                # c(REF, HET, ALT) from the design
+priors <- list(f_1 = bp[["HET"]], f_2 = bp[["ALT"]])             # the engine's state frequencies
+model  <- fit(o, emission_count(err = 0.01), duration_geometric(1e-4), priors = priors)
 rbind(simulated = line$state, decoded = decode(model, o))        # decode recovers the track
 #>           [,1] [,2] [,3] [,4] [,5] [,6] [,7] [,8] [,9] [,10] [,11] [,12] [,13]
 #> simulated    0    0    2    2    2    2    0    0    0     0     0     0     0
@@ -149,7 +146,7 @@ otherwise emit as spurious one-marker segments.
 ``` r
 
 rigid <- fit(o, emission_count(err = 0.01),
-             duration_rigidity(rigidity = 4L), priors = design_priors("BC2S2"))
+             duration_rigidity(rigidity = 4L), priors = priors)
 decode(rigid, o)
 #>  [1] 1 1 1 1 1 1 0 0 0 0 0 0 0 0 1 1 1 1 0 0 0 0 0 0
 ```

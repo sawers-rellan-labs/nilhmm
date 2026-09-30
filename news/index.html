@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -40,9 +40,16 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.3.0" id="nilhmm-030">nilHMM 0.3.0<a class="anchor" aria-label="anchor" href="#nilhmm-030"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.3.1" id="nilhmm-031">nilHMM 0.3.1<a class="anchor" aria-label="anchor" href="#nilhmm-031"></a></h2>
+<p>First tagged release of the post-0.3.0 work (the caller-family and pedigree sections below were merged after the <code>v0.3.0</code> tag while <code>DESCRIPTION</code> still read 0.3.0; they ship in a tagged release for the first time here).</p>
 <div class="section level3">
-<h3 id="caller-family-renamed-to-match-the-paper-grid-breaking-0-3-0">Caller family renamed to match the paper grid (breaking)<a class="anchor" aria-label="anchor" href="#caller-family-renamed-to-match-the-paper-grid-breaking-0-3-0"></a></h3>
+<h3 id="breeding-design-priors-computed-from-the-scheme-breaking-0-3-1">Breeding-design priors computed from the scheme (breaking)<a class="anchor" aria-label="anchor" href="#breeding-design-priors-computed-from-the-scheme-breaking-0-3-1"></a></h3>
+<ul><li>
+<code>design_prior()</code> / <code>design_priors()</code> and their hardcoded lookup table are removed. The design prior is now computed from the breeding scheme: <strong><code>breeding_prior(design)</code></strong> is the public design-prior contract (the <code>call_gt(prior = )</code> vector and the engine state frequencies), <strong><code>single_locus_expectation(design, f1)</code></strong> propagates genotype frequencies through the backcross/selfing transition matrices for any <code>"BCnSm"</code> design (exact for a non-inbred F1 too), and <strong><code><a href="../reference/parse_design.html">parse_design()</a></code></strong> parses the design string. <strong>Migration:</strong> <code>design_prior(d)</code> → <code>breeding_prior(d)</code>.</li>
+<li>New map interpolators <strong><code><a href="../reference/map_interpolators.html">bp_to_cm()</a></code></strong> / <strong><code><a href="../reference/map_interpolators.html">cm_to_bp()</a></code></strong>: one Marey spline shared by <code><a href="../reference/cm_to_mb.html">cm_to_mb()</a></code> and <code><a href="../reference/build_marker_grid.html">build_marker_grid()</a></code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="caller-family-renamed-to-match-the-paper-grid-breaking-0-3-1">Caller family renamed to match the paper grid (breaking)<a class="anchor" aria-label="anchor" href="#caller-family-renamed-to-match-the-paper-grid-breaking-0-3-1"></a></h3>
 <p>The named callers are now the explicit coordinates of the engine’s (emission × duration) grid, matching the paper’s Fig. 1 / caller table:</p>
 <ul><li>
 <strong><code>nnil</code> is now the categorical <code>gt</code> caller</strong> (gt + geometric), Holland’s original on hard genotype calls. The old count-emission behaviour moved to the new <strong><code>bbnil</code></strong> caller (count/BetaBinomial + geometric) — the low-coverage count extension. <strong>Migration:</strong> <code>call_ancestry(counts, caller = "nnil")</code> → <code>caller = "bbnil"</code>; hard-call/<code>GT</code> inputs stay on <code>caller = "nnil"</code>.</li>
@@ -57,15 +64,29 @@
 <strong>GOOGA transcript callers split into <code>googa</code> and <code>atlas</code>.</strong> The GOOGA source and the Flagel 2019 / Veltsos 2024 methods use a recombination-fraction (geometric) F2 HMM with no rigidity, so the faithful reproduction is now <strong><code>googa</code></strong> (gt + geometric). The <strong><code>atlas</code></strong> name is retained for this work’s transcript caller — the same GOOGA competitive-alignment thresholding decoded with the <strong>rigidity</strong> duration. <strong>Migration:</strong> the old <code>caller = "atlas"</code> (gt + geometric) is now <code>caller = "googa"</code>; <code>caller = "atlas"</code> now means gt + rigidity.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="pedigree-aware-ancestry-calling-0-3-0">Pedigree-aware ancestry calling<a class="anchor" aria-label="anchor" href="#pedigree-aware-ancestry-calling-0-3-0"></a></h3>
+<h3 id="pedigree-aware-ancestry-calling-0-3-1">Pedigree-aware ancestry calling<a class="anchor" aria-label="anchor" href="#pedigree-aware-ancestry-calling-0-3-1"></a></h3>
 <ul><li>New <code>call_ancestry(caller = "pedigree", pedigree = ...)</code>: a family-coupled caller that couples relatives by loopy belief propagation over the (pedigree × genome) grid (kernel <code>src/pedigree_bp.cpp</code>). It shares the engine’s emission axis — read counts give a depth-aware count/BetaBinomial <em>de novo</em> call (missing = zero depth → flat), while a hard-call <code>state</code>/<code>g</code> column gives the categorical gt path. Requires <code>design</code>; groups by <code>family</code> from the pedigree and dispatches per family (like <code>fsfhap</code>). New args: <code>pedigree</code>, <code>ped_format</code>, <code>ped_maxiter/ped_tol/ped_lambda</code>. Benchmark: on a ZEAL-structured simulated cohort (82 founders, ~17 lines/founder, skim depth) the caller reaches <strong>parity</strong> with the single-chain callers and fills the fully-uncovered marker grid, but does <strong>not</strong> beat <code>rtiger</code> — the per-marker transmission factor pools siblings only marginally, not over inherited blocks (<code>design/PEDIGREE_HMM.md</code> §2). A block-coherent accuracy gain awaits the phased copy-switch kernel (§18); this is correct/principled infrastructure, not an accuracy improvement.</li>
 <li>
 <code><a href="../reference/refine_ancestry.html">refine_ancestry()</a></code> is now a thin wrapper over the same shared <code>.pedigree_states()</code> kernel for the hard-call refinement use — unchanged behaviour, return shape, and <code>emission = c("gt", "count")</code> modes.</li>
 </ul></div>
 <div class="section level3">
+<h3 id="other-changes-0-3-1">Other changes<a class="anchor" aria-label="anchor" href="#other-changes-0-3-1"></a></h3>
+<ul><li>
+<strong>Viterbi incumbent tie-break for categorical (gt) callers.</strong> <code><a href="../reference/decode.html">decode()</a></code> now breaks structural ties (missing and uninformative-het positions) in favour of the incumbent state for gt emissions, matching Holland’s hmmlearn nNIL caller. This changes <code>nnil</code> output at tied positions: on the Zhong et al. nNIL population, mismatches vs Holland’s File S11 drop from 3,152 to 2. Count emissions never tie, so <code>bbnil</code>/<code>rtiger</code> are unchanged.</li>
+<li>
+<code><a href="../reference/refine_ancestry.html">refine_ancestry()</a></code> (pedigree-aware refinement of hard calls) and <code><a href="../reference/simulate_family.html">simulate_family()</a></code> (tracked-family simulator) are new since 0.3.0.</li>
+<li>
+<code><a href="../reference/caller_sweep.html">caller_sweep()</a></code> supports the categorical <code>nnil</code> caller alongside <code>bbnil</code>; <code>nnil</code> requires only the called genotype column <code>g</code>, not read counts (it warns if counts are present).</li>
+<li>The <code>engine</code> vignette uses <code><a href="../reference/breeding_prior.html">breeding_prior()</a></code>; the overview and callers vignettes are rewritten around the genotype-vs-ancestry distinction; the README / pkgdown landing page gains the engine schematic; caller names follow a lowercase caller-casing convention in prose; the nilHMM methods paper (in preparation) is added to the citation.</li>
+<li>pkgdown reference index fixed: the removed <code>design_prior</code>/<code>design_priors</code> topics are replaced by <code>breeding_prior</code>, <code>single_locus_expectation</code>, <code>parse_design</code> and <code>map_interpolators</code>, so the site builds and deploys again.</li>
+</ul></div>
+</div>
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.0" id="nilhmm-030">nilHMM 0.3.0<a class="anchor" aria-label="anchor" href="#nilhmm-030"></a></h2>
+<div class="section level3">
 <h3 id="genotype-calling--clean-break-breaking-0-3-0">Genotype calling — clean break (breaking)<a class="anchor" aria-label="anchor" href="#genotype-calling--clean-break-breaking-0-3-0"></a></h3>
 <ul><li>Removed the <code>call_gl</code> alias entirely. Use <code>call_gt</code>. (Consumers must migrate; there is no longer a soft-deprecated fallback.)</li>
-<li>Removed the <code>prior = "breeding"</code> + <code>f</code> deprecation shim and the <code>f</code> formal. <code>prior</code> now accepts only <code>"flat"</code>, <code>"hwe"</code> (+ <code>af</code>), or a length-3 numeric vector <code>c(f_REF, f_HET, f_ALT)</code>. Build design priors with <code><a href="../reference/design_prior.html">design_prior()</a></code>.</li>
+<li>Removed the <code>prior = "breeding"</code> + <code>f</code> deprecation shim and the <code>f</code> formal. <code>prior</code> now accepts only <code>"flat"</code>, <code>"hwe"</code> (+ <code>af</code>), or a length-3 numeric vector <code>c(f_REF, f_HET, f_ALT)</code>. Build design priors with <code>design_prior()</code>.</li>
 </ul></div>
 </div>
     <div class="section level2">

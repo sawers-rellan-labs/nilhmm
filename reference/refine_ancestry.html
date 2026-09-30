@@ -19,7 +19,7 @@ whereas the caller takes the raw observation table. See design/PEDIGREE_HMM.md."
 
     <a class="navbar-brand me-2" href="../index.html">nilHMM</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -97,8 +97,9 @@ whereas the caller takes the raw observation table. See design/PEDIGREE_HMM.md.<
 
 
 <dt id="arg-design">design<a class="anchor" aria-label="anchor" href="#arg-design"></a></dt>
-<dd><p>Breeding design <code>"BC{n}S{m}"</code> -&gt; founder prior <code>pi_0</code> and
-per-node <code>meioses</code> (via <code><a href="design_priors.html">design_priors()</a></code>).</p></dd>
+<dd><p>Breeding design <code>"BC{n}S{m}"</code>: the founder prior <code>pi_0</code> is derived
+via <code><a href="breeding_prior.html">breeding_prior()</a></code>; per-node <code>meioses</code> come from the BC count and pedigree
+depth.</p></dd>
 
 
 <dt id="arg-emission">emission<a class="anchor" aria-label="anchor" href="#arg-emission"></a></dt>
