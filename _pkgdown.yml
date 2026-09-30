@@ -67,12 +67,14 @@ reference:
   - title: Design priors & calibration
     desc: Breeding-design priors, the fragment-size Null, and r calibration.
     contents:
-      - design_priors
-      - design_prior
+      - breeding_prior
+      - single_locus_expectation
+      - parse_design
       - calibrate_r
       - expected_fragment_dist
       - fit_design_gamma
       - cm_to_mb
+      - map_interpolators
 
   - title: Simulation & maps
     desc: >-
