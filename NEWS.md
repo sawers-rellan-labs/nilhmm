@@ -1,4 +1,21 @@
-# nilHMM 0.3.0
+# nilHMM 0.3.1
+
+First tagged release of the post-0.3.0 work (the caller-family and pedigree
+sections below were merged after the `v0.3.0` tag while `DESCRIPTION` still read
+0.3.0; they ship in a tagged release for the first time here).
+
+## Breeding-design priors computed from the scheme (breaking)
+
+* `design_prior()` / `design_priors()` and their hardcoded lookup table are
+  removed. The design prior is now computed from the breeding scheme:
+  **`breeding_prior(design)`** is the public design-prior contract (the
+  `call_gt(prior = )` vector and the engine state frequencies),
+  **`single_locus_expectation(design, f1)`** propagates genotype frequencies
+  through the backcross/selfing transition matrices for any `"BCnSm"` design
+  (exact for a non-inbred F1 too), and **`parse_design()`** parses the design
+  string. **Migration:** `design_prior(d)` → `breeding_prior(d)`.
+* New map interpolators **`bp_to_cm()`** / **`cm_to_bp()`**: one Marey spline
+  shared by `cm_to_mb()` and `build_marker_grid()`.
 
 ## Caller family renamed to match the paper grid (breaking)
 
@@ -59,6 +76,30 @@ The named callers are now the explicit coordinates of the engine's
 * `refine_ancestry()` is now a thin wrapper over the same shared `.pedigree_states()`
   kernel for the hard-call refinement use — unchanged behaviour, return shape, and
   `emission = c("gt", "count")` modes.
+
+## Other changes
+
+* **Viterbi incumbent tie-break for categorical (gt) callers.** `decode()` now
+  breaks structural ties (missing and uninformative-het positions) in favour of
+  the incumbent state for gt emissions, matching Holland's hmmlearn nNIL caller.
+  This changes `nnil` output at tied positions: on the Zhong et al. nNIL
+  population, mismatches vs Holland's File S11 drop from 3,152 to 2. Count
+  emissions never tie, so `bbnil`/`rtiger` are unchanged.
+* `refine_ancestry()` (pedigree-aware refinement of hard calls) and
+  `simulate_family()` (tracked-family simulator) are new since 0.3.0.
+* `caller_sweep()` supports the categorical `nnil` caller alongside `bbnil`;
+  `nnil` requires only the called genotype column `g`, not read counts (it warns
+  if counts are present).
+* The `engine` vignette uses `breeding_prior()`; the overview and callers
+  vignettes are rewritten around the genotype-vs-ancestry distinction; the README
+  / pkgdown landing page gains the engine schematic; caller names follow a
+  lowercase caller-casing convention in prose; the nilHMM methods paper (in
+  preparation) is added to the citation.
+* pkgdown reference index fixed: the removed `design_prior`/`design_priors`
+  topics are replaced by `breeding_prior`, `single_locus_expectation`,
+  `parse_design` and `map_interpolators`, so the site builds and deploys again.
+
+# nilHMM 0.3.0
 
 ## Genotype calling — clean break (breaking)
 
