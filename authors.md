@@ -7,7 +7,7 @@
 ## Citation
 
 Source:
-[`inst/CITATION`](https://github.com/sawers-rellan-labs/nilhmm/blob/main/inst/CITATION)
+[`inst/CITATION`](https://github.com/sawers-rellan-labs/nilhmm/blob/v0.3.1/inst/CITATION)
 
 Rodriguez-Zapata F, Tandukar N, Holland J, Rellan-Alvarez R (2026).
 “Simulation calibrated HMM ancestry calling for Near Isogenic Lines
